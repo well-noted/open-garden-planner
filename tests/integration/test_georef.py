@@ -325,3 +325,56 @@ class TestDialogProvenance:
         dialog._on_fit()
         out = dialog.georef
         assert out.source == "fit" and out.fit_rms_m is not None and out.fit_rms_m < 0.01
+
+
+class TestPlacedImageMatchesGeoreference:
+    """The image on the canvas sits exactly where the georeference says (both entry points)."""
+
+    @staticmethod
+    def _real_size_result() -> Any:
+        from open_garden_planner.services import google_maps_service as gms
+
+        ground = GeoReference(33.4330, -111.7490)  # Mesa, AZ: a 100 m square at zoom 20
+        nw = ground.enu_to_gps(-50.0, 50.0)
+        se = ground.enu_to_gps(50.0, -50.0)
+        mpp = gms.meters_per_pixel(33.4330, 20) / 2
+        px = round(100.0 / mpp)
+        return gms.FetchResult(
+            image=Image.new("RGB", (px, px), (20, 90, 30)),
+            meters_per_pixel=mpp,
+            zoom=20,
+            bbox=gms.BoundingBox(nw[0], nw[1], se[0], se[1]),
+            tile_grid=(1, 1),
+        )
+
+    def test_image_bounds_equal_the_canvas_and_the_corners_hit(self, window):
+        result = self._real_size_result()
+        window._agent_host._do_agent_set_initial_map(result, None)
+        scene = window.canvas_scene
+        (item,) = [i for i in scene.items() if isinstance(i, BackgroundImageItem)]
+        rect = item.mapRectToScene(item.pixmap().rect().toRectF())
+        canvas = scene.canvas_rect
+        assert (rect.left(), rect.top(), rect.right(), rect.bottom()) == pytest.approx(
+            (canvas.left(), canvas.top(), canvas.right(), canvas.bottom()), abs=1.0
+        )
+        geo = window._project_manager.georef
+        nw = geo.gps_to_canvas(result.bbox.nw_lat, result.bbox.nw_lng)
+        se = geo.gps_to_canvas(result.bbox.se_lat, result.bbox.se_lng)
+        # Image north-up on the Y-up scene: NW is top-left = (left, max y), SE = (right, min y).
+        assert nw == pytest.approx((rect.left(), rect.bottom()), abs=1.0)
+        assert se == pytest.approx((rect.right(), rect.top()), abs=1.0)
+
+    def test_the_agent_render_shows_the_image_edge_to_edge(self, window):
+        from PyQt6.QtGui import QImage
+
+        from open_garden_planner.agent_api.render import render_canvas_image
+
+        window._agent_host._do_agent_set_initial_map(self._real_size_result(), None)
+        out = render_canvas_image(window.canvas_scene, None, None, 400)
+        image = QImage.fromData(out["png_bytes"])
+        w, h = image.width(), image.height()
+        mid = image.pixelColor(w // 2, h // 2)
+        # Every corner shows the (uniform) image, like the middle: no grey margin, no crop.
+        for x, y in [(3, 3), (w - 4, 3), (3, h - 4), (w - 4, h - 4)]:
+            c = image.pixelColor(x, y)
+            assert (abs(c.red() - mid.red()), abs(c.green() - mid.green()), abs(c.blue() - mid.blue())) < (12, 12, 12), (x, y, c.name(), mid.name())
