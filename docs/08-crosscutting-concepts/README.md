@@ -10046,3 +10046,21 @@ and `TestViewportChangesDoNotRender` in `tests/unit/test_minimap_widget.py`.
 **Address lookup (opt-in).** `geocode_address` reuses the Static Maps key and host (§8.15) through `image_download.fetch_json`. The Preferences checkbox defaults off; the PRIVACY.md row "Address lookup (optional)" and the `DISCLOSED` entry for `services/image_download.py` keep the inventory test green. The key is scrubbed from every message.
 
 **Tests.** `tests/unit/test_georef.py` (projection, conventions, fits, hostile input), `tests/unit/test_georef_persistence.py` (round trip, old file, hostile file, undo), `tests/unit/test_geocode_address.py`, `tests/integration/test_georef.py` (dialog, menu, satellite import, save/load, undo), `tests/integration/test_agent_api_georef.py` (every tool over the real MCP transport).
+
+## 8.39 Species data: Arizona set and the USDA import
+
+- **Shape.** Records tagged `regions: ["arizona_lower_desert"]` extend the bundled DB with
+  the optional keys `regions`, `uncertain_fields` and `notes`; nothing reads them yet, the
+  species lookup and calendar paths are unchanged. A record's `uncertain_fields` must name
+  keys the record has (`tests/unit/test_arizona_species.py`).
+- **Calendar.** Weeks are relative to the last spring frost; the Arizona vegetables assume
+  about 10 Feb. One window per task means no second (fall) sowing: it is in `notes`.
+- **Import.** `scripts/import_usda_species.py` (offline tests in
+  `tests/unit/test_import_usda_species.py`): dry run by default, `--write` rewrites the file
+  in its own CRLF/2-space format. Hand-curated keys are never overwritten; only the
+  `usda_*` keys are import-owned. Sources, terms and what each does not provide:
+  `resources/data/PROVENANCE.md`.
+- **Adding species moves pinned numbers.** The sprite-resolution golden
+  (`scripts/make_sprite_resolution_golden.py`), the counts in `test_plant_art.py` and the
+  harness figures quoted in the ADR and pitfall docs (`test_retracted_figures.py`) all
+  derive from the species count; regenerate or update them in the same change.
