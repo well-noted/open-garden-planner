@@ -20,8 +20,9 @@ from open_garden_planner.core.positioning.survey import SurveyResult
 from open_garden_planner.field_remote import projection
 
 MAX_SURVEYS = 8
-MIN_SURVEY_SAMPLES = 3
+MIN_SURVEY_SAMPLES = 4  # core/positioning/survey.py MIN_SAMPLES
 MAX_SURVEY_SAMPLES = 300
+MAX_CLOCK_JUMP_S = 3600.0
 #: A recording shorter than this or with fewer vertices is refused at save time (design 4.2 item 6).
 MIN_PATH_LENGTH_M = 3.0
 MIN_PATH_VERTICES = 3
@@ -67,6 +68,10 @@ class RecordingSession:
             raise projection.ProjectionError(422, "invalid_position", "No position or plan georeference.")
         with self.lock:
             engine = self.engine_for(geo)
+            last_t = getattr(engine, "_last_t", None)
+            if last_t is not None and abs(fixes[0].t - last_t) > MAX_CLOCK_JUMP_S and not self.recording:
+                self._engine = None  # a new epoch (clock jump or a long gap): never refuse every later fix
+                engine = self.engine_for(geo)
             estimate = None
             for f in fixes:
                 got = engine.add_gnss(
@@ -138,6 +143,8 @@ class RecordingSession:
 
         with self.lock:
             engine = self.engine_for(geo)
+            if self.recording:  # a frame change mid-track would leave a silent jump in the polyline
+                raise SessionError(409, "recording_active", "Finish or discard the recording before calibrating.")
             pairs = []
             for sid, x, y in points:
                 survey = self._surveys.get(sid)
@@ -158,6 +165,8 @@ class RecordingSession:
 
     def clear_calibration(self, geo: GeoReference) -> None:
         with self.lock:
+            if self.recording:
+                raise SessionError(409, "recording_active", "Finish or discard the recording first.")
             self.engine_for(geo).clear_anchor()
 
     # -- track recording ----------------------------------------------------------------------

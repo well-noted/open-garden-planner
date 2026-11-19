@@ -30,7 +30,7 @@ export function initSurvey(ctx) {
         await new Promise((ok) => setTimeout(ok, 1000));
       }
       const samples = S.raw.filter((s) => s.t >= t0 - 1);
-      if (samples.length < 3) { note('Too few fixes arrived (' + samples.length + '). Keep GPS on and try again.', 'warn'); return; }
+      if (samples.length < 4) { note('Too few fixes arrived (' + samples.length + '). Keep GPS on and try again.', 'warn'); return; }
       const r = await api('/api/survey', { method: 'POST', body: { samples } });
       if (!r.ok) { note(errorText(r), 'bad'); return; }
       last = r.json;

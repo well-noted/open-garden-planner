@@ -126,3 +126,21 @@ def test_bad_bodies_are_refused(env: Env) -> None:
     assert env.post("/api/track/finish", {"close": "never"}).status_code == 422
     plain = {**AUTH, "content-type": "text/plain"}
     assert env.client.post("/api/survey", content=b"x", headers=plain).status_code == 415
+
+
+def test_calibrating_during_a_recording_is_refused(env: Env) -> None:
+    survey = env.post("/api/survey", {"samples": [fix(i, 10.0, 5.0) for i in range(6)]}).json()
+    point = {"survey_id": survey["survey_id"], "plan_x_cm": 2000, "plan_y_cm": 1000}
+    env.post("/api/track/start", {})
+    assert env.post("/api/calibrate", {"points": [point]}).status_code == 409
+    assert env.client.delete("/api/calibrate", headers=AUTH).status_code == 409
+    env.post("/api/track/cancel", {})
+    assert env.post("/api/calibrate", {"points": [point]}).status_code == 200
+
+
+def test_one_absurd_client_clock_does_not_starve_later_fixes(env: Env) -> None:
+    assert env.post("/api/position", fix(0, 1.0, 1.0)).json()["telemetry"]["gated"] is False
+    poisoned = {**fix(1, 1.0, 1.0), "t": 1e15}
+    env.post("/api/position", poisoned)
+    after = env.post("/api/position", fix(2, 1.0, 1.0)).json()["telemetry"]
+    assert after["gated"] is False and after["x_cm"] is not None

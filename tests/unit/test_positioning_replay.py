@@ -106,3 +106,24 @@ def test_replay_is_deterministic() -> None:
     a, _, _ = replay(truth_l, 60, 9)
     b, _, _ = replay(truth_l, 60, 9)
     assert np.array_equal(a, b)
+
+
+@pytest.mark.xfail(strict=True, reason="open review finding P1-1 (stand-then-walk reseed); fix needs the ZUPT exit logic reworked")
+def test_a_walk_that_starts_after_standing_still_is_not_pinned_by_the_stationary_filter() -> None:
+    """Review finding: stationary updates held velocity at zero, the first walking fixes were
+    gated, and the filter only recovered through the three-reject reseed (a position jump)."""
+    rng = np.random.default_rng(11)
+    eng = PositioningEngine(G)
+    last = None
+    gated_after_start = 0
+    for t in range(0, 40):
+        e, n = (0.0, 0.0) if t < 15 else (V * (t - 15), 0.0)
+        got = eng.add_gnss(_sample(float(t), e + rng.normal(0, 1.5), n + rng.normal(0, 1.5), 3.0))
+        last = got
+        if t >= 15 and got is not None and got.gated:
+            gated_after_start += 1
+    assert last is not None
+    assert gated_after_start <= 2
+    assert eng.reseed_count == 0
+    true_e = V * 24
+    assert abs(last.e_m - true_e) < 6.0

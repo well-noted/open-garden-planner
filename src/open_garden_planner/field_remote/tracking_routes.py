@@ -112,7 +112,10 @@ def tracking_routes(
         if geo is None:
             return bad or error(409, "not_georeferenced")
         if request.method == "DELETE":
-            await run_in_threadpool(session.clear_calibration, geo)
+            try:
+                await run_in_threadpool(session.clear_calibration, geo)
+            except SessionError as exc:
+                return refuse(exc)
             return ok({"cleared": True})
         parsed = await body(request, CalibrateIn)
         if not isinstance(parsed, CalibrateIn):
@@ -127,7 +130,7 @@ def tracking_routes(
         geo, bad = await geo_of()
         if geo is None:
             return bad or error(409, "not_georeferenced")
-        session.start_track(geo)
+        await run_in_threadpool(session.start_track, geo)
         return ok({"recording": True})
 
     async def preview(_request: Request) -> Response:
