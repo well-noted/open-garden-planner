@@ -26,6 +26,7 @@ from PyQt6.QtWidgets import (
 from open_garden_planner.core.fill_patterns import FillPattern, create_pattern_brush
 from open_garden_planner.core.object_types import ObjectType, StrokeStyle, get_style, is_bed_type
 from open_garden_planner.ui.canvas.roof_ridge_link import ridge_points_local
+from open_garden_planner.ui.canvas.style.base import style_painter_active, styled_bounding_rect
 
 from .fill_paint import paint_shape
 from .garden_item import GardenItemMixin, is_interactive_paint
@@ -340,7 +341,7 @@ class PolygonItem(VertexEditMixin, RotationHandleMixin, ResizeHandlesMixin, Gard
         m = self._shadow_margin()
         if m > 0:
             base = base.adjusted(-m, -m, m, m)
-        return base
+        return styled_bounding_rect(self, base)
 
     def _find_ridge(self) -> "QGraphicsItem | None":
         """Look up the associated roof ridge through the one validated lookup.
@@ -510,7 +511,7 @@ class PolygonItem(VertexEditMixin, RotationHandleMixin, ResizeHandlesMixin, Gard
             painter.restore()
             return
 
-        if self._shadows_enabled:
+        if self._shadow_painted():
             painter.save()
             painter.setPen(Qt.PenStyle.NoPen)
             painter.setBrush(self.SHADOW_COLOR)
@@ -522,7 +523,8 @@ class PolygonItem(VertexEditMixin, RotationHandleMixin, ResizeHandlesMixin, Gard
 
         # For HOUSE polygons with a ridge: use mirrored tile rendering
         ridge = self._find_ridge()
-        if ridge is not None and self.object_type == ObjectType.HOUSE:
+        styled = style_painter_active(self)
+        if ridge is not None and self.object_type == ObjectType.HOUSE and not styled:
             self._paint_with_ridge(painter, ridge)
         else:
             # the fill tile at the painter's resolution (#785)
@@ -530,7 +532,7 @@ class PolygonItem(VertexEditMixin, RotationHandleMixin, ResizeHandlesMixin, Gard
 
         # A GREENHOUSE's aluminium glazing bars over its glass fill (#768); the
         # ridge is the plan's linked one in the item's own frame.
-        if self.object_type == ObjectType.GREENHOUSE:
+        if self.object_type == ObjectType.GREENHOUSE and not styled:
             paint_greenhouse(
                 painter,
                 poly,

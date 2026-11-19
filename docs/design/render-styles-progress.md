@@ -32,6 +32,11 @@ Branch `claude/render-styles-wp3-310d4a` (renamed on request if the name matters
   `PathStylePaint.paint(render_style=)` ask `STYLE_PAINTERS`. A switch or band change calls
   `update()` on every item (a device-cached item kept the previous style's picture).
 
+- WP4 (CAD painters): `ui/canvas/style/cad.py` registered in `STYLE_PAINTERS`; `core/render_style_roles.py`;
+  seams in rectangle/ellipse/polygon/circle/polyline items (sprites, painted shadows, ridge/greenhouse/pergola
+  pictures skipped in CAD), `styled_bounding_rect` adopted by those five `boundingRect`s,
+  `PathStylePaint(owner=)`, `CanopySpec`, `drawBackground` uses the style paper. Callouts stay WP5.
+
 ## Review fixes (Opus review of WP1/WP2)
 - `styled_scene` always enters `CanvasScene.style_for_render(style|None, px_per_cm, dpi)`: a
   `None` style (print, PDF report, default exports) now paints at the output's LOD band.
@@ -77,3 +82,13 @@ Branch `claude/render-styles-wp3-310d4a` (renamed on request if the name matters
   `boundingRect` overrides: with no painter registered the pad is 0, so adopting it now is
   dead code; each shape class adopts it with its first painter (WP4/WP6).
 - A print dialog follows the canvas style (no per-dialog override until WP7).
+
+## WP4 assumptions
+- Q2: irrigation layer = `Layer.permaculture_layer == "irrigation"` (an existing serialised free string, no new
+  field; no UI creates it yet). One colour #1f5fbf, 0.25 mm, 4/2 mm dash; an item on that layer of any type is irrigation.
+- Q3: canopy radius = the item's visual (current) diameter / 2, not mature spread.
+- Perennials/ground cover draw a faint dashed circle plus centre dot (design says no canopy) so they stay findable.
+- Lawn 4 % and bed 6 % grey fills; hardscape/furniture/other shapes: white fill, ink outline. Water gets the 10 % tint.
+- Furniture sprites, pergola, greenhouse bars and ridge-roof pictures are replaced by plain outlines in CAD; string lights keep their illustrated look.
+- Pad is 0.8 mm paper for all styled items. Gravel/dirt stipple uses a crc32 seed of the style name.
+- Unverified: owner visual check, timing/perf budgets, SVG/PDF in other viewers.

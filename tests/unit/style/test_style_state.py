@@ -165,7 +165,10 @@ class TestSceneHooks:
 
 
 class TestBoundingPad:
-    def test_zero_without_a_painter_and_for_illustrated(self, scene: CanvasScene) -> None:
+    def test_zero_without_a_painter_and_for_illustrated(
+        self, scene: CanvasScene, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delitem(base.STYLE_PAINTERS, RenderStyle.CAD)  # the real CAD painter pads
         item = RectangleItem(0, 0, 100, 50)
         scene.addItem(item)
         rect = QRectF(0, 0, 100, 50)

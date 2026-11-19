@@ -27,6 +27,13 @@ from open_garden_planner.core.plant_renderer import (
     paint_plant,
 )
 from open_garden_planner.core.plant_sizing import sizing_for_item, spacing_conflict_arcs
+from open_garden_planner.ui.canvas.style.base import (
+    CanopySpec,
+    painter_for,
+    style_of,
+    style_painter_active,
+    styled_bounding_rect,
+)
 
 from .fill_paint import paint_shape
 from .garden_item import GardenItemMixin
@@ -316,7 +323,7 @@ class CircleItem(RotationHandleMixin, ResizeHandlesMixin, GardenItemMixin, QGrap
         if spacing_r is not None:
             extra = spacing_r - self._radius + self._SPACING_RING_MAX_CM
             base = base.adjusted(-extra, -extra, extra, extra)
-        return base
+        return styled_bounding_rect(self, base)
 
     def grid_cover_path(self) -> QPainterPath:
         """A plant covers what its sprite covers: the leaves reach past the circle."""
@@ -466,6 +473,18 @@ class CircleItem(RotationHandleMixin, ResizeHandlesMixin, GardenItemMixin, QGrap
         )
         return grown if grown is not None else footprint_diameter
 
+    def _paint_styled_canopy(
+        self, painter: QPainter, rect: QRectF, diameter: float
+    ) -> bool:
+        """A drawing style's canopy for this plant, at its CURRENT size (the
+        diameter the sprite shows, not the mature spread). False for the
+        illustrated style, whose sprite follows."""
+        styled = painter_for(style_of(self))
+        if styled is None:
+            return False
+        spec = CanopySpec(rect.center(), diameter / 2.0, str(self._item_id))
+        return bool(styled.paint_canopy(self, painter, spec))
+
     def paint(
         self,
         painter: QPainter,
@@ -494,7 +513,7 @@ class CircleItem(RotationHandleMixin, ResizeHandlesMixin, GardenItemMixin, QGrap
         diameter = self._visual_plant_diameter_cm(rect.width()) if is_plant else rect.width()
 
         # Draw painted shadow before the item itself
-        if self._shadows_enabled:
+        if self._shadow_painted():
             painter.save()
             painter.setPen(Qt.PenStyle.NoPen)
             painter.setBrush(self.SHADOW_COLOR)
@@ -527,7 +546,7 @@ class CircleItem(RotationHandleMixin, ResizeHandlesMixin, GardenItemMixin, QGrap
             )
             # The sprite is rasterised at the painter's own resolution (#785):
             # paint_plant asks core.raster_resolution, this item states cm only.
-            if paint_plant(
+            if self._paint_styled_canopy(painter, rect, diameter) or paint_plant(
                 painter,
                 draw_rect,
                 object_type=self.object_type,
@@ -605,7 +624,7 @@ class CircleItem(RotationHandleMixin, ResizeHandlesMixin, GardenItemMixin, QGrap
                     painter.restore()
                 return
 
-        if is_furniture_type(self.object_type):
+        if is_furniture_type(self.object_type) and not style_painter_active(self):
             rect = self.rect()
             # Upright (the canvas/export Y-flip undone, #308) and at the
             # painter's own resolution (#785) — both are paint_furniture's.

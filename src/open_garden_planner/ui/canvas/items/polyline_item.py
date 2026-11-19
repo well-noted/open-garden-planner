@@ -35,7 +35,11 @@ from open_garden_planner.core.object_types import (
     get_style,
 )
 from open_garden_planner.core.string_lights import Layout
-from open_garden_planner.ui.canvas.style.base import style_of
+from open_garden_planner.ui.canvas.style.base import (
+    style_of,
+    style_painter_active,
+    styled_bounding_rect,
+)
 
 from .garden_item import GardenItemMixin, is_interactive_paint
 from .path_style_paint import (
@@ -277,7 +281,7 @@ class PolylineItem(PolylineVertexEditMixin, RotationHandleMixin, GardenItemMixin
         m = self._shadow_margin()
         if m > 0:
             base = base.adjusted(-m, -m, m, m)
-        return base
+        return styled_bounding_rect(self, base)
 
     def paint(
         self,
@@ -309,12 +313,13 @@ class PolylineItem(PolylineVertexEditMixin, RotationHandleMixin, GardenItemMixin
             self._paint_selection(painter, option)
             return
 
-        # Draw shadow first
-        if self._shadows_enabled:
+        styled = style_painter_active(self)
+        # Draw shadow first (a drawing style paints none)
+        if self._shadows_enabled and not styled:
             self._paint_shadow(painter)
 
         # Roof ridge: custom cap rendering regardless of path_fence_style
-        if self.object_type == ObjectType.ROOF_RIDGE:
+        if self.object_type == ObjectType.ROOF_RIDGE and not styled:
             self._paint_roof_ridge(painter)
             return
 
@@ -323,7 +328,7 @@ class PolylineItem(PolylineVertexEditMixin, RotationHandleMixin, GardenItemMixin
         # (and a style without a painter) is the base class's stroke, as it always
         # was: nothing is built for it.
         style = self._path_fence_style
-        if style in STYLES_PAINTED:
+        if style in STYLES_PAINTED or styled:
             clip = self._canvas_paint_clip(option, widget)
             budget = WalkBudget(
                 CANVAS_PATH_ELEMENTS,
@@ -341,6 +346,7 @@ class PolylineItem(PolylineVertexEditMixin, RotationHandleMixin, GardenItemMixin
                     self.path(),
                     fill_transform=getattr(self, "fill_transform", None),
                     level_tiles=True,
+                    owner=self,
                 )
             else:
                 path_paint = PathStylePaint(
@@ -351,8 +357,11 @@ class PolylineItem(PolylineVertexEditMixin, RotationHandleMixin, GardenItemMixin
                     budget=budget,
                     fill_transform=getattr(self, "fill_transform", None),
                     level_tiles=True,
+                    owner=self,
                 )
-            path_paint.paint(painter, style, style_of(self))
+            if not path_paint.paint(painter, style, style_of(self)):
+                super().paint(painter, option, widget)
+                return
             self._paint_selection(painter, option)
         else:
             super().paint(painter, option, widget)

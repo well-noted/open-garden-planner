@@ -45,6 +45,7 @@ from open_garden_planner.ui.canvas.items.halo_text import (
     note_label_changed,
 )
 from open_garden_planner.ui.canvas.layout_font import device_independent
+from open_garden_planner.ui.canvas.style.base import style_painter_active
 
 
 @dataclass(slots=True)
@@ -940,6 +941,17 @@ class GardenItemMixin(PositionLockMixin):
     def stack_order(self, value: int | None) -> None:
         """Set the sparse rank. See :attr:`stack_order` for who may call this."""
         self._stack_order = value
+
+    def _shadow_painted(self) -> bool:
+        """Whether the painted drop shadow is drawn now: enabled for the item and
+        not replaced by a drawing style (CAD paints no shadows)."""
+        return self._shadows_enabled and not style_painter_active(self)
+
+    def style_geometry_changed(self) -> None:
+        """The scene's render style or LOD band changed: the style pad of this
+        item's bounding rect (``styled_bounding_rect``) is new."""
+        if hasattr(self, "prepareGeometryChange"):
+            self.prepareGeometryChange()
 
     @property
     def shadows_enabled(self) -> bool:

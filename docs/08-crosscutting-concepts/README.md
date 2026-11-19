@@ -10058,6 +10058,13 @@ repaints, and touches no `plan_changed`, no undo stack, no modified flag and no
   a deferred coalesced rebuild after a revision bump, an export's prewarm. A
   paint only reads it (`CanvasScene.style_state`); on a miss it paints the base
   geometry and a rebuild is scheduled. It is never built inside `paint()`.
+- **CAD painter (WP4).** `ui/canvas/style/cad.py`. Weights and dashes are paper mm
+  (`pen_for_painter`, dpi aware in exports). Hatch is `geometry.hatch_segments`
+  computed in scene coordinates (phase anchored to the origin), memoised on the item,
+  capped at 3000 segments (then a flat 10 % grey). Irrigation is a property of the
+  LAYER: `Layer.permaculture_layer == "irrigation"` (`render_style_roles`), never the
+  translated name; one colour. Canopies use the item's current size. A style that
+  replaces a sprite or painted shadow gates it with `style_painter_active(item)`.
 - **Pad and cache.** A style's ink may reach beyond an item's rect: an item that
   adopts `styled_bounding_rect` re-announces its geometry from
   `style_geometry_changed()`. A style switch or band change also calls

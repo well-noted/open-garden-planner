@@ -45,7 +45,9 @@ from open_garden_planner.core.sim_clock import SimClock
 from open_garden_planner.core.sprite_raster import clear_sprite_cache
 from open_garden_planner.core.units import UnitSystem
 from open_garden_planner.models.layer import Layer, create_default_layers
+from open_garden_planner.ui.canvas.style import cad as _cad  # noqa: F401  (registers the CAD painter)
 from open_garden_planner.ui.canvas.style.base import OUTPUT_DPI as _OUTPUT_DPI
+from open_garden_planner.ui.canvas.style.base import painter_for as _style_painter_for
 from open_garden_planner.ui.canvas.style.geometry import band_for_scale
 from open_garden_planner.ui.canvas.style.state import StyleState, StyleStateCache
 from open_garden_planner.ui.units_notifier import units_notifier
@@ -431,7 +433,9 @@ class CanvasScene(QGraphicsScene):
 
         # Then draw canvas area (beige rectangle) on top
         canvas_rect = QRectF(0, 0, self._width_cm, self._height_cm)
-        painter.fillRect(canvas_rect, QBrush(self.CANVAS_COLOR))
+        styled = _style_painter_for(self._render_style)
+        paper = getattr(styled, "paper_color", None)
+        painter.fillRect(canvas_rect, QBrush(paper if paper is not None else self.CANVAS_COLOR))
 
     #: Object labels (``PlanLabelItem``) are painted by ``drawForeground`` here,
     #: after every item, and not by the label items themselves.

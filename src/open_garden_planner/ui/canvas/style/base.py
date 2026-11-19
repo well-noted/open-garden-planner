@@ -16,9 +16,10 @@ inside a paint").
 from __future__ import annotations
 
 from contextvars import ContextVar
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Protocol
 
-from PyQt6.QtCore import QRectF
+from PyQt6.QtCore import QPointF, QRectF
 from PyQt6.QtGui import QColor, QPainter, QPen
 
 from open_garden_planner.core.render_style import RenderStyle, normalise_render_style
@@ -35,6 +36,17 @@ SCREEN_DPI = 96.0
 #: ``CanvasScene.style_for_render`` (None on screen). ``pen_for_painter`` reads it so
 #: a 300-dpi PNG gets the same paper line weights as a 96-dpi screen.
 OUTPUT_DPI: ContextVar[float | None] = ContextVar("ogp_style_output_dpi", default=None)
+
+
+@dataclass(frozen=True)
+class CanopySpec:
+    """What a plant item hands ``StylePainter.paint_canopy``: the canopy circle at
+    the item's CURRENT size (owner Q3, not the mature spread), in item
+    coordinates, and the item's id (the seed of any seeded detail)."""
+
+    center: QPointF
+    radius_cm: float
+    item_id: str = ""
 
 
 class StylePainter(Protocol):
@@ -112,6 +124,24 @@ def styled_bounding_rect(item: Any, rect: QRectF) -> QRectF:
     return rect.adjusted(-pad, -pad, pad, pad)
 
 
+def style_painter_active(item: Any) -> bool:
+    """Whether a non-illustrated style with a registered painter is painting
+    ``item``'s scene: the item then skips its own decorations (sprites, painted
+    shadows) that a drawing style replaces."""
+    return painter_for(style_of(item)) is not None
+
+
+def px_per_mm(painter: QPainter, dpi: float | None = None) -> float:
+    """Device pixels per paper millimetre (what ``pen_for_painter`` multiplies by)."""
+    if dpi is None:
+        dpi = OUTPUT_DPI.get()
+    ratio = 1.0
+    device = painter.device()
+    if device is not None:
+        ratio = max(1.0, float(device.devicePixelRatio()))
+    return (SCREEN_DPI * ratio if dpi is None else float(dpi)) / 25.4
+
+
 def pen_for_painter(
     painter: QPainter, mm: float, color: QColor, *, dpi: float | None = None
 ) -> QPen:
@@ -123,13 +153,7 @@ def pen_for_painter(
     device pixels, from ``dpi`` or else the output dpi the scene is rendering for. The pen is cosmetic, so its width
     is in device pixels whatever the painter's scale.
     """
-    if dpi is None:
-        dpi = OUTPUT_DPI.get()
-    ratio = 1.0
-    device = painter.device()
-    if device is not None:
-        ratio = max(1.0, float(device.devicePixelRatio()))
-    per_mm = (SCREEN_DPI * ratio if dpi is None else float(dpi)) / 25.4
+    per_mm = px_per_mm(painter, dpi)
     pen = QPen(color)
     pen.setWidthF(max(1.0, mm * per_mm))
     pen.setCosmetic(True)

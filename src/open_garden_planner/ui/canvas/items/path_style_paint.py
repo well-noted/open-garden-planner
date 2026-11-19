@@ -237,12 +237,16 @@ class PathStylePaint:
                  clip: tuple[float, float, float, float] | None = None,
                  budget: WalkBudget | None = None,
                  fill_transform: Any | None = None,
-                 level_tiles: bool = False) -> None:
+                 level_tiles: bool = False,
+                 owner: Any | None = None) -> None:
         if (clip is None) != (budget is None):
             raise ValueError("a clipped walk needs a budget, and a budget a clip")
         # A path's textured fill may carry the object's pattern transform
         # (#665); the 3D ground bake passes None (its ruler is unchanged).
         self._fill_transform = fill_transform
+        # The canvas item the line belongs to, for a render style that needs its
+        # role (a line on the irrigation layer); None for the 3D ground bake.
+        self.owner = owner
         # The canvas paints a textured line with the tile its painter's
         # resolution calls for (#785); the ground bake keeps the 256-px tile.
         self._level_tiles = level_tiles
