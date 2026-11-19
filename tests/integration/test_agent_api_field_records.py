@@ -218,14 +218,15 @@ class TestPlace:
         assert _depth(app) == before + 2  # one undo step each
         assert res[1][1]["georef_updated"] and res[1][1]["fit_rms_m"] is not None
         assert {p.name for p in app._project_manager.georef.reference_points} == {"A", "B"}
-        assert _status(app, a) == "placed" and _status(app, b) == "placed"
+        assert _status(app, a) == "approved" and _status(app, b) == "approved"
 
 
 class TestGroupsAndList:
     def _three(self, app: Any) -> list[str]:
         return [
             _add(app, kind="placement_request", what="apple", group_id="grp1", plant_name="Apple",
-                 species_key="Malus domestica", lat=ORIGIN[0] + i * 1e-6)
+                 species_key="Malus domestica", lat=ORIGIN[0] + i * 1e-6,
+                 geometry={"type": "point", "lat": ORIGIN[0] + i * 1e-6, "lon": ORIGIN[1], "x_cm": 1000.0 + i * 50, "y_cm": 1000.0})
             for i in range(3)
         ]
 

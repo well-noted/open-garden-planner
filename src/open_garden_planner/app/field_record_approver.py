@@ -120,8 +120,9 @@ class FieldRecordApprover:
 
     def _mark_placed(self, plan_path: str, record: fr.FieldRecord, result: ApprovalResult) -> None:
         try:
-            fr.update_record(plan_path, record.id, placed_object_id=result.item_id, status="placed")
-            result.superseded = [r.id for r in fr.supersede_siblings(plan_path, record.id)]
+            # ONE store write: the record becomes placed and its open siblings superseded.
+            _placed, siblings = fr.approve_candidate(plan_path, record.id, str(result.item_id))
+            result.superseded = [r.id for r in siblings]
         except (fr.FieldRecordError, OSError) as error:
             # The object is already on the undo stack: a warning, never a failure.
             result.warnings.append(f"The object was placed but the record could not be updated: {error}")
@@ -237,7 +238,9 @@ class FieldRecordApprover:
             result.fit_rms_m = after.fit_rms_m
         if result.georef_updated:
             try:
-                fr.update_record(plan_path, record.id, status="placed")
+                # No object exists for a reference point, and the store allows ``placed`` only
+                # with a placed_object_id: an applied point is recorded as ``approved``.
+                fr.update_record(plan_path, record.id, status="approved")
             except (fr.FieldRecordError, OSError) as error:
                 result.warnings.append(f"The point was added but the record could not be updated: {error}")
         return result
@@ -287,8 +290,10 @@ class FieldRecordApprover:
         plan_path = self._require_plan_path()
         try:
             record = fr.get_record(plan_path, record_id)
-            if record.status == "placed":
-                raise PlacementError(f"Record {record_id} is already placed; remove its object first.")
+            if record.status not in ("pending", "approved"):
+                raise PlacementError(
+                    f"Record {record_id} is {record.status}; only a pending or approved record can be rejected."
+                )
             return fr.update_record(plan_path, record_id, status="rejected")
         except fr.FieldRecordError as error:
             raise PlacementError(str(error)) from error
@@ -298,7 +303,7 @@ class FieldRecordApprover:
         plan_path = self._require_plan_path()
         out = []
         for rec in fr.load_records(plan_path).records:
-            if rec.group_id == group_id and rec.status in ("pending", "approved", "superseded"):
+            if rec.group_id == group_id and rec.status in ("pending", "approved"):
                 out.append(fr.update_record(plan_path, rec.id, status="rejected"))
         return out
 
@@ -308,7 +313,9 @@ class FieldRecordApprover:
         try:
             record = fr.get_record(plan_path, record_id)
             if record.group_id:
-                return fr.reopen_group(plan_path, record.group_id, include_rejected=True)
+                return fr.reopen_group(
+                    plan_path, record.group_id, include_rejected=True, source=record.source
+                )
             if record.status == "pending":
                 return []
             return [fr.update_record(plan_path, record_id, status="pending", placed_object_id=None)]

@@ -138,6 +138,7 @@ class TestPlacementRequestGroup:
                 plant_name="Apple",
                 species_key="Malus domestica",
                 lat=ORIGIN[0] + i * 1e-6,
+                geometry={"type": "point", "lat": ORIGIN[0] + i * 1e-6, "lon": ORIGIN[1], "x_cm": 1000.0 + i * 50, "y_cm": 1000.0},
             )
             for i in range(3)
         ]
@@ -246,7 +247,7 @@ class TestReferencePoint:
         result = panel.approve_record(b.id)
         assert {"Corner A", "Corner B"} <= set(seen["names"])
         assert "RMS" in seen["status"]  # the fit rms is shown before the user confirms
-        assert result.georef_updated and _status(app, b.id) == "placed"
+        assert result.georef_updated and _status(app, b.id) == "approved"  # no object: not "placed"
 
     def test_cancelled_dialog_leaves_the_record_pending(self, app, panel, monkeypatch):
         monkeypatch.setattr(gd.GeoreferenceDialog, "exec", lambda _d: QDialog.DialogCode.Rejected)
@@ -257,3 +258,26 @@ class TestReferencePoint:
         before = _depth(app)
         result = panel.approve_record(rec.id)
         assert result.cancelled and _depth(app) == before and _status(app, rec.id) == "pending"
+
+
+class TestStoreRules:
+    def test_superseded_cannot_be_rejected_and_applied_point_cannot_be_reapplied(self, app, panel, monkeypatch):
+        recs = TestPlacementRequestGroup()._three(app)
+        panel.approve_record(recs[0].id)
+        assert panel.reject_record(recs[1].id) is None  # superseded -> rejected is not a move
+        assert _status(app, recs[1].id) == "superseded"
+        monkeypatch.setattr(gd.GeoreferenceDialog, "exec", lambda _d: QDialog.DialogCode.Accepted)
+        pt = _add(
+            app, kind="reference_point", name="P", lat=48.0, lon=11.0,
+            geometry={"type": "point", "lat": 48.0, "lon": 11.0, "x_cm": 7.0, "y_cm": 7.0},
+        )
+        panel.approve_record(pt.id)
+        assert panel.approve_record(pt.id) is None and "already applied" in panel.message.text()
+
+    def test_placement_is_a_single_store_write(self, app, panel, monkeypatch):
+        calls: list[str] = []
+        real = fr.approve_candidate
+        monkeypatch.setattr(fr, "approve_candidate", lambda *a, **k: calls.append("x") or real(*a, **k))
+        rec = _add(app, kind="note", notes="n")
+        panel.approve_record(rec.id)
+        assert calls == ["x"]

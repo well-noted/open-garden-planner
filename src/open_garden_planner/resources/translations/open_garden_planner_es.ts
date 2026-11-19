@@ -3950,7 +3950,7 @@ Use 0,1 para DXF en mm, 100 para DXF en metros.</translation>
     <context>
         <name>FieldRecordApprover</name>
         <message>
-            <location filename="../../app/field_record_approver.py" line="206" />
+            <location filename="../../app/field_record_approver.py" line="207" />
             <source>Place irrigation line</source>
             <translation>Colocar línea de riego</translation>
         </message>
@@ -3958,7 +3958,7 @@ Use 0,1 para DXF en mm, 100 para DXF en metros.</translation>
     <context>
         <name>FieldRecordsDialog</name>
         <message>
-            <location filename="../../ui/panels/field_records_panel.py" line="457" />
+            <location filename="../../ui/panels/field_records_panel.py" line="459" />
             <source>Field records</source>
             <translation>Registros de campo</translation>
         </message>
@@ -4132,7 +4132,7 @@ Use 0,1 para DXF en mm, 100 para DXF en metros.</translation>
             <translation>El objeto colocado ya no está en el plan.</translation>
         </message>
         <message>
-            <location filename="../../ui/panels/field_records_panel.py" line="439" />
+            <location filename="../../ui/panels/field_records_panel.py" line="441" />
             <source>The reference point was not applied.</source>
             <translation>El punto de referencia no se aplicó.</translation>
         </message>

@@ -220,6 +220,8 @@ def check_approvable(record: fr.FieldRecord, *, allow_duplicate: bool = False) -
                 "reopen it first (or pass allow_duplicate=true to place it again)."
             )
         return
+    if record.kind == "reference_point" and record.status == "approved":
+        raise PlacementError(f"Record {record.id} was already applied to the georeference; reopen it first.")
     if record.status not in APPROVABLE_STATUSES:
         raise PlacementError(f"Record {record.id} is {record.status}; reopen it before placing it.")
 

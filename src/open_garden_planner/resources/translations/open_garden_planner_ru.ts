@@ -4049,7 +4049,7 @@ Use 0.1 for DXF in mm, 100 for DXF in metres.</source>
     <context>
         <name>FieldRecordApprover</name>
         <message>
-            <location filename="../../app/field_record_approver.py" line="206" />
+            <location filename="../../app/field_record_approver.py" line="207" />
             <source>Place irrigation line</source>
             <translation>Разместить линию полива</translation>
         </message>
@@ -4057,7 +4057,7 @@ Use 0.1 for DXF in mm, 100 for DXF in metres.</source>
     <context>
         <name>FieldRecordsDialog</name>
         <message>
-            <location filename="../../ui/panels/field_records_panel.py" line="457" />
+            <location filename="../../ui/panels/field_records_panel.py" line="459" />
             <source>Field records</source>
             <translation>Полевые записи</translation>
         </message>
@@ -4231,7 +4231,7 @@ Use 0.1 for DXF in mm, 100 for DXF in metres.</source>
             <translation>Размещённого объекта больше нет на плане.</translation>
         </message>
         <message>
-            <location filename="../../ui/panels/field_records_panel.py" line="439" />
+            <location filename="../../ui/panels/field_records_panel.py" line="441" />
             <source>The reference point was not applied.</source>
             <translation>Опорная точка не применена.</translation>
         </message>

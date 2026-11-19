@@ -153,7 +153,7 @@ class _RecordCard(QFrame):
         buttons.addWidget(self.approve_button)
         if not candidate:
             self.reject_button = QPushButton(self.tr("Reject"))
-            self.reject_button.setEnabled(record.status in ("pending", "approved", "superseded"))
+            self.reject_button.setEnabled(record.status in ("pending", "approved"))
             self.reject_button.clicked.connect(lambda: panel.reject_record(record.id))
             buttons.addWidget(self.reject_button)
             self.reopen_button = QPushButton(self.tr("Reopen"))
@@ -399,7 +399,7 @@ class FieldRecordsPanel(QWidget):
         layout.addLayout(row)
         bar = QHBoxLayout()
         reject_all = QPushButton(self.tr("Reject all"))
-        reject_all.setEnabled(any(s.status in ("pending", "approved", "superseded") for s in siblings))
+        reject_all.setEnabled(any(s.status in ("pending", "approved") for s in siblings))
         reject_all.clicked.connect(lambda: self.reject_group(rec.group_id or ""))
         reopen = QPushButton(self.tr("Reopen group"))
         reopen.setEnabled(any(self.can_reopen(s) for s in siblings))
@@ -413,6 +413,8 @@ class FieldRecordsPanel(QWidget):
     def can_reopen(self, rec: fr.FieldRecord) -> bool:
         if rec.status in ("rejected", "superseded"):
             return True
+        if rec.status == "approved":  # an applied reference point (no object to lose)
+            return rec.kind == "reference_point"
         if rec.status == "placed":
             return not self._approver.object_exists(rec.placed_object_id) and rec.kind != "reference_point"
         return False

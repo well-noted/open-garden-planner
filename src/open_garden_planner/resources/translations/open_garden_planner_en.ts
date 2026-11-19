@@ -4077,7 +4077,7 @@ Use 0.1 for DXF in mm, 100 for DXF in metres.</translation>
     <context>
         <name>FieldRecordApprover</name>
         <message>
-            <location filename="../../app/field_record_approver.py" line="206" />
+            <location filename="../../app/field_record_approver.py" line="207" />
             <source>Place irrigation line</source>
             <translation>Place irrigation line</translation>
         </message>
@@ -4085,7 +4085,7 @@ Use 0.1 for DXF in mm, 100 for DXF in metres.</translation>
     <context>
         <name>FieldRecordsDialog</name>
         <message>
-            <location filename="../../ui/panels/field_records_panel.py" line="457" />
+            <location filename="../../ui/panels/field_records_panel.py" line="459" />
             <source>Field records</source>
             <translation>Field records</translation>
         </message>
@@ -4259,7 +4259,7 @@ Use 0.1 for DXF in mm, 100 for DXF in metres.</translation>
             <translation>The placed object is no longer on the plan.</translation>
         </message>
         <message>
-            <location filename="../../ui/panels/field_records_panel.py" line="439" />
+            <location filename="../../ui/panels/field_records_panel.py" line="441" />
             <source>The reference point was not applied.</source>
             <translation>The reference point was not applied.</translation>
         </message>
