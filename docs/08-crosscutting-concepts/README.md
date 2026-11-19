@@ -10032,3 +10032,17 @@ any machine: `tests/integration/test_sun_overlay_cache.py`,
 `tests/integration/test_sprite_cache_teardown.py`, `TestPanIsCheap` and
 `TestALargeViewportKeepsItsSprites` in `tests/integration/test_canvas_sharpness.py`
 and `TestViewportChangesDoNotRender` in `tests/unit/test_minimap_widget.py`.
+
+## 8.38 Plan georeferencing (ADR-079)
+
+**Frame.** The scene is Y-up centimetres (§8.1). `core/georef.GeoReference` links it to WGS-84 through a local equirectangular tangent plane at the canvas origin. `rotation_deg` is the plan's `north_angle_deg` (§8.20): never a second store. The persisted `georef` block has no rotation; `ProjectManager.georef` returns the stored block with `rotation_deg` read from the plan. A change that touches both rides in one `SetGeoreferenceCommand`. A new code path that needs the plan's north reads `north_angle_deg`; one that needs GPS reads `ProjectManager.georef`, never a copy.
+
+**Error budget.** `gps -> canvas -> gps` is exact to floating point (tested below 1 mm at 1 km, every latitude up to 78 degrees, every rotation). Against a true geodesic the projection is off by about `d^2 tan(lat) / 2R`: 5 cm at 1 km and 60 degrees, 5 mm at 300 m. Origin latitude is limited to +-89 degrees; the antimeridian works through wrapped longitude differences.
+
+**Trust boundaries.** The loader goes through `georef_from_plan` (a bad block is `None`, a bad optional part is dropped). The agent's reference points go through `ReferencePoint.from_dict` / `georef_tools.parse_reference_points` (bounded count, finite, in range, either explicit x/y or an object id, never both). A fit refuses coincident and collinear sets.
+
+**Agent writes.** `set_georeference`, `set_georeference_from_reference_points` and `set_initial_map` follow invariant 13 of the architecture contract: token-gated, registered only when writes are active, one command each. `set_initial_map` does network I/O on the server thread and the Qt work on the main thread (`AgentHost._agent_set_initial_map` / `_do_agent_set_initial_map`); a refusal is raised before the hop. Its image replaces the existing background (refused while that background is locked), resizes the canvas to the image's pixmap size, sets the location to the map centre and the north to 0.
+
+**Address lookup (opt-in).** `geocode_address` reuses the Static Maps key and host (§8.15) through `image_download.fetch_json`. The Preferences checkbox defaults off; the PRIVACY.md row "Address lookup (optional)" and the `DISCLOSED` entry for `services/image_download.py` keep the inventory test green. The key is scrubbed from every message.
+
+**Tests.** `tests/unit/test_georef.py` (projection, conventions, fits, hostile input), `tests/unit/test_georef_persistence.py` (round trip, old file, hostile file, undo), `tests/unit/test_geocode_address.py`, `tests/integration/test_georef.py` (dialog, menu, satellite import, save/load, undo), `tests/integration/test_agent_api_georef.py` (every tool over the real MCP transport).

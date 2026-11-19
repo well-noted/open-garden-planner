@@ -4665,9 +4665,9 @@ class SetInitialMapCommand(Command):
 
     def execute(self) -> None:
         for old in self._old_images:
-            if old.scene() is self._scene:
+            if old.scene() is not None:
                 self._scene.removeItem(old)
-        if self._item.scene() is not self._scene:
+        if self._item.scene() is None:
             self._scene.addItem(self._item)
         self._scene.resize_canvas(*self._canvas)
         if self._new_location is not None:
@@ -4680,10 +4680,10 @@ class SetInitialMapCommand(Command):
         self._pm.set_north_angle(self._old_north)
         if self._new_location is not None:
             self._pm.set_location(self._old_location)
-        if self._item.scene() is self._scene:
+        if self._item.scene() is not None:
             self._scene.removeItem(self._item)
         for old in self._old_images:
-            if old.scene() is not self._scene:
+            if old.scene() is None:
                 self._scene.addItem(old)
         self._scene.resize_canvas(*self._old_canvas)
 

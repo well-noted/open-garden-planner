@@ -9,6 +9,8 @@ residual of every point, so a mistyped corner shows up at once.
 
 from __future__ import annotations
 
+from typing import Any
+
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QCheckBox,
@@ -58,7 +60,7 @@ class GeoreferenceDialog(QDialog):
         parent: QWidget | None = None,
         georef: GeoReference | None = None,
         north_angle_deg: float = 0.0,
-        location: dict | None = None,
+        location: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(parent)
         self.setWindowTitle(self.tr("Georeference"))
@@ -136,7 +138,9 @@ class GeoreferenceDialog(QDialog):
                 self.tr("Residual (m)"),
             ]
         )
-        self._table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        header = self._table.horizontalHeader()
+        if header is not None:
+            header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self._table.setMinimumHeight(140)
         pv.addWidget(self._table)
         buttons = QHBoxLayout()
@@ -202,11 +206,17 @@ class GeoreferenceDialog(QDialog):
         points = []
         for row in range(self._table.rowCount()):
             name = self._table.cellWidget(row, _COL_NAME)
-            values = [self._table.cellWidget(row, c).value() for c in (_COL_LAT, _COL_LON, _COL_X, _COL_Y)]
+            values = [self._spin_at(row, c) for c in (_COL_LAT, _COL_LON, _COL_X, _COL_Y)]
             points.append(
-                ReferencePoint(name.text().strip() if name else "", *values)
+                ReferencePoint(
+                    name.text().strip() if isinstance(name, QLineEdit) else "", *values
+                )
             )
         return points
+
+    def _spin_at(self, row: int, col: int) -> float:
+        spin = self._table.cellWidget(row, col)
+        return float(spin.value()) if isinstance(spin, QDoubleSpinBox) else 0.0
 
     def _on_fit(self) -> None:
         points = self._points()
@@ -228,7 +238,9 @@ class GeoreferenceDialog(QDialog):
         self._rotation.setValue(geo.rotation_deg)
         self._source = "fit"
         for row, residual in enumerate(fit.residuals_m):
-            self._table.item(row, _COL_RES).setText(f"{residual:.3f}")
+            cell = self._table.item(row, _COL_RES)
+            if cell is not None:
+                cell.setText(f"{residual:.3f}")
         self._status.setText(
             self.tr("Fit of {n} point(s): RMS {rms:.3f} m").format(n=len(points), rms=fit.rms_m)
         )

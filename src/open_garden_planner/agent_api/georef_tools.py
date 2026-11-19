@@ -96,15 +96,15 @@ def parse_reference_points(
                 vertex = entry.get("vertex_index")
                 if vertex is not None and (isinstance(vertex, bool) or not isinstance(vertex, int)):
                     raise ValueError("vertex_index must be an integer")
-                x, y = resolve(item_id, vertex)
+                coords: tuple[Any, Any] = resolve(item_id, vertex)
             else:
-                x, y = entry.get("x"), entry.get("y")
+                coords = (entry.get("x"), entry.get("y"))
             name = entry.get("name")
             if name is None and isinstance(item_id, str):
                 name = item_id
             out.append(
                 ReferencePoint.from_dict(
-                    {"name": name if isinstance(name, str) else "", "lat": lat, "lon": lon, "x": x, "y": y}
+                    {"name": name if isinstance(name, str) else "", "lat": lat, "lon": lon, "x": coords[0], "y": coords[1]}
                 )
             )
         except (GeorefError, ValueError) as error:

@@ -237,7 +237,7 @@ def _fake_fetch(calls: list[Any]):
 class TestSetInitialMap:
     def test_no_key_is_a_clear_error_and_changes_nothing(self, app, qtbot, monkeypatch):
         monkeypatch.setattr(app, "_resolved_google_maps_api_key", lambda: "")
-        monkeypatch.setattr(gms, "fetch_bbox", lambda *a, **k: pytest.fail("must not fetch"))
+        monkeypatch.setattr(gms, "fetch_bbox", lambda *_a, **_k: pytest.fail("must not fetch"))
         (r,) = _call(app, qtbot, [("set_initial_map", {"latitude": 48.0, "longitude": 11.0})])
         assert r[0] is True and "API key" in r[2]
         assert _undo_depth(app) == 0 and app._project_manager.georef is None
@@ -293,15 +293,15 @@ class TestSetInitialMap:
     )
     def test_bad_arguments_refused_before_any_network(self, app, qtbot, monkeypatch, args):
         monkeypatch.setattr(app, "_resolved_google_maps_api_key", lambda: "k")
-        monkeypatch.setattr(gms, "fetch_bbox", lambda *a, **k: pytest.fail("must not fetch"))
-        monkeypatch.setattr(gms, "geocode_address", lambda *a, **k: pytest.fail("must not geocode"))
+        monkeypatch.setattr(gms, "fetch_bbox", lambda *_a, **_k: pytest.fail("must not fetch"))
+        monkeypatch.setattr(gms, "geocode_address", lambda *_a, **_k: pytest.fail("must not geocode"))
         (r,) = _call(app, qtbot, [("set_initial_map", args)])
         assert r[0] is True
         assert _undo_depth(app) == 0
 
     def test_address_needs_the_preferences_opt_in(self, app, qtbot, monkeypatch):
         monkeypatch.setattr(app, "_resolved_google_maps_api_key", lambda: "k")
-        monkeypatch.setattr(gms, "geocode_address", lambda *a, **k: pytest.fail("must not geocode"))
+        monkeypatch.setattr(gms, "geocode_address", lambda *_a, **_k: pytest.fail("must not geocode"))
         settings = get_settings()
         original = settings.google_geocoding_enabled
         settings.google_geocoding_enabled = False

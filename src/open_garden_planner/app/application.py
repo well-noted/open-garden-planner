@@ -6248,7 +6248,7 @@ class GardenPlannerApp(QMainWindow):
                 pm, new, dialog.north_angle_deg if new is not None else None
             )
         )
-        self.statusBar().showMessage(self.tr("Georeference updated"), 3000)
+        self._show_status_message(self.tr("Georeference updated"), 3000)
 
     def _on_set_location(self) -> None:
         """Handle Set Garden Location action."""

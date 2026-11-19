@@ -31,11 +31,11 @@ from scripts.translations_es.view3d import TRANSLATIONS as T_VIEW3D
 from scripts.translations_examples import ES as T_EXAMPLES
 from scripts.translations_exports import ES as T_EXPORTS
 from scripts.translations_f4 import ES as T_F4
+from scripts.translations_georef import ES as T_GEOREF
 from scripts.translations_l2 import ES as T_L2
 from scripts.translations_l4 import ES as T_L4
 from scripts.translations_l5 import ES as T_L5
 from scripts.translations_l6 import ES as T_L6
-from scripts.translations_georef import ES as T_GEOREF
 from scripts.translations_l7 import ES as T_L7
 from scripts.translations_sun_map import ES as T_SUN_MAP
 
