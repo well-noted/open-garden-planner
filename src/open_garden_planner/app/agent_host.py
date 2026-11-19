@@ -3761,6 +3761,8 @@ class AgentHost:
             list_field_records=self._agent_list_field_records,
             ingest_site_photo=self._agent_ingest_site_photo,
             place_geotagged_feature=self._agent_place_geotagged_feature,
+            place_field_record=self._agent_place_field_record,
+            reject_field_record=self._agent_reject_field_record,
             plan_date=lambda: self._agent_plan_date().isoformat(),
         )
 
@@ -3933,6 +3935,57 @@ class AgentHost:
             "new_parent_bed_id": created["new_parent_bed_id"],
             "warnings": warnings,
         }
+
+    def _agent_place_field_record(self, **kwargs: Any) -> dict[str, Any]:
+        """Approve a field record ON the Qt main thread (token-gated write; WP-R)."""
+        return self._host._agent_bridge.run_on_main(lambda: self._do_agent_place_field_record(**kwargs))
+
+    def _do_agent_place_field_record(self, record_id: str, allow_duplicate: bool = False) -> dict[str, Any]:
+        """Main-thread body of ``place_field_record``: the panel's approver, never a dialog.
+
+        Any kind: a plant / note / measurement / placement request goes through the same create
+        path as ``place_geotagged_feature`` (locked-layer refusal, ONE undo step), an irrigation
+        line is one macro that also creates the Irrigation layer (a locked one is refused), a
+        reference point is fitted into the georeference as one undo step. Siblings of an approved
+        candidate become ``superseded``. Every refusal happens before any command.
+        """
+        from open_garden_planner.app.field_record_approver import PlacementError
+
+        approver = self._host._field_record_approver()
+        try:
+            res = approver.approve(record_id, allow_duplicate=allow_duplicate, interactive=False)
+        except PlacementError as error:
+            raise ValueError(str(error)) from error
+        return {
+            "record_id": res.record_id,
+            "kind": res.kind,
+            "item_id": res.item_id,
+            "undo_description": res.undo_description,
+            "superseded": res.superseded,
+            "georef_updated": res.georef_updated,
+            "fit_rms_m": res.fit_rms_m,
+            "warnings": res.warnings,
+        }
+
+    def _agent_reject_field_record(self, **kwargs: Any) -> dict[str, Any]:
+        """Reject a field record (or a whole placement-request group) ON the Qt main thread."""
+        return self._host._agent_bridge.run_on_main(lambda: self._do_agent_reject_field_record(**kwargs))
+
+    def _do_agent_reject_field_record(
+        self, record_id: str | None = None, group_id: str | None = None
+    ) -> dict[str, Any]:
+        from open_garden_planner.app.field_record_approver import PlacementError
+
+        if (record_id is None) == (group_id is None):
+            raise ValueError("give exactly one of record_id or group_id")
+        approver = self._host._field_record_approver()
+        try:
+            changed = (
+                [approver.reject(record_id)] if record_id is not None else approver.reject_group(str(group_id))
+            )
+        except PlacementError as error:
+            raise ValueError(str(error)) from error
+        return {"rejected": [r.id for r in changed]}
 
     # --- ADR-079: georeference writes -----------------------------------------
 

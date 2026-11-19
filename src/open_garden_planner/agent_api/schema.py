@@ -1492,12 +1492,24 @@ class FieldRecordView(BaseModel):
     source: str | None = None
 
 
+class FieldRecordGroup(BaseModel):
+    """Placement-request candidates sharing a ``group_id``."""
+
+    group_id: str
+    what: str | None = None
+    record_ids: list[str] = Field(description="Every candidate returned, newest first.")
+    open_ids: list[str] = Field(description="Candidates still pending or approved.")
+
+
 class FieldRecordList(BaseModel):
     """Result of ``list_field_records``."""
 
     total: int = Field(description="Records stored for the plan.")
     returned: int
     records: list[FieldRecordView]
+    groups: list[FieldRecordGroup] = Field(
+        default_factory=list, description="The returned records that share a group_id, grouped."
+    )
     warnings: list[str] = Field(default_factory=list)
 
 
@@ -1507,6 +1519,25 @@ class IngestPhotoResult(BaseModel):
     record: FieldRecordView
     geotag: PhotoGeotagResult
     warnings: list[str] = Field(default_factory=list)
+
+
+class PlaceRecordResult(BaseModel):
+    """Result of ``place_field_record`` (ONE undoable step for objects and lines)."""
+
+    record_id: str
+    kind: str
+    item_id: str | None = Field(default=None, description="The created object (none for a reference point).")
+    undo_description: str | None = None
+    superseded: list[str] = Field(default_factory=list, description="Sibling candidates now superseded.")
+    georef_updated: bool = False
+    fit_rms_m: float | None = Field(default=None, description="Fit RMS after a reference point, metres.")
+    warnings: list[str] = Field(default_factory=list)
+
+
+class RejectRecordResult(BaseModel):
+    """Result of ``reject_field_record``."""
+
+    rejected: list[str] = Field(description="Ids that are now rejected.")
 
 
 class PlaceFeatureResult(BaseModel):

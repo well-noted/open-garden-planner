@@ -408,6 +408,9 @@ class AgentProviders:
     list_field_records: Callable[..., dict[str, Any]] | None = None
     ingest_site_photo: Callable[..., dict[str, Any]] | None = None
     place_geotagged_feature: Callable[..., dict[str, Any]] | None = None
+    # WP-R: approve / reject a field record (any kind) through the desktop approver.
+    place_field_record: Callable[..., dict[str, Any]] | None = None
+    reject_field_record: Callable[..., dict[str, Any]] | None = None
     render_3d: Callable[
         [tuple[tuple[float, float, float], tuple[float, float, float], float] | None,
          tuple[int, int]],

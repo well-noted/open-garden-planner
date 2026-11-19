@@ -30,7 +30,7 @@ from open_garden_planner.services import field_records as fr
 
 if TYPE_CHECKING:
     from open_garden_planner.app.application import GardenPlannerApp
-    from open_garden_planner.core.georef import GeoReference
+    from open_garden_planner.core.georef import GeoReference, ReferencePoint
 
 PlacementError = frp.PlacementError
 
@@ -50,6 +50,8 @@ class ApprovalResult:
     georef_updated: bool = False
     #: True when the user closed the reference-point dialog without applying it.
     cancelled: bool = False
+    #: RMS of the georeference fit after a reference point was applied, metres.
+    fit_rms_m: float | None = None
     warnings: list[str] = field(default_factory=list)
 
 
@@ -88,8 +90,13 @@ class FieldRecordApprover:
             raise PlacementError(str(error)) from error
         return frp.plan_record(record, geo, plan_path=plan_path, allow_duplicate=allow_duplicate, **overrides)
 
-    def approve(self, record_id: str, *, allow_duplicate: bool = False) -> ApprovalResult:
+    def approve(
+        self, record_id: str, *, allow_duplicate: bool = False, interactive: bool = True
+    ) -> ApprovalResult:
         """Place the record on the plan (one undo step) and mark it ``placed``.
+
+        ``interactive=False`` (the agent) never opens a dialog: a reference point is fitted
+        straight into the georeference as one undo step.
 
         Everything that can refuse runs before the first command, so a refusal leaves the plan
         and the undo stack untouched.
@@ -100,7 +107,7 @@ class FieldRecordApprover:
         spec = placement.spec
         result = ApprovalResult(record_id, record.kind, warnings=list(placement.warnings))
         if isinstance(spec, frp.ReferencePointSpec):
-            return self._approve_reference_point(plan_path, record, spec, result)
+            return self._approve_reference_point(plan_path, record, spec, result, interactive)
         if isinstance(spec, frp.PolylineSpec):
             created = self._place_polyline(spec)
         else:
@@ -204,25 +211,74 @@ class FieldRecordApprover:
     # -- reference points ----------------------------------------------------------------------
 
     def _approve_reference_point(
-        self, plan_path: str, record: fr.FieldRecord, spec: frp.ReferencePointSpec, result: ApprovalResult
+        self,
+        plan_path: str,
+        record: fr.FieldRecord,
+        spec: frp.ReferencePointSpec,
+        result: ApprovalResult,
+        interactive: bool,
     ) -> ApprovalResult:
         from open_garden_planner.core.georef import ReferencePoint
 
         point = ReferencePoint(spec.name, spec.lat, spec.lon, spec.x, spec.y)
-        before = self._app._project_manager.georef
-        self._app._on_set_georeference(extra_reference_points=[point])
-        after = self._app._project_manager.georef
+        pm = self._app._project_manager
+        before = pm.georef
+        if interactive:
+            self._app._on_set_georeference(extra_reference_points=[point])
+        else:
+            self._fit_headless(point)
+        after = pm.georef
         kept = after is not None and any(
             p.name == point.name and p.x == point.x and p.y == point.y for p in after.reference_points
         )
         result.georef_updated = bool(kept and after != before)
         result.cancelled = not result.georef_updated
+        if after is not None:
+            result.fit_rms_m = after.fit_rms_m
         if result.georef_updated:
             try:
                 fr.update_record(plan_path, record.id, status="placed")
             except (fr.FieldRecordError, OSError) as error:
                 result.warnings.append(f"The point was added but the record could not be updated: {error}")
         return result
+
+    def _fit_headless(self, point: ReferencePoint) -> None:
+        """Agent path: the plan's reference points plus this one, fitted in ONE undo step."""
+        from dataclasses import replace
+
+        from open_garden_planner.core.commands import SetGeoreferenceCommand
+        from open_garden_planner.core.georef import (
+            DEFAULT_SCALE_M_PER_UNIT,
+            GeorefError,
+            fit_from_reference_points,
+        )
+
+        app = self._app
+        pm = app._project_manager
+        existing = pm.georef
+        points = [*(existing.reference_points if existing else ()), point]
+        if len(points) < 2:
+            if existing is None:
+                raise PlacementError(
+                    "The plan is not georeferenced and one reference point cannot fit it; "
+                    "approve a second one or set the georeference first."
+                )
+            # One point cannot be fitted: keep it with the georeference for the next fit
+            # (what the dialog does too), as one undo step.
+            kept = replace(existing, reference_points=tuple(points))
+            app.canvas_view.command_manager.execute(SetGeoreferenceCommand(pm, kept, None))
+            return
+        try:
+            fit = fit_from_reference_points(
+                points,
+                scale_meters_per_unit=existing.scale_meters_per_unit if existing else DEFAULT_SCALE_M_PER_UNIT,
+                rotation_deg=pm.north_angle_deg,
+                source="fit",
+            )
+        except GeorefError as error:
+            raise PlacementError(f"The georeference fit was refused: {error}") from error
+        geo = replace(fit.georef, parcel_boundary=existing.parcel_boundary if existing else None)
+        app.canvas_view.command_manager.execute(SetGeoreferenceCommand(pm, geo, geo.rotation_deg))
 
     # -- reject / reopen ---------------------------------------------------------------------
 

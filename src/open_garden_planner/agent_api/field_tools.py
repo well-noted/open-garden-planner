@@ -81,20 +81,48 @@ def list_records(
     *,
     only_unplaced: bool = False,
     limit: int = 200,
+    status: str | None = None,
+    kind: str | None = None,
+    group_id: str | None = None,
 ) -> dict[str, Any]:
     """The ``list_field_records`` payload (newest first)."""
     if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= MAX_LIST:
         raise ValueError(f"limit must be an integer between 1 and {MAX_LIST}")
+    if status is not None and status not in fr.STATUSES:
+        raise ValueError("status must be one of " + ", ".join(sorted(fr.STATUSES)))
+    if kind is not None and kind not in fr.KINDS:
+        raise ValueError("kind must be one of " + ", ".join(sorted(fr.KINDS)))
     loaded = fr.load_records(plan_path)
     # EXIF capture times carry no zone, ingest stamps are UTC 'Z': compare the first 19
     # characters (naive times are read as UTC) so mixed records sort consistently.
     recs = sorted(loaded.records, key=lambda r: r.timestamp[:19], reverse=True)
     if only_unplaced:
         recs = [r for r in recs if not r.placed_object_id and r.status in ("pending", "approved")]
+    recs = [
+        r
+        for r in recs
+        if (status is None or r.status == status)
+        and (kind is None or r.kind == kind)
+        and (group_id is None or r.group_id == group_id)
+    ]
+    shown = recs[:limit]
+    groups: dict[str, list[fr.FieldRecord]] = {}
+    for rec in shown:
+        if rec.group_id:
+            groups.setdefault(rec.group_id, []).append(rec)
     return {
         "total": len(loaded.records),
-        "returned": min(len(recs), limit),
-        "records": [record_view(r, plan_path, geo) for r in recs[:limit]],
+        "returned": len(shown),
+        "records": [record_view(r, plan_path, geo) for r in shown],
+        "groups": [
+            {
+                "group_id": gid,
+                "what": members[0].what,
+                "record_ids": [m.id for m in members],
+                "open_ids": [m.id for m in members if m.status in ("pending", "approved")],
+            }
+            for gid, members in groups.items()
+        ],
         "warnings": loaded.warnings,
     }
 
