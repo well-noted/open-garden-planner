@@ -1302,3 +1302,88 @@ class SoilMismatchBedsView(BaseModel):
         description="Per-bed results keyed by bed UUID; each carries its own "
         "coverage, total and mismatches. Sorted by bed UUID.",
     )
+
+
+# --- ADR-079: georeferencing -------------------------------------------------
+
+
+class GeoReferencePoint(BaseModel):
+    """One surveyed correspondence between a canvas point and a GPS reading."""
+
+    name: str = Field(default="", description="Free-text label, e.g. 'north-west corner'.")
+    lat: float = Field(description="Latitude, WGS-84 degrees.")
+    lon: float = Field(description="Longitude, WGS-84 degrees.")
+    x: float = Field(description="Canvas X in scene cm (east on a north-up plan).")
+    y: float = Field(description="Canvas Y in scene cm (Y-up: larger is further plan-up).")
+
+
+class GeoreferenceInfo(BaseModel):
+    """The plan's georeference: how canvas centimetres map onto latitude/longitude."""
+
+    georeferenced: bool = Field(
+        description="False when the plan has no georeference; all other fields are then null."
+    )
+    origin_lat: float | None = Field(
+        default=None, description="Latitude of the canvas origin (0, 0), degrees."
+    )
+    origin_lon: float | None = Field(
+        default=None, description="Longitude of the canvas origin (0, 0), degrees."
+    )
+    scale_meters_per_unit: float | None = Field(
+        default=None, description="Metres per canvas unit (0.01 = the canvas is in cm)."
+    )
+    rotation_deg: float | None = Field(
+        default=None,
+        description="True north, degrees CLOCKWISE from plan-up. Always equal to the "
+        "plan's north orientation (north_angle_deg): there is one north.",
+    )
+    north_angle_deg: float = Field(
+        default=0.0, description="The plan's north orientation (same convention as rotation_deg)."
+    )
+    parcel_boundary: list[list[float]] | None = Field(
+        default=None, description="Optional parcel outline as [[lat, lon], ...]."
+    )
+    reference_points: list[GeoReferencePoint] = Field(default_factory=list)
+    fit_rms_m: float | None = Field(
+        default=None, description="RMS residual in metres of the fit that produced it, if any."
+    )
+    source: str | None = Field(
+        default=None,
+        description="Provenance: 'manual', 'fit', 'google_static_maps', 'google_js_view_capture'.",
+    )
+
+
+class GeoPointResult(BaseModel):
+    """A converted position: either (lat, lon) or canvas (x, y), per the tool."""
+
+    lat: float | None = Field(default=None, description="Latitude, degrees.")
+    lon: float | None = Field(default=None, description="Longitude, degrees.")
+    x: float | None = Field(default=None, description="Canvas X, scene cm.")
+    y: float | None = Field(default=None, description="Canvas Y, scene cm (Y-up).")
+
+
+class GeorefWriteResult(BaseModel):
+    """Result of a georeference write tool (one undoable command)."""
+
+    action: Literal[
+        "set_georeference", "set_georeference_from_reference_points", "set_initial_map"
+    ]
+    undo_description: str = Field(description="Label of the single undo step this created.")
+    georeference: GeoreferenceInfo
+    residuals_m: list[float] | None = Field(
+        default=None,
+        description="Per-point residual in metres, in the order the points were given "
+        "(fits only).",
+    )
+    rms_m: float | None = Field(default=None, description="RMS residual in metres (fits only).")
+    fit_method: str | None = Field(
+        default=None, description="'translation' (1 point), 'similarity' (2+), or 'affine'."
+    )
+    latitude: float | None = Field(default=None, description="set_initial_map: map centre latitude.")
+    longitude: float | None = Field(default=None, description="set_initial_map: map centre longitude.")
+    formatted_address: str | None = Field(
+        default=None, description="set_initial_map: Google's formatted address when one was looked up."
+    )
+    canvas_width_cm: float | None = Field(default=None, description="set_initial_map: new canvas width.")
+    canvas_height_cm: float | None = Field(default=None, description="set_initial_map: new canvas height.")
+    zoom: int | None = Field(default=None, description="set_initial_map: Google zoom level used.")

@@ -70,8 +70,8 @@ from mcp.server.fastmcp.utilities.types import Image
 from pydantic import Field, StrictFloat, StrictInt
 
 from open_garden_planner.agent_api import creates as agent_creates
+from open_garden_planner.agent_api import georef_tools, queries
 from open_garden_planner.agent_api import prompts as agent_prompts
-from open_garden_planner.agent_api import queries
 from open_garden_planner.agent_api.diagnostics import diagnostics_from_records
 from open_garden_planner.agent_api.mapping import (
     layers_from_snapshot,
@@ -90,6 +90,9 @@ from open_garden_planner.agent_api.schema import (
     Diagnostic,
     ExportResult,
     GeometryResult,
+    GeoPointResult,
+    GeoreferenceInfo,
+    GeorefWriteResult,
     HistoryResult,
     HistoryState,
     Layer,
@@ -412,6 +415,52 @@ def build_server(
         """
         snapshot = await anyio.to_thread.run_sync(providers.snapshot)
         return plan_summary_from_snapshot(snapshot)
+
+    # --- ADR-079: georeferencing reads (pure; derive from the snapshot) -------
+
+    @mcp.tool()
+    async def get_georeference() -> GeoreferenceInfo:
+        """Return how the plan's canvas maps onto GPS coordinates.
+
+        ``georeferenced`` is false when the plan was never linked to a place.
+        Otherwise: the latitude/longitude of the canvas origin (0, 0), the
+        metres per canvas unit (0.01 = centimetres), the rotation (degrees
+        clockwise from plan-up to TRUE NORTH, always equal to the plan's north
+        orientation), an optional parcel outline, the reference points a fit
+        used and its RMS residual in metres. Use canvas_to_gps/gps_to_canvas
+        to convert positions.
+        """
+        snapshot = await anyio.to_thread.run_sync(providers.snapshot)
+        return GeoreferenceInfo(**georef_tools.georef_info(snapshot))
+
+    @mcp.tool()
+    async def canvas_to_gps(x: float, y: float) -> GeoPointResult:
+        """Convert a canvas point (scene cm, Y-up) to latitude/longitude.
+
+        Pure conversion; changes nothing. Raises when the plan is not
+        georeferenced (set one with set_initial_map, set_georeference or
+        set_georeference_from_reference_points).
+        """
+        snapshot = await anyio.to_thread.run_sync(providers.snapshot)
+        geo = georef_tools.georef_from_snapshot(snapshot)
+        if geo is None:
+            raise ValueError("The plan is not georeferenced.")
+        lat, lon = geo.canvas_to_gps(x, y)
+        return GeoPointResult(lat=lat, lon=lon)
+
+    @mcp.tool()
+    async def gps_to_canvas(lat: float, lon: float) -> GeoPointResult:
+        """Convert latitude/longitude (WGS-84 degrees) to a canvas point.
+
+        Returns x/y in scene cm (Y-up: a larger y is further plan-up). Pure
+        conversion; changes nothing. Raises when the plan is not georeferenced.
+        """
+        snapshot = await anyio.to_thread.run_sync(providers.snapshot)
+        geo = georef_tools.georef_from_snapshot(snapshot)
+        if geo is None:
+            raise ValueError("The plan is not georeferenced.")
+        x, y = geo.gps_to_canvas(lat, lon)
+        return GeoPointResult(x=x, y=y)
 
     @mcp.tool()
     async def list_objects(
@@ -1566,6 +1615,135 @@ def build_server(
             _require_write_auth(write_token)
             result = await anyio.to_thread.run_sync(providers.redo)
             return HistoryResult(**result)
+
+        # --- ADR-079: georeference writes -----------------------------------
+
+        @mcp.tool()
+        async def set_georeference(
+            origin_lat: float | None = None,
+            origin_lon: float | None = None,
+            scale_meters_per_unit: float | None = None,
+            rotation_deg: float | None = None,
+            parcel_boundary: list[list[float]] | None = None,
+            clear_parcel: bool = False,
+        ) -> GeorefWriteResult:
+            """Set the plan's georeference. One undoable step; omitted fields keep their value.
+
+            This is a write tool and requires the Agent API token.
+
+            Args:
+                origin_lat: Latitude of the canvas origin (0, 0), degrees. Required
+                    (with origin_lon) when the plan has no georeference yet.
+                origin_lon: Longitude of the canvas origin (0, 0), degrees.
+                scale_meters_per_unit: Metres per canvas unit; 0.01 for the
+                    usual centimetre canvas.
+                rotation_deg: True north, degrees clockwise from plan-up. This
+                    IS the plan's north orientation: it changes the sun and
+                    shade direction too, in the same undo step.
+                parcel_boundary: The property outline as [[lat, lon], ...]
+                    (at least 3 vertices), replacing any existing one.
+                clear_parcel: Remove the stored parcel outline.
+            """
+            _require_write_auth(write_token)
+            if providers.set_georeference is None:
+                raise ValueError("set_georeference is not available in this build.")
+            fn = providers.set_georeference
+            result = await anyio.to_thread.run_sync(
+                lambda: fn(
+                    origin_lat=origin_lat,
+                    origin_lon=origin_lon,
+                    scale_meters_per_unit=scale_meters_per_unit,
+                    rotation_deg=rotation_deg,
+                    parcel_boundary=parcel_boundary,
+                    clear_parcel=clear_parcel,
+                )
+            )
+            return GeorefWriteResult(**result)
+
+        @mcp.tool()
+        async def set_georeference_from_reference_points(
+            points: list[dict[str, Any]],
+            allow_affine: bool = False,
+        ) -> GeorefWriteResult:
+            """Georeference the plan from surveyed points (e.g. GPS taken at property corners).
+
+            This is a write tool and requires the Agent API token. One undoable
+            step sets origin, scale and rotation (the plan's north) together.
+
+            Each point is an object with ``lat`` and ``lon`` and EITHER canvas
+            ``x`` and ``y`` in scene cm (Y-up), OR ``item_id`` of an existing
+            plan object (its centre, or its vertex ``vertex_index``), and an
+            optional ``name``. One point sets only the position (scale and
+            rotation are kept); two points solve scale and rotation exactly;
+            three or more are least-squares fitted and every point's residual
+            is reported, so a mistyped corner is visible. Refuses coincident
+            points and collinear sets of three or more.
+
+            Args:
+                points: The correspondences, at most 200.
+                allow_affine: Also report the residuals of a full affine fit
+                    (a diagnostic for skewed or mis-scaled input); the plan is
+                    still set from the best similarity fit.
+            """
+            _require_write_auth(write_token)
+            if providers.set_georeference_from_reference_points is None:
+                raise ValueError(
+                    "set_georeference_from_reference_points is not available in this build."
+                )
+            fn = providers.set_georeference_from_reference_points
+            result = await anyio.to_thread.run_sync(
+                lambda: fn(points=points, allow_affine=allow_affine)
+            )
+            return GeorefWriteResult(**result)
+
+        @mcp.tool()
+        async def set_initial_map(
+            latitude: float | None = None,
+            longitude: float | None = None,
+            address: str | None = None,
+            width_m: float | None = None,
+            height_m: float | None = None,
+        ) -> GeorefWriteResult:
+            """Create the plan's initial map: satellite background, location and georeference in ONE undo step.
+
+            This is a write tool and requires the Agent API token. It downloads
+            a north-up Google Maps satellite image through the same service as
+            File > Load Satellite Background, so it needs the user's Google Maps
+            API key (Preferences > Google Maps, or the OGP_GOOGLE_MAPS_KEY
+            environment variable) and fails with a clear message otherwise.
+            The new image REPLACES any existing background, the canvas is
+            resized to the image, the garden location is set to the map centre
+            and the plan's north becomes 0 (the image is north-up).
+
+            Give EITHER ``latitude`` and ``longitude`` OR a street ``address``.
+            An address is looked up with the Google Geocoding API, which the
+            user must have enabled in Preferences ("Allow street-address
+            lookup") and for their key; otherwise pass coordinates.
+
+            Args:
+                latitude: Map centre latitude, degrees.
+                longitude: Map centre longitude, degrees.
+                address: A street address to look up instead of coordinates.
+                width_m: East-west extent of the map in metres (10-1000,
+                    default 100). The zoom level is chosen automatically for
+                    the best resolution that covers the area.
+                height_m: North-south extent in metres (10-1000, default =
+                    width_m).
+            """
+            _require_write_auth(write_token)
+            if providers.set_initial_map is None:
+                raise ValueError("set_initial_map is not available in this build.")
+            fn = providers.set_initial_map
+            result = await anyio.to_thread.run_sync(
+                lambda: fn(
+                    latitude=latitude,
+                    longitude=longitude,
+                    address=address,
+                    width_m=width_m,
+                    height_m=height_m,
+                )
+            )
+            return GeorefWriteResult(**result)
 
         # --- US-D3.2: succession write --------------------------------------
 

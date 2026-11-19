@@ -398,6 +398,11 @@ class AgentProviders:
     undo: Callable[[], dict[str, Any]]
     redo: Callable[[], dict[str, Any]]
     get_plant_lists: Callable[[], list[dict[str, Any]]] | None = None
+    # ADR-079 georeference writes (token-gated). The reads need no provider: they
+    # derive from ``snapshot``.
+    set_georeference: Callable[..., dict[str, Any]] | None = None
+    set_georeference_from_reference_points: Callable[..., dict[str, Any]] | None = None
+    set_initial_map: Callable[..., dict[str, Any]] | None = None
     render_3d: Callable[
         [tuple[tuple[float, float, float], tuple[float, float, float], float] | None,
          tuple[int, int]],
