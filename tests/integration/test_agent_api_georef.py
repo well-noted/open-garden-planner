@@ -399,3 +399,43 @@ def test_tools_are_registered_only_when_writes_are_active(app, qtbot):
     assert reads <= off and not (writes & off)
     assert (reads | writes) <= on
     assert isinstance(AgentApiServer, type)
+
+
+class TestKeyFromEnvironment:
+    def test_set_initial_map_works_with_only_the_environment_variable(self, app, qtbot, monkeypatch):
+        settings = get_settings()
+        original = settings.google_maps_api_key
+        settings.google_maps_api_key = ""  # nothing in Preferences
+        monkeypatch.setenv("OGP_GOOGLE_MAPS_KEY", "env-key-123")
+        calls: list[Any] = []
+        monkeypatch.setattr(gms, "fetch_bbox", _fake_fetch(calls))
+        try:
+            (r,) = _call(app, qtbot, [("set_initial_map", {"latitude": 48.0, "longitude": 11.0})])
+        finally:
+            settings.google_maps_api_key = original
+        assert r[0] is False, r[2]
+        assert calls[0][1] == "env-key-123"
+
+    def test_the_preferences_key_wins_over_the_environment(self, app, qtbot, monkeypatch):
+        settings = get_settings()
+        original = settings.google_maps_api_key
+        settings.google_maps_api_key = "prefs-key"
+        monkeypatch.setenv("OGP_GOOGLE_MAPS_KEY", "env-key-123")
+        calls: list[Any] = []
+        monkeypatch.setattr(gms, "fetch_bbox", _fake_fetch(calls))
+        try:
+            (r,) = _call(app, qtbot, [("set_initial_map", {"latitude": 48.0, "longitude": 11.0})])
+        finally:
+            settings.google_maps_api_key = original
+        assert r[0] is False and calls[0][1] == "prefs-key"
+
+    def test_no_key_anywhere_names_both_places(self, app, qtbot, monkeypatch):
+        settings = get_settings()
+        original = settings.google_maps_api_key
+        settings.google_maps_api_key = ""
+        monkeypatch.delenv("OGP_GOOGLE_MAPS_KEY", raising=False)
+        try:
+            (r,) = _call(app, qtbot, [("set_initial_map", {"latitude": 48.0, "longitude": 11.0})])
+        finally:
+            settings.google_maps_api_key = original
+        assert r[0] is True and "OGP_GOOGLE_MAPS_KEY" in r[2] and "Preferences" in r[2]

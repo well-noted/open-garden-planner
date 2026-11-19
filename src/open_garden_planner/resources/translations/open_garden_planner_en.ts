@@ -1589,7 +1589,7 @@
             <translation>Add constraint</translation>
         </message>
         <message>
-            <location filename="../../core/commands.py" line="4714" />
+            <location filename="../../core/commands.py" line="4712" />
             <source>Add garden journal note</source>
             <translation>Add garden journal note</translation>
         </message>
@@ -1614,7 +1614,7 @@
             <translation>Add soil test</translation>
         </message>
         <message>
-            <location filename="../../core/commands.py" line="4821" />
+            <location filename="../../core/commands.py" line="4819" />
             <source>Add task</source>
             <translation>Add task</translation>
         </message>
@@ -1748,12 +1748,12 @@
             <translation>Create {item_type}</translation>
         </message>
         <message>
-            <location filename="../../core/commands.py" line="4952" />
+            <location filename="../../core/commands.py" line="4950" />
             <source>Delete camera tour</source>
             <translation>Delete camera tour</translation>
         </message>
         <message>
-            <location filename="../../core/commands.py" line="4790" />
+            <location filename="../../core/commands.py" line="4788" />
             <source>Delete garden journal note</source>
             <translation>Delete garden journal note</translation>
         </message>
@@ -1783,7 +1783,7 @@
             <translation>Delete soil test</translation>
         </message>
         <message>
-            <location filename="../../core/commands.py" line="4865" />
+            <location filename="../../core/commands.py" line="4863" />
             <source>Delete task</source>
             <translation>Delete task</translation>
         </message>
@@ -1823,7 +1823,7 @@
             <translation>Edit constraint distance</translation>
         </message>
         <message>
-            <location filename="../../core/commands.py" line="4749" />
+            <location filename="../../core/commands.py" line="4747" />
             <source>Edit garden journal note</source>
             <translation>Edit garden journal note</translation>
         </message>
@@ -1849,7 +1849,7 @@
             <translation>Edit soil test</translation>
         </message>
         <message>
-            <location filename="../../core/commands.py" line="4843" />
+            <location filename="../../core/commands.py" line="4841" />
             <source>Edit task</source>
             <translation>Edit task</translation>
         </message>
@@ -1938,7 +1938,7 @@
             <translation>Remove constraint</translation>
         </message>
         <message>
-            <location filename="../../core/commands.py" line="4935" />
+            <location filename="../../core/commands.py" line="4933" />
             <source>Rename camera tour</source>
             <translation>Rename camera tour</translation>
         </message>
@@ -1968,7 +1968,7 @@
             <translation>Rotate item</translation>
         </message>
         <message>
-            <location filename="../../core/commands.py" line="4918" />
+            <location filename="../../core/commands.py" line="4916" />
             <source>Save camera tour</source>
             <translation>Save camera tour</translation>
         </message>
@@ -1983,12 +1983,12 @@
             <translation>Send {count} item(s) to back</translation>
         </message>
         <message>
-            <location filename="../../core/commands.py" line="4612" />
+            <location filename="../../core/commands.py" line="4611" />
             <source>Set georeference</source>
             <translation>Set georeference</translation>
         </message>
         <message>
-            <location filename="../../core/commands.py" line="4664" />
+            <location filename="../../core/commands.py" line="4662" />
             <source>Set initial map</source>
             <translation>Set initial map</translation>
         </message>
@@ -5656,7 +5656,7 @@ Original project: {original_file}
 Would you like to recover this file?</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6085" />
+            <location filename="../../app/application.py" line="6083" />
             <source>API key missing</source>
             <translation>API key missing</translation>
         </message>
@@ -5920,7 +5920,7 @@ Would you like to recover this file?</translation>
         </message>
         <message>
             <location filename="../../app/application.py" line="1990" />
-            <location filename="../../app/application.py" line="6932" />
+            <location filename="../../app/application.py" line="6946" />
             <source>Current season year — use File &gt; Manage Seasons to configure</source>
             <translation>Current season year — use File &gt; Manage Seasons to configure</translation>
         </message>
@@ -5961,7 +5961,7 @@ Would you like to recover this file?</translation>
             <translation>Delete all constraints</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6707" />
+            <location filename="../../app/application.py" line="6721" />
             <source>Delete journal note</source>
             <translation>Delete journal note</translation>
         </message>
@@ -5971,7 +5971,7 @@ Would you like to recover this file?</translation>
             <translation>Delete selected objects</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6708" />
+            <location filename="../../app/application.py" line="6722" />
             <source>Delete this journal note?</source>
             <translation>Delete this journal note?</translation>
         </message>
@@ -6034,7 +6034,7 @@ Would you like to recover this file?</translation>
             <location filename="../../app/application.py" line="3627" />
             <location filename="../../app/application.py" line="3658" />
             <location filename="../../app/application.py" line="6069" />
-            <location filename="../../app/application.py" line="6970" />
+            <location filename="../../app/application.py" line="6984" />
             <source>Error</source>
             <translation>Error</translation>
         </message>
@@ -6141,7 +6141,7 @@ Would you like to recover this file?</translation>
             <translation>Exported: {path}</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6971" />
+            <location filename="../../app/application.py" line="6985" />
             <source>Failed to create season file:
 {error}</source>
             <translation>Failed to create season file:
@@ -6242,7 +6242,7 @@ Would you like to recover this file?</translation>
             <translation>Find and replace objects by name, type, layer or species</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6895" />
+            <location filename="../../app/application.py" line="6909" />
             <source>First fall frost</source>
             <translation>First fall frost</translation>
         </message>
@@ -6268,7 +6268,7 @@ Would you like to recover this file?</translation>
         </message>
         <message>
             <location filename="../../app/application.py" line="1982" />
-            <location filename="../../app/application.py" line="6874" />
+            <location filename="../../app/application.py" line="6888" />
             <source>Garden GPS location — use File &gt; Set Garden Location to configure</source>
             <translation>Garden GPS location — use File &gt; Set Garden Location to configure</translation>
         </message>
@@ -6288,7 +6288,7 @@ Would you like to recover this file?</translation>
             <translation>Garden location</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6262" />
+            <location filename="../../app/application.py" line="6276" />
             <source>Garden location updated</source>
             <translation>Garden location updated</translation>
         </message>
@@ -6308,7 +6308,7 @@ Would you like to recover this file?</translation>
             <translation>Generating PDF…</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6251" />
+            <location filename="../../app/application.py" line="6265" />
             <source>Georeference updated</source>
             <translation>Georeference updated</translation>
         </message>
@@ -6323,7 +6323,7 @@ Would you like to recover this file?</translation>
             <translation>Harvest</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6518" />
+            <location filename="../../app/application.py" line="6532" />
             <source>Harvest recorded</source>
             <translation>Harvest recorded</translation>
         </message>
@@ -6383,7 +6383,7 @@ Would you like to recover this file?</translation>
             <translation>Insert guild…</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6670" />
+            <location filename="../../app/application.py" line="6684" />
             <source>Journal note added</source>
             <translation>Journal note added</translation>
         </message>
@@ -6402,12 +6402,12 @@ Please restart the application for the change to take effect.</source>
 Please restart the application for the change to take effect.</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6893" />
+            <location filename="../../app/application.py" line="6907" />
             <source>Last spring frost</source>
             <translation>Last spring frost</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6886" />
+            <location filename="../../app/application.py" line="6900" />
             <source>Latitude: {lat}, Longitude: {lon}</source>
             <translation>Latitude: {lat}, Longitude: {lon}</translation>
         </message>
@@ -6431,7 +6431,7 @@ Please restart the application for the change to take effect.</translation>
             <translation type="vanished">Loaded satellite background (captured map view, zoom {zoom}) — canvas resized to {w_m:.0f}m x {h_m:.0f}m</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6159" />
+            <location filename="../../app/application.py" line="6126" />
             <source>Loaded satellite background (captured map view, zoom {zoom}) — canvas resized to {w_m} x {h_m}</source>
             <translation>Loaded satellite background (captured map view, zoom {zoom}) — canvas resized to {w_m} x {h_m}</translation>
         </message>
@@ -6440,7 +6440,7 @@ Please restart the application for the change to take effect.</translation>
             <translation type="vanished">Loaded satellite background ({cols}x{rows} tiles, zoom {zoom}) — canvas resized to {w_m:.0f}m x {h_m:.0f}m</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6170" />
+            <location filename="../../app/application.py" line="6137" />
             <source>Loaded satellite background ({cols}x{rows} tiles, zoom {zoom}) — canvas resized to {w_m} x {h_m}</source>
             <translation>Loaded satellite background ({cols}x{rows} tiles, zoom {zoom}) — canvas resized to {w_m} x {h_m}</translation>
         </message>
@@ -6449,7 +6449,7 @@ Please restart the application for the change to take effect.</translation>
             <translation type="vanished">Manage &amp;Seasons...</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6979" />
+            <location filename="../../app/application.py" line="6993" />
             <source>New Season Created</source>
             <translation>New Season Created</translation>
         </message>
@@ -6489,13 +6489,13 @@ Please restart the application for the change to take effect.</translation>
             <translation>No Plants Found</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6375" />
+            <location filename="../../app/application.py" line="6389" />
             <source>No changes</source>
             <translation>No changes</translation>
         </message>
         <message>
             <location filename="../../app/application.py" line="1981" />
-            <location filename="../../app/application.py" line="6872" />
+            <location filename="../../app/application.py" line="6886" />
             <source>No location set</source>
             <translation>No location set</translation>
         </message>
@@ -6521,7 +6521,7 @@ Please restart the application for the change to take effect.</translation>
             <translation>No supported entities found in the selected layers.</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6287" />
+            <location filename="../../app/application.py" line="6301" />
             <source>North orientation set to {angle}°</source>
             <translation>North orientation set to {angle}°</translation>
         </message>
@@ -6597,7 +6597,7 @@ Please restart the application for the change to take effect.</translation>
             <translation>Overlay ghosted plant positions from the previous season</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="7029" />
+            <location filename="../../app/application.py" line="7043" />
             <source>Overlay {year} season plants (ghosted)</source>
             <translation>Overlay {year} season plants (ghosted)</translation>
         </message>
@@ -6617,7 +6617,7 @@ Please restart the application for the change to take effect.</translation>
             <translation>Paste objects from clipboard</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6426" />
+            <location filename="../../app/application.py" line="6440" />
             <source>Pest/disease log recorded</source>
             <translation>Pest/disease log recorded</translation>
         </message>
@@ -6732,7 +6732,7 @@ Please restart the application for the change to take effect.</translation>
             <translation>Remove soil test</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6213" />
+            <location filename="../../app/application.py" line="6227" />
             <source>Replace georeference?</source>
             <translation>Replace georeference?</translation>
         </message>
@@ -6807,7 +6807,7 @@ Please restart the application for the change to take effect.</translation>
             <translation>Season</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6980" />
+            <location filename="../../app/application.py" line="6994" />
             <source>Season {year} has been created.
 
 Open the new season now?</source>
@@ -6816,18 +6816,18 @@ Open the new season now?</source>
 Open the new season now?</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6937" />
+            <location filename="../../app/application.py" line="6951" />
             <source>Season {year} — use File &gt; Manage Seasons to manage seasons</source>
             <translation>Season {year} — use File &gt; Manage Seasons to manage seasons</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6935" />
+            <location filename="../../app/application.py" line="6949" />
             <source>Season: {year}</source>
             <translation>Season: {year}</translation>
         </message>
         <message>
             <location filename="../../app/application.py" line="1989" />
-            <location filename="../../app/application.py" line="6930" />
+            <location filename="../../app/application.py" line="6944" />
             <source>Season: —</source>
             <translation>Season: —</translation>
         </message>
@@ -6908,7 +6908,7 @@ Open the new season now?</translation>
             <translation>Set a Google Maps API key in Preferences or OGP_GOOGLE_MAPS_KEY in your .env file to enable satellite background loading</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6086" />
+            <location filename="../../app/application.py" line="6084" />
             <source>Set a Google Maps API key in Preferences or OGP_GOOGLE_MAPS_KEY in your .env file to enable satellite background loading.</source>
             <translation>Set a Google Maps API key in Preferences or OGP_GOOGLE_MAPS_KEY in your .env file to enable satellite background loading.</translation>
         </message>
@@ -7064,12 +7064,12 @@ Open the new season now?</translation>
             <translation>Soil parameter:</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6379" />
+            <location filename="../../app/application.py" line="6393" />
             <source>Soil test recorded</source>
             <translation>Soil test recorded</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6560" />
+            <location filename="../../app/application.py" line="6574" />
             <source>Succession plan saved</source>
             <translation>Succession plan saved</translation>
         </message>
@@ -7112,7 +7112,7 @@ Details: {error}</translation>
             <translation>The plan value at {field} must be positive.</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6214" />
+            <location filename="../../app/application.py" line="6228" />
             <source>The satellite image is north-up. Replace this plan's georeference and set its north orientation to 0 degrees?</source>
             <translation>The satellite image is north-up. Replace this plan's georeference and set its north orientation to 0 degrees?</translation>
         </message>
@@ -7283,7 +7283,7 @@ Please save your project to a permanent location.</source>
 Please save your project to a permanent location.</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6889" />
+            <location filename="../../app/application.py" line="6903" />
             <source>Zone</source>
             <translation>Zone</translation>
         </message>
@@ -7313,12 +7313,12 @@ Please save your project to a permanent location.</translation>
             <translation>Zoom out on the canvas</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="7098" />
+            <location filename="../../app/application.py" line="7112" />
             <source>frost alert</source>
             <translation>frost alert</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="7098" />
+            <location filename="../../app/application.py" line="7112" />
             <source>frost alerts</source>
             <translation>frost alerts</translation>
         </message>
@@ -7370,112 +7370,128 @@ Please save your project to a permanent location.</translation>
     <context>
         <name>GeoreferenceDialog</name>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="147" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="157" />
             <source>Add point</source>
             <translation>Add point</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="231" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="258" />
             <source>Cannot fit: {reason}</source>
             <translation>Cannot fit: {reason}</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="107" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="117" />
             <source>Canvas origin and orientation</source>
             <translation>Canvas origin and orientation</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="151" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="161" />
             <source>Fit from reference points</source>
             <translation>Fit from reference points</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="245" />
             <source>Fit of {n} point(s): RMS {rms:.3f} m</source>
-            <translation>Fit of {n} point(s): RMS {rms:.3f} m</translation>
+            <translation type="vanished">Fit of {n} point(s): RMS {rms:.3f} m</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="66" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="275" />
+            <source>Fit of {n} point(s): RMS {rms}</source>
+            <translation>Fit of {n} point(s): RMS {rms}</translation>
+        </message>
+        <message>
+            <source>Fit of {n} point(s): RMS {rms} m</source>
+            <translation type="vanished">Fit of {n} point(s): RMS {rms} m</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="68" />
             <source>Georeference</source>
             <translation>Georeference</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="82" />
             <source>Last fit: RMS {rms:.3f} m</source>
-            <translation>Last fit: RMS {rms:.3f} m</translation>
+            <translation type="vanished">Last fit: RMS {rms:.3f} m</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="134" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="88" />
+            <source>Last fit: RMS {rms}</source>
+            <translation>Last fit: RMS {rms}</translation>
+        </message>
+        <message>
+            <source>Last fit: RMS {rms} m</source>
+            <translation type="vanished">Last fit: RMS {rms} m</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="144" />
             <source>Latitude</source>
             <translation>Latitude</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="114" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="124" />
             <source>Latitude of the origin (0, 0):</source>
             <translation>Latitude of the origin (0, 0):</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="135" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="145" />
             <source>Longitude</source>
             <translation>Longitude</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="115" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="125" />
             <source>Longitude of the origin (0, 0):</source>
             <translation>Longitude of the origin (0, 0):</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="116" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="126" />
             <source>Metres per canvas unit:</source>
             <translation>Metres per canvas unit:</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="133" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="143" />
             <source>Name</source>
             <translation>Name</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="162" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="172" />
             <source>One point sets only the position; two or more also set scale and rotation. X and Y are canvas coordinates in cm (Y points up).</source>
             <translation>One point sets only the position; two or more also set scale and rotation. X and Y are canvas coordinates in cm (Y points up).</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="128" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="138" />
             <source>Reference points</source>
             <translation>Reference points</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="149" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="159" />
             <source>Remove selected</source>
             <translation>Remove selected</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="138" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="148" />
             <source>Residual (m)</source>
             <translation>Residual (m)</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="119" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="129" />
             <source>The rotation is the plan's north orientation: changing it here changes it everywhere (sun, shade, reports).</source>
             <translation>The rotation is the plan's north orientation: changing it here changes it everywhere (sun, shade, reports).</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="99" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="109" />
             <source>This plan is georeferenced</source>
             <translation>This plan is georeferenced</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="117" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="127" />
             <source>True north, clockwise from plan-up:</source>
             <translation>True north, clockwise from plan-up:</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="136" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="146" />
             <source>X (cm)</source>
             <translation>X (cm)</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="137" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="147" />
             <source>Y (cm)</source>
             <translation>Y (cm)</translation>
         </message>
@@ -12266,7 +12282,7 @@ to assign species data.</translation>
     <context>
         <name>ProjectManager</name>
         <message>
-            <location filename="../../core/project.py" line="1330" />
+            <location filename="../../core/project.py" line="1332" />
             <source>Choose a template filename outside the current project and bundled examples.</source>
             <translation>Choose a template filename outside the current project and bundled examples.</translation>
         </message>

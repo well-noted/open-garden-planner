@@ -4588,7 +4588,6 @@ class SetGeoreferenceCommand(Command):
     """
 
     changes_ground_band = False
-    changes_containment = False
 
     def __init__(
         self,
@@ -4632,7 +4631,6 @@ class SetInitialMapCommand(Command):
     """
 
     changes_ground_band = False
-    changes_containment = False
 
     def __init__(
         self,

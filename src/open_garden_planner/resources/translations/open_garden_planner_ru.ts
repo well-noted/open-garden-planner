@@ -1573,7 +1573,7 @@
             <translation>Добавить ограничение</translation>
         </message>
         <message>
-            <location filename="../../core/commands.py" line="4714" />
+            <location filename="../../core/commands.py" line="4712" />
             <source>Add garden journal note</source>
             <translation>Добавить запись в садовый журнал</translation>
         </message>
@@ -1598,7 +1598,7 @@
             <translation>Добавить результат анализа почвы</translation>
         </message>
         <message>
-            <location filename="../../core/commands.py" line="4821" />
+            <location filename="../../core/commands.py" line="4819" />
             <source>Add task</source>
             <translation>Добавить задачу</translation>
         </message>
@@ -1732,12 +1732,12 @@
             <translation>Создать {item_type}</translation>
         </message>
         <message>
-            <location filename="../../core/commands.py" line="4952" />
+            <location filename="../../core/commands.py" line="4950" />
             <source>Delete camera tour</source>
             <translation>Удалить облёт камеры</translation>
         </message>
         <message>
-            <location filename="../../core/commands.py" line="4790" />
+            <location filename="../../core/commands.py" line="4788" />
             <source>Delete garden journal note</source>
             <translation>Удалить запись из садового журнала</translation>
         </message>
@@ -1767,7 +1767,7 @@
             <translation>Удалить результат анализа почвы</translation>
         </message>
         <message>
-            <location filename="../../core/commands.py" line="4865" />
+            <location filename="../../core/commands.py" line="4863" />
             <source>Delete task</source>
             <translation>Удалить задачу</translation>
         </message>
@@ -1807,7 +1807,7 @@
             <translation>Редактировать расстояние ограничения</translation>
         </message>
         <message>
-            <location filename="../../core/commands.py" line="4749" />
+            <location filename="../../core/commands.py" line="4747" />
             <source>Edit garden journal note</source>
             <translation>Редактировать запись в садовом журнале</translation>
         </message>
@@ -1833,7 +1833,7 @@
             <translation>Редактировать результат анализа почвы</translation>
         </message>
         <message>
-            <location filename="../../core/commands.py" line="4843" />
+            <location filename="../../core/commands.py" line="4841" />
             <source>Edit task</source>
             <translation>Редактировать задачу</translation>
         </message>
@@ -1922,7 +1922,7 @@
             <translation>Удалить ограничение</translation>
         </message>
         <message>
-            <location filename="../../core/commands.py" line="4935" />
+            <location filename="../../core/commands.py" line="4933" />
             <source>Rename camera tour</source>
             <translation>Переименовать облёт камеры</translation>
         </message>
@@ -1952,7 +1952,7 @@
             <translation>Повернуть объект</translation>
         </message>
         <message>
-            <location filename="../../core/commands.py" line="4918" />
+            <location filename="../../core/commands.py" line="4916" />
             <source>Save camera tour</source>
             <translation>Сохранить облёт камеры</translation>
         </message>
@@ -1967,12 +1967,12 @@
             <translation>Отправить {count} объект(а/ов) на задний план</translation>
         </message>
         <message>
-            <location filename="../../core/commands.py" line="4612" />
+            <location filename="../../core/commands.py" line="4611" />
             <source>Set georeference</source>
             <translation>Задать геопривязку</translation>
         </message>
         <message>
-            <location filename="../../core/commands.py" line="4664" />
+            <location filename="../../core/commands.py" line="4662" />
             <source>Set initial map</source>
             <translation>Задать начальную карту</translation>
         </message>
@@ -5616,7 +5616,7 @@ Would you like to recover this file?</source>
 Восстановить этот файл?</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6085" />
+            <location filename="../../app/application.py" line="6083" />
             <source>API key missing</source>
             <translation>Отсутствует ключ API</translation>
         </message>
@@ -5880,7 +5880,7 @@ Would you like to recover this file?</source>
         </message>
         <message>
             <location filename="../../app/application.py" line="1990" />
-            <location filename="../../app/application.py" line="6932" />
+            <location filename="../../app/application.py" line="6946" />
             <source>Current season year — use File &gt; Manage Seasons to configure</source>
             <translation>Текущий год сезона — настройте через Файл &gt; Управление сезонами</translation>
         </message>
@@ -5921,7 +5921,7 @@ Would you like to recover this file?</source>
             <translation>Удалить все ограничения</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6707" />
+            <location filename="../../app/application.py" line="6721" />
             <source>Delete journal note</source>
             <translation>Удалить заметку из журнала</translation>
         </message>
@@ -5931,7 +5931,7 @@ Would you like to recover this file?</source>
             <translation>Удалить выбранные объекты</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6708" />
+            <location filename="../../app/application.py" line="6722" />
             <source>Delete this journal note?</source>
             <translation>Удалить эту заметку из журнала?</translation>
         </message>
@@ -5994,7 +5994,7 @@ Would you like to recover this file?</source>
             <location filename="../../app/application.py" line="3627" />
             <location filename="../../app/application.py" line="3658" />
             <location filename="../../app/application.py" line="6069" />
-            <location filename="../../app/application.py" line="6970" />
+            <location filename="../../app/application.py" line="6984" />
             <source>Error</source>
             <translation>Ошибка</translation>
         </message>
@@ -6101,7 +6101,7 @@ Would you like to recover this file?</source>
             <translation>Экспортировано: {path}</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6971" />
+            <location filename="../../app/application.py" line="6985" />
             <source>Failed to create season file:
 {error}</source>
             <translation>Не удалось создать файл сезона:
@@ -6202,7 +6202,7 @@ Would you like to recover this file?</source>
             <translation>Найти и заменить объекты по имени, типу, слою или виду</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6895" />
+            <location filename="../../app/application.py" line="6909" />
             <source>First fall frost</source>
             <translation>Первый осенний заморозок</translation>
         </message>
@@ -6228,7 +6228,7 @@ Would you like to recover this file?</source>
         </message>
         <message>
             <location filename="../../app/application.py" line="1982" />
-            <location filename="../../app/application.py" line="6874" />
+            <location filename="../../app/application.py" line="6888" />
             <source>Garden GPS location — use File &gt; Set Garden Location to configure</source>
             <translation>GPS-координаты участка — настройте через Файл &gt; Задать местоположение участка</translation>
         </message>
@@ -6248,7 +6248,7 @@ Would you like to recover this file?</source>
             <translation>Местоположение участка</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6262" />
+            <location filename="../../app/application.py" line="6276" />
             <source>Garden location updated</source>
             <translation>Местоположение участка обновлено</translation>
         </message>
@@ -6268,7 +6268,7 @@ Would you like to recover this file?</source>
             <translation>Формируется PDF…</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6251" />
+            <location filename="../../app/application.py" line="6265" />
             <source>Georeference updated</source>
             <translation>Геопривязка обновлена</translation>
         </message>
@@ -6283,7 +6283,7 @@ Would you like to recover this file?</source>
             <translation>Сбор урожая</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6518" />
+            <location filename="../../app/application.py" line="6532" />
             <source>Harvest recorded</source>
             <translation>Сбор урожая зафиксирован</translation>
         </message>
@@ -6343,7 +6343,7 @@ Would you like to recover this file?</source>
             <translation>Вставить гильдию…</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6670" />
+            <location filename="../../app/application.py" line="6684" />
             <source>Journal note added</source>
             <translation>Заметка в журнале добавлена</translation>
         </message>
@@ -6362,12 +6362,12 @@ Please restart the application for the change to take effect.</source>
 Перезапустите приложение, чтобы изменения вступили в силу.</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6893" />
+            <location filename="../../app/application.py" line="6907" />
             <source>Last spring frost</source>
             <translation>Последний весенний заморозок</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6886" />
+            <location filename="../../app/application.py" line="6900" />
             <source>Latitude: {lat}, Longitude: {lon}</source>
             <translation>Широта: {lat}, Долгота: {lon}</translation>
         </message>
@@ -6391,7 +6391,7 @@ Please restart the application for the change to take effect.</source>
             <translation type="vanished">Спутниковый фон загружен (захваченный вид карты, масштаб {zoom}) — холст изменён до {w_m:.0f} м × {h_m:.0f} м</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6159" />
+            <location filename="../../app/application.py" line="6126" />
             <source>Loaded satellite background (captured map view, zoom {zoom}) — canvas resized to {w_m} x {h_m}</source>
             <translation>Спутниковый фон загружен (снимок карты, масштаб {zoom}) — размер холста изменён на {w_m} x {h_m}</translation>
         </message>
@@ -6400,7 +6400,7 @@ Please restart the application for the change to take effect.</source>
             <translation type="vanished">Спутниковый фон загружен ({cols}×{rows} плиток, масштаб {zoom}) — холст изменён до {w_m:.0f} м × {h_m:.0f} м</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6170" />
+            <location filename="../../app/application.py" line="6137" />
             <source>Loaded satellite background ({cols}x{rows} tiles, zoom {zoom}) — canvas resized to {w_m} x {h_m}</source>
             <translation>Спутниковый фон загружен ({cols}x{rows} фрагментов, масштаб {zoom}) — размер холста изменён на {w_m} x {h_m}</translation>
         </message>
@@ -6409,7 +6409,7 @@ Please restart the application for the change to take effect.</source>
             <translation type="vanished">Управление &amp;сезонами...</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6979" />
+            <location filename="../../app/application.py" line="6993" />
             <source>New Season Created</source>
             <translation>Новый сезон создан</translation>
         </message>
@@ -6449,13 +6449,13 @@ Please restart the application for the change to take effect.</source>
             <translation>Растения не найдены</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6375" />
+            <location filename="../../app/application.py" line="6389" />
             <source>No changes</source>
             <translation>Изменений нет</translation>
         </message>
         <message>
             <location filename="../../app/application.py" line="1981" />
-            <location filename="../../app/application.py" line="6872" />
+            <location filename="../../app/application.py" line="6886" />
             <source>No location set</source>
             <translation>Местоположение не задано</translation>
         </message>
@@ -6481,7 +6481,7 @@ Please restart the application for the change to take effect.</source>
             <translation>В выбранных слоях нет поддерживаемых объектов</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6287" />
+            <location filename="../../app/application.py" line="6301" />
             <source>North orientation set to {angle}°</source>
             <translation>Направление на север: {angle}°</translation>
         </message>
@@ -6553,7 +6553,7 @@ Please restart the application for the change to take effect.</source>
             <translation>Наложить полупрозрачные позиции растений из предыдущего сезона</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="7029" />
+            <location filename="../../app/application.py" line="7043" />
             <source>Overlay {year} season plants (ghosted)</source>
             <translation>Наложить растения сезона {year} (полупрозрачно)</translation>
         </message>
@@ -6573,7 +6573,7 @@ Please restart the application for the change to take effect.</source>
             <translation>Вставить объекты из буфера обмена</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6426" />
+            <location filename="../../app/application.py" line="6440" />
             <source>Pest/disease log recorded</source>
             <translation>Журнал вредителей и болезней зафиксирован</translation>
         </message>
@@ -6688,7 +6688,7 @@ Please restart the application for the change to take effect.</source>
             <translation>Удалить анализ почвы</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6213" />
+            <location filename="../../app/application.py" line="6227" />
             <source>Replace georeference?</source>
             <translation>Заменить геопривязку?</translation>
         </message>
@@ -6763,7 +6763,7 @@ Please restart the application for the change to take effect.</source>
             <translation>Сезон</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6980" />
+            <location filename="../../app/application.py" line="6994" />
             <source>Season {year} has been created.
 
 Open the new season now?</source>
@@ -6772,18 +6772,18 @@ Open the new season now?</source>
 Открыть новый сезон сейчас?</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6937" />
+            <location filename="../../app/application.py" line="6951" />
             <source>Season {year} — use File &gt; Manage Seasons to manage seasons</source>
             <translation>Сезон {year} — настройте через Файл &gt; Управление сезонами</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6935" />
+            <location filename="../../app/application.py" line="6949" />
             <source>Season: {year}</source>
             <translation>Сезон: {year}</translation>
         </message>
         <message>
             <location filename="../../app/application.py" line="1989" />
-            <location filename="../../app/application.py" line="6930" />
+            <location filename="../../app/application.py" line="6944" />
             <source>Season: —</source>
             <translation>Сезон: —</translation>
         </message>
@@ -6864,7 +6864,7 @@ Open the new season now?</source>
             <translation>Укажите ключ Google Maps API в Настройках или переменную OGP_GOOGLE_MAPS_KEY в файле .env, чтобы включить загрузку спутникового фона</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6086" />
+            <location filename="../../app/application.py" line="6084" />
             <source>Set a Google Maps API key in Preferences or OGP_GOOGLE_MAPS_KEY in your .env file to enable satellite background loading.</source>
             <translation>Укажите ключ Google Maps API в Настройках или переменную OGP_GOOGLE_MAPS_KEY в файле .env, чтобы включить загрузку спутникового фона.</translation>
         </message>
@@ -7020,12 +7020,12 @@ Open the new season now?</source>
             <translation>Параметр почвы:</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6379" />
+            <location filename="../../app/application.py" line="6393" />
             <source>Soil test recorded</source>
             <translation>Анализ почвы зафиксирован</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6560" />
+            <location filename="../../app/application.py" line="6574" />
             <source>Succession plan saved</source>
             <translation>План севооборота сохранён</translation>
         </message>
@@ -7068,7 +7068,7 @@ Details: {error}</source>
             <translation>Значение в поле {field} плана должно быть положительным.</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6214" />
+            <location filename="../../app/application.py" line="6228" />
             <source>The satellite image is north-up. Replace this plan's georeference and set its north orientation to 0 degrees?</source>
             <translation>Спутниковый снимок ориентирован на север. Заменить геопривязку этого плана и установить ориентацию севера на 0 градусов?</translation>
         </message>
@@ -7239,7 +7239,7 @@ Please save your project to a permanent location.</source>
 Сохраните проект в постоянное расположение.</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6889" />
+            <location filename="../../app/application.py" line="6903" />
             <source>Zone</source>
             <translation>Зона</translation>
         </message>
@@ -7269,12 +7269,12 @@ Please save your project to a permanent location.</source>
             <translation>Отдалить холст</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="7098" />
+            <location filename="../../app/application.py" line="7112" />
             <source>frost alert</source>
             <translation>Оповещение о заморозках</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="7098" />
+            <location filename="../../app/application.py" line="7112" />
             <source>frost alerts</source>
             <translation>Оповещения о заморозках</translation>
         </message>
@@ -7326,112 +7326,128 @@ Please save your project to a permanent location.</source>
     <context>
         <name>GeoreferenceDialog</name>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="147" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="157" />
             <source>Add point</source>
             <translation>Добавить точку</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="231" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="258" />
             <source>Cannot fit: {reason}</source>
             <translation>Не удаётся рассчитать: {reason}</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="107" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="117" />
             <source>Canvas origin and orientation</source>
             <translation>Начало координат и ориентация холста</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="151" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="161" />
             <source>Fit from reference points</source>
             <translation>Рассчитать по опорным точкам</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="245" />
             <source>Fit of {n} point(s): RMS {rms:.3f} m</source>
-            <translation>Расчёт по {n} точкам: СКО {rms:.3f} м</translation>
+            <translation type="vanished">Расчёт по {n} точкам: СКО {rms:.3f} м</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="66" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="275" />
+            <source>Fit of {n} point(s): RMS {rms}</source>
+            <translation>Расчёт по {n} точкам: СКО {rms}</translation>
+        </message>
+        <message>
+            <source>Fit of {n} point(s): RMS {rms} m</source>
+            <translation type="vanished">Расчёт по {n} точкам: СКО {rms} м</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="68" />
             <source>Georeference</source>
             <translation>Геопривязка</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="82" />
             <source>Last fit: RMS {rms:.3f} m</source>
-            <translation>Последний расчёт: СКО {rms:.3f} м</translation>
+            <translation type="vanished">Последний расчёт: СКО {rms:.3f} м</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="134" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="88" />
+            <source>Last fit: RMS {rms}</source>
+            <translation>Последний расчёт: СКО {rms}</translation>
+        </message>
+        <message>
+            <source>Last fit: RMS {rms} m</source>
+            <translation type="vanished">Последний расчёт: СКО {rms} м</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="144" />
             <source>Latitude</source>
             <translation>Широта</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="114" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="124" />
             <source>Latitude of the origin (0, 0):</source>
             <translation>Широта начала координат (0, 0):</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="135" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="145" />
             <source>Longitude</source>
             <translation>Долгота</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="115" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="125" />
             <source>Longitude of the origin (0, 0):</source>
             <translation>Долгота начала координат (0, 0):</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="116" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="126" />
             <source>Metres per canvas unit:</source>
             <translation>Метров на единицу холста:</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="133" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="143" />
             <source>Name</source>
             <translation>Название</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="162" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="172" />
             <source>One point sets only the position; two or more also set scale and rotation. X and Y are canvas coordinates in cm (Y points up).</source>
             <translation>Одна точка задаёт только положение; две и более задают также масштаб и поворот. X и Y — координаты холста в см (Y направлена вверх).</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="128" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="138" />
             <source>Reference points</source>
             <translation>Опорные точки</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="149" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="159" />
             <source>Remove selected</source>
             <translation>Удалить выбранные</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="138" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="148" />
             <source>Residual (m)</source>
             <translation>Невязка (м)</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="119" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="129" />
             <source>The rotation is the plan's north orientation: changing it here changes it everywhere (sun, shade, reports).</source>
             <translation>Поворот — это ориентация севера плана: изменение здесь действует везде (солнце, тень, отчёты).</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="99" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="109" />
             <source>This plan is georeferenced</source>
             <translation>План имеет геопривязку</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="117" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="127" />
             <source>True north, clockwise from plan-up:</source>
             <translation>Истинный север, по часовой стрелке от верха плана:</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="136" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="146" />
             <source>X (cm)</source>
             <translation>X (см)</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="137" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="147" />
             <source>Y (cm)</source>
             <translation>Y (см)</translation>
         </message>
@@ -12198,7 +12214,7 @@ to assign species data.</source>
     <context>
         <name>ProjectManager</name>
         <message>
-            <location filename="../../core/project.py" line="1330" />
+            <location filename="../../core/project.py" line="1332" />
             <source>Choose a template filename outside the current project and bundled examples.</source>
             <translation>Выберите имя файла шаблона за пределами текущего проекта и встроенных примеров.</translation>
         </message>

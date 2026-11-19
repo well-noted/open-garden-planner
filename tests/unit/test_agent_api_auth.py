@@ -136,6 +136,10 @@ WRITE_TOOL_NAMES = frozenset(
         "edit_manual_task",
         "delete_manual_task",
         "record_soil_test",
+        # ADR-079: georeference writes (plan georef + north + initial map).
+        "set_georeference",
+        "set_georeference_from_reference_points",
+        "set_initial_map",
         # US-D2.4: layer write tools.
         "set_object_layer",
         "create_layer",

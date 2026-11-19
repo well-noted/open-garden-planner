@@ -61,8 +61,8 @@ DE = {
             "Drehung fest. X und Y sind Zeichenflächenkoordinaten in cm (Y zeigt nach oben)."
         ),
         "Cannot fit: {reason}": "Berechnung nicht möglich: {reason}",
-        "Fit of {n} point(s): RMS {rms:.3f} m": "Berechnung aus {n} Punkt(en): RMS {rms:.3f} m",
-        "Last fit: RMS {rms:.3f} m": "Letzte Berechnung: RMS {rms:.3f} m",
+        "Fit of {n} point(s): RMS {rms}": "Berechnung aus {n} Punkt(en): RMS {rms}",
+        "Last fit: RMS {rms}": "Letzte Berechnung: RMS {rms}",
     },
     "PreferencesDialog": {
         "Allow street-address lookup (Google Geocoding API)": (
@@ -118,8 +118,8 @@ ES = {
             "X e Y son coordenadas del lienzo en cm (Y apunta hacia arriba)."
         ),
         "Cannot fit: {reason}": "No se puede ajustar: {reason}",
-        "Fit of {n} point(s): RMS {rms:.3f} m": "Ajuste de {n} punto(s): RMS {rms:.3f} m",
-        "Last fit: RMS {rms:.3f} m": "Último ajuste: RMS {rms:.3f} m",
+        "Fit of {n} point(s): RMS {rms}": "Ajuste de {n} punto(s): RMS {rms}",
+        "Last fit: RMS {rms}": "Último ajuste: RMS {rms}",
     },
     "PreferencesDialog": {
         "Allow street-address lookup (Google Geocoding API)": (
@@ -176,8 +176,8 @@ RU = {
             "X и Y — координаты холста в см (Y направлена вверх)."
         ),
         "Cannot fit: {reason}": "Не удаётся рассчитать: {reason}",
-        "Fit of {n} point(s): RMS {rms:.3f} m": "Расчёт по {n} точкам: СКО {rms:.3f} м",
-        "Last fit: RMS {rms:.3f} m": "Последний расчёт: СКО {rms:.3f} м",
+        "Fit of {n} point(s): RMS {rms}": "Расчёт по {n} точкам: СКО {rms}",
+        "Last fit: RMS {rms}": "Последний расчёт: СКО {rms}",
     },
     "PreferencesDialog": {
         "Allow street-address lookup (Google Geocoding API)": (

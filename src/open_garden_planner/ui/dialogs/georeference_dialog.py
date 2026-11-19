@@ -38,6 +38,8 @@ from open_garden_planner.core.georef import (
     ReferencePoint,
     fit_from_reference_points,
 )
+from open_garden_planner.core.i18n import format_decimal
+from open_garden_planner.core.measurement_display import length_text
 
 _COL_NAME, _COL_LAT, _COL_LON, _COL_X, _COL_Y, _COL_RES = range(6)
 
@@ -83,7 +85,7 @@ class GeoreferenceDialog(QDialog):
                 self._add_row(p.name, p.lat, p.lon, p.x, p.y)
             if georef.fit_rms_m is not None:
                 self._status.setText(
-                    self.tr("Last fit: RMS {rms:.3f} m").format(rms=georef.fit_rms_m)
+                    self.tr("Last fit: RMS {rms}").format(rms=length_text(georef.fit_rms_m * 100.0))
                 )
         elif location and location.get("latitude") is not None:
             try:
@@ -268,9 +270,11 @@ class GeoreferenceDialog(QDialog):
         for row, residual in enumerate(fit.residuals_m):
             cell = self._table.item(row, _COL_RES)
             if cell is not None:
-                cell.setText(f"{residual:.3f}")
+                cell.setText(format_decimal(residual, 3))
         self._status.setText(
-            self.tr("Fit of {n} point(s): RMS {rms:.3f} m").format(n=len(points), rms=fit.rms_m)
+            self.tr("Fit of {n} point(s): RMS {rms}").format(
+                n=len(points), rms=length_text(fit.rms_m * 100.0)
+            )
         )
 
     @property
