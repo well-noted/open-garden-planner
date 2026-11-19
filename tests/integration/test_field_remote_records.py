@@ -23,6 +23,7 @@ from PIL import Image
 from open_garden_planner.app.application import GardenPlannerApp
 from open_garden_planner.app.settings import get_settings
 from open_garden_planner.field_remote import limits
+from open_garden_planner.field_remote.routes import plan_id
 from open_garden_planner.field_remote.server import SERVER_THREAD_NAME
 from open_garden_planner.services import field_records as fr
 
@@ -65,9 +66,11 @@ def running(qtbot: Any, tmp_path: Path):
     host.stop()
 
 
-def _save_as(win: GardenPlannerApp, tmp_path: Path) -> Path:
+def _save_as(win: GardenPlannerApp, tmp_path: Path, client: httpx.Client | None = None) -> Path:
     plan = tmp_path / "garden.ogp"
     win._project_manager._current_file = plan  # what a successful Save does to the manager
+    if client is not None:  # the phone learned the plan id from its last read
+        client.headers["X-Plan-Id"] = plan_id(str(plan))
     return plan
 
 
@@ -97,7 +100,7 @@ def test_writes_follow_the_toggle_and_the_saved_plan_and_never_touch_the_plan(
 
     time.sleep(1.2)  # refill the write bucket (5/s, burst 5)
     # 3. saved plan: created, then an idempotent replay returns the same record
-    plan = _save_as(win, tmp_path)
+    plan = _save_as(win, tmp_path, client)
     first = client.post("/api/records", json=_note())
     assert first.status_code == 201
     again = client.post("/api/records", json=_note())
@@ -126,7 +129,7 @@ def test_writes_follow_the_toggle_and_the_saved_plan_and_never_touch_the_plan(
 def test_photo_upload_is_capped_and_stored_beside_the_plan(running: Any, tmp_path: Path) -> None:
     win, host, client = running
     host.set_records_enabled(True)
-    plan = _save_as(win, tmp_path)
+    plan = _save_as(win, tmp_path, client)
     ok = client.post(
         "/api/records", data={"meta": json.dumps(_note())}, files={"photo": ("any-name.jpg", _png(), "image/jpeg")}
     )
@@ -146,20 +149,21 @@ def test_photo_upload_is_capped_and_stored_beside_the_plan(running: Any, tmp_pat
 def test_the_sidecar_is_written_by_this_process(running: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     win, host, client = running
     host.set_records_enabled(True)
-    _save_as(win, tmp_path)
-    seen: list[tuple[int, str]] = []
+    _save_as(win, tmp_path, client)
+    seen: list[tuple[int, int]] = []
     original = fr.create_record
 
     def spy(*args: Any, **kwargs: Any) -> Any:
-        seen.append((os.getpid(), threading.current_thread().name))
+        seen.append((os.getpid(), threading.get_ident()))
         return original(*args, **kwargs)
 
     monkeypatch.setattr(fr, "create_record", spy)
     assert client.post("/api/records", json=_note()).status_code == 201
-    pid, thread = seen[0]
+    pid, ident = seen[0]
     assert pid == os.getpid()  # one process, so the store's lock is the only lock needed (design 1.8)
     # the store call runs on a worker thread, never the Qt GUI thread
-    assert thread != threading.main_thread().name
+    assert ident != threading.main_thread().ident  # by thread id, not by name
+    assert ident != threading.get_ident()  # and not the test's (GUI) thread either
     assert any(t.name == SERVER_THREAD_NAME for t in threading.enumerate())
 
 
@@ -167,7 +171,7 @@ def test_two_writers_one_process_lose_nothing(running: Any, tmp_path: Path) -> N
     """The phone route and an agent-style direct store call interleave under the one lock."""
     win, host, client = running
     host.set_records_enabled(True)
-    plan = _save_as(win, tmp_path)
+    plan = _save_as(win, tmp_path, client)
     errors: list[BaseException] = []
 
     def agent() -> None:

@@ -332,7 +332,7 @@ class TestReviewFixes:
         def deny(*_a, **_k):
             raise PermissionError(13, "Permission denied")
 
-        monkeypatch.setattr(fr, "update_record", deny)
+        monkeypatch.setattr(fr, "approve_candidate", deny)
         before = _undo_depth(app)
         (p,) = _call(app, qtbot, [("place_geotagged_feature", {"record_id": rid})])
         assert p[0] is False, p[2]

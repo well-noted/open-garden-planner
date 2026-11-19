@@ -12,6 +12,7 @@ bodies that never echo input, paths or the token.
 
 from __future__ import annotations
 
+import hashlib
 import logging
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Annotated, Any, Literal
@@ -97,7 +98,7 @@ class RecordIn(_Fields):
 
     kind: Literal["plant", "irrigation_path", "reference_point", "note", "measurement", "placement_request"]
     idempotency_key: Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{8,64}$")]
-    group_id: Annotated[str, Field(max_length=64)] | None = None
+    group_id: Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{1,64}$")] | None = None
     timestamp: Annotated[str, Field(min_length=10, max_length=40)] | None = None
     lat: Number | None = None
     lon: Number | None = None
@@ -110,12 +111,10 @@ class RecordPatch(_Fields):
     lon: Number | None = None
 
 
-#: kind -> (geometry type it needs or None, further required fields)
-_KIND_RULES: dict[str, tuple[str | None, tuple[str, ...]]] = {
-    "irrigation_path": ("polyline", ()),
-    "reference_point": ("point", ("name",)),
-    "placement_request": ("point", ("what", "group_id")),
-}
+def plan_id(path: str) -> str:
+    """A short id of the open plan. Writes must quote it, so a plan switched on the computer
+    between a phone's read and its write is refused instead of silently receiving the record."""
+    return hashlib.sha256(str(path).encode("utf-8")).hexdigest()[:16]
 
 
 def _json(payload: dict[str, Any], status: int = 200) -> Response:
@@ -141,6 +140,7 @@ def _view(rec: fr.FieldRecord) -> dict[str, Any]:
     """A record as the phone sees it: the store's photo name becomes a URL."""
     out = rec.to_dict()
     out["photo"] = None
+    out.pop("payload_hash", None)
     out["photo_url"] = f"/api/field-records/{rec.id}/photo" if rec.photo else None
     return out
 
@@ -152,17 +152,13 @@ def _store_error(error: fr.FieldRecordError) -> Response:
         return _error(409, "not_pending", str(error))
     if isinstance(error, fr.RecordCapError):
         return _error(409, "record_limit", str(error))
+    if isinstance(error, fr.RecordConflictError):
+        return _error(409, "idempotency_conflict", str(error))
+    if isinstance(error, fr.RecordGoneError):
+        return _error(410, "withdrawn", str(error))
+    if isinstance(error, fr.RecordStorageError):  # detail is logged by the store, never sent
+        return _error(503, "storage_unavailable", "The computer cannot save field records right now.")
     return _error(422, "invalid_record", str(error))
-
-
-def _check_kind(body: RecordIn) -> str | None:
-    needed_geometry, needed_fields = _KIND_RULES.get(body.kind, (None, ()))
-    if needed_geometry is not None and (body.geometry is None or body.geometry.type != needed_geometry):
-        return f"{body.kind} needs a {needed_geometry} geometry"
-    for name in needed_fields:
-        if getattr(body, name) is None:
-            return f"{body.kind} needs {name}"
-    return None
 
 
 async def _read_create(request: Request) -> tuple[RecordIn, bytes | None] | Response:
@@ -214,7 +210,15 @@ def records_routes(plan_path: PlanPath) -> list[BaseRoute]:
         blocked = server.require_records_enabled(request)
         if blocked is not None:
             return None, blocked
-        return saved_plan()
+        path, refusal = saved_plan()
+        if refusal is not None or path is None:
+            return None, refusal
+        quoted = request.headers.get("x-plan-id")
+        if not quoted:
+            return None, _error(400, "plan_id_required", "Send the plan id (from GET /api/field-records) in X-Plan-Id.")
+        if quoted != plan_id(path):
+            return None, _error(409, "plan_changed", "The plan on the computer changed; reload before saving.")
+        return path, None
 
     async def list_records(request: Request) -> Response:
         path, refusal = saved_plan()
@@ -231,12 +235,16 @@ def records_routes(plan_path: PlanPath) -> list[BaseRoute]:
         if (status is not None and status not in fr.STATUSES) or (kind is not None and kind not in fr.KINDS):
             return _error(400, "bad_request", "Unknown status or kind.")
         loaded = await run_in_threadpool(fr.load_records, path)
-        recs = sorted(loaded.records, key=lambda r: r.timestamp[:19], reverse=True)
+        # The phone sees only what it wrote: the agent's and the desktop's records (and the plan's
+        # legacy ones) carry GPS fixes and photos that the permission toggle does not cover.
+        own = [r for r in loaded.records if r.source == fr.OWN_SOURCE]
+        recs = sorted(own, key=lambda r: r.timestamp[:19], reverse=True)
         recs = [r for r in recs if (status is None or r.status == status) and (kind is None or r.kind == kind)]
         return _json(
             {
-                "total": len(loaded.records),
-                "pending": sum(1 for r in loaded.records if r.status == "pending"),
+                "plan_id": plan_id(path),
+                "total": len(own),
+                "pending": sum(1 for r in own if r.status == "pending"),
                 "returned": min(len(recs), limit),
                 "records": [_view(r) for r in recs[:limit]],
                 "limits": {
@@ -256,13 +264,17 @@ def records_routes(plan_path: PlanPath) -> list[BaseRoute]:
             return refusal or _error(409, "plan_not_saved")
         try:
             rec = await run_in_threadpool(fr.get_record, path, request.path_params["record_id"])
+            if rec.source != fr.OWN_SOURCE:
+                raise fr.RecordNotFoundError("not the phone's record")
             raw = await run_in_threadpool(fr.read_photo, path, rec)
         except fr.RecordNotFoundError:
             return _error(404, "not_found", "No such record.")
         except fr.FieldRecordError:
             return _error(404, "not_found", "The record has no photo.")
         media = _PHOTO_TYPES.get(rec.photo[rec.photo.rfind("."):] if rec.photo else "", "application/octet-stream")
-        return RawResponse(raw, media_type=media)
+        return RawResponse(
+            raw, media_type=media, headers={"content-disposition": "attachment"}  # nosniff comes from the guard
+        )
 
     async def create(request: Request) -> Response:
         path, refusal = await guard_write(request)
@@ -273,9 +285,6 @@ def records_routes(plan_path: PlanPath) -> list[BaseRoute]:
             body, photo = parsed
         else:
             return parsed
-        problem = _check_kind(body)
-        if problem:
-            return _error(422, "invalid_record", problem)
         data = body.model_dump(exclude_none=True)
         data.update({"status": "pending", "source": "field_remote"})
         try:
@@ -285,7 +294,7 @@ def records_routes(plan_path: PlanPath) -> list[BaseRoute]:
         except OSError:
             logger.exception("Field Remote could not write the field notes")
             return _error(500, "storage_error", "The computer could not save the record.")
-        return _json({"record": _view(rec), "created": created}, 201 if created else 200)
+        return _json({"plan_id": plan_id(path), "record": _view(rec), "created": created}, 201 if created else 200)
 
     async def patch(request: Request) -> Response:
         path, refusal = await guard_write(request)

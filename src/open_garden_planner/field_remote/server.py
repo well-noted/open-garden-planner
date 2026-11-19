@@ -213,7 +213,11 @@ class FieldRemoteGuard:
     def _body_cap(self, scope: dict[str, Any]) -> int:
         """The small cap everywhere, except the one photo-upload route (design 1.5)."""
         if (scope["method"], scope["path"]) in limits.UPLOAD_ROUTES:
-            return max(self._max_body, self._max_upload_body)
+            # Only a multipart body may carry a photo; a JSON body keeps the small cap, so it is
+            # never buffered up to 12 MB before the route sees it is JSON.
+            ctype = next((v for k, v in scope.get("headers") or [] if k == b"content-type"), b"")
+            if ctype.lower().startswith(b"multipart/form-data"):
+                return max(self._max_body, self._max_upload_body)
         return self._max_body
 
     async def _check(self, scope: dict[str, Any], client: str) -> Any:

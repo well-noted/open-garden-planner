@@ -170,6 +170,7 @@ def ingest(
             "bearing_deg": bearing_deg,
             "fix_mode": fix_mode,
             "timestamp": tag.taken_at,
+            "source": "agent",
         },
         raw,
     )

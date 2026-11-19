@@ -13,7 +13,7 @@ from PIL import Image
 from starlette.testclient import TestClient
 
 from open_garden_planner.field_remote import limits, server
-from open_garden_planner.field_remote.routes import records_routes
+from open_garden_planner.field_remote.routes import plan_id, records_routes
 from open_garden_planner.services import field_records as fr
 
 TOKEN = "t" * 43
@@ -46,7 +46,8 @@ class Env:
             self.state, "127.0.0.1", PORT, extra_routes=records_routes(lambda: self.plan),
             guard_kwargs={"failure_delay_s": 0.0, "clock": _Tick()},
         )
-        self.client = TestClient(app, base_url=f"https://127.0.0.1:{PORT}")
+        headers = {"X-Plan-Id": plan_id(self.plan)} if self.plan else {}
+        self.client = TestClient(app, base_url=f"https://127.0.0.1:{PORT}", headers=headers)
 
     def post(self, body: dict[str, Any], **kw: Any) -> Any:
         return self.client.post("/api/records", json=body, headers=AUTH, **kw)
@@ -78,7 +79,7 @@ def test_create_stores_a_pending_field_remote_record(env: Env) -> None:
 
 def test_replay_returns_the_original_and_adds_nothing(env: Env) -> None:
     first = env.post(_note()).json()["record"]
-    again = env.post(_note(notes="changed")).json()
+    again = env.post(_note()).json()
     assert again["created"] is False and again["record"]["id"] == first["id"] and again["record"]["notes"] == "dead branch"
     assert env.client.post("/api/records", json=_note(), headers=AUTH).status_code == 200
     assert len(fr.load_records(env.plan).records) == 1
@@ -91,7 +92,7 @@ def test_no_token_or_wrong_token_is_401_and_writes_nothing(env: Env) -> None:
     assert fr.load_records(env.plan).records == []
 
 
-def test_toggle_off_refuses_every_write_but_not_reads(tmp_path: Path) -> None:
+def test_toggle_off_refuses_every_write(tmp_path: Path) -> None:
     env = Env(tmp_path, enabled=False)
     for res in (
         env.post(_note()),
@@ -99,9 +100,26 @@ def test_toggle_off_refuses_every_write_but_not_reads(tmp_path: Path) -> None:
         env.client.delete("/api/records/abc", headers=AUTH),
     ):
         assert res.status_code == 403 and res.json()["error"] == "records_disabled"
-    assert env.client.get("/api/field-records", headers=AUTH).status_code == 200
     env.state.records_enabled = True  # the toggle applies live
     assert env.post(_note()).status_code == 201
+
+
+def test_reads_show_only_the_phones_own_records_and_photos(env: Env) -> None:
+    mine = env.post(_note("key-mine0001")).json()["record"]["id"]
+    agent = fr.add_record(env.plan, {"notes": "agent", "lat": 48.0, "lon": 11.0, "source": "agent"}, _png())
+    desktop = fr.add_record(env.plan, {"notes": "desktop", "source": "desktop"})
+    legacy = fr.sidecar_paths(env.plan)[0]
+    document = json.loads(legacy.read_text(encoding="utf-8"))
+    document["records"].append({"id": "old1", "notes": "legacy v1", "lat": 1.0, "lon": 2.0})
+    legacy.write_text(json.dumps(document), encoding="utf-8")
+    body = env.client.get("/api/field-records", headers=AUTH).json()
+    assert [r["id"] for r in body["records"]] == [mine] and body["total"] == 1
+    assert "agent" not in env.client.get("/api/field-records", headers=AUTH).text
+    for other in (agent.id, desktop.id, "old1"):
+        assert env.client.get(f"/api/field-records/{other}/photo", headers=AUTH).status_code == 404
+    off = Env(Path(env.plan).parent / "off", enabled=False)  # reads need the token but not the write toggle
+    (Path(env.plan).parent / "off").mkdir()
+    assert off.client.get("/api/field-records", headers=AUTH).status_code == 200
 
 
 def test_unsaved_plan_is_409_plan_not_saved(tmp_path: Path) -> None:
@@ -133,7 +151,8 @@ def test_patch_edits_a_pending_record_only(env: Env) -> None:
     res = env.client.patch(f"/api/records/{rec_id}", json={"notes": "moved", "geometry": _point(48.5)}, headers=AUTH)
     assert res.status_code == 200 and res.json()["record"]["notes"] == "moved"
     assert fr.get_record(env.plan, rec_id).geometry["lat"] == 48.5  # type: ignore[index]
-    fr.update_record(env.plan, rec_id, status="placed")  # decided on the computer
+    assert res.json()["record"]["lat"] == 48.5 and fr.get_record(env.plan, rec_id).lat == 48.5  # lat follows
+    fr.update_record(env.plan, rec_id, status="placed", placed_object_id="obj-1")  # decided on the computer
     res = env.client.patch(f"/api/records/{rec_id}", json={"notes": "late"}, headers=AUTH)
     assert res.status_code == 409 and res.json()["error"] == "not_pending"
     assert fr.get_record(env.plan, rec_id).notes == "moved"
@@ -179,6 +198,7 @@ def test_multipart_photo_is_stored_under_a_store_issued_name_and_served(env: Env
     assert fr.get_record(env.plan, rec["id"]).photo == f"photos/{rec['id']}.png"  # sniffed type, store name
     served = env.client.get(rec["photo_url"], headers=AUTH)
     assert served.status_code == 200 and served.headers["content-type"] == "image/png" and served.content == _png()
+    assert served.headers["content-disposition"] == "attachment" and served.headers["x-content-type-options"] == "nosniff"
     assert env.client.get("/api/field-records/missing/photo", headers=AUTH).status_code == 404
 
 
@@ -287,7 +307,7 @@ def test_a_damaged_sidecar_blocks_writes_with_no_data_loss(env: Env) -> None:
     path = fr.sidecar_paths(env.plan)[0]
     path.write_text(json.dumps({"version": 9, "records": [{"id": "future"}]}), encoding="utf-8")
     res = env.post(_note())
-    assert res.status_code == 422 and "newer" in res.json()["detail"]
+    assert res.status_code == 503 and res.json()["error"] == "storage_unavailable"
     assert json.loads(path.read_text(encoding="utf-8"))["version"] == 9
 
 
@@ -313,3 +333,106 @@ def test_routes_never_reach_the_qt_thread_or_the_plan() -> None:
             names.add(getattr(node, "module", None) or "")
     assert not {n for n in names if n.startswith(("PyQt6", "open_garden_planner.app", "open_garden_planner.ui"))}
     assert not names & {"run_on_main", "QGraphicsScene", "command_manager", "agent_host"}
+
+
+# -- review fixes ---------------------------------------------------------------------------
+def test_the_phone_cannot_edit_or_delete_records_it_did_not_create(env: Env) -> None:
+    agent = fr.add_record(env.plan, {"notes": "agent", "source": "agent"}, _png())
+    desktop = fr.add_record(env.plan, {"notes": "desktop", "source": "desktop"})
+    path = fr.sidecar_paths(env.plan)[0]
+    document = json.loads(path.read_text(encoding="utf-8"))
+    document["records"].append({"id": "old1", "notes": "legacy"})  # a v1 entry, migrated on load
+    path.write_text(json.dumps(document), encoding="utf-8")
+    for rid in (agent.id, desktop.id, "old1"):
+        patched = env.client.patch(f"/api/records/{rid}", json={"notes": "hacked"}, headers=AUTH)
+        deleted = env.client.delete(f"/api/records/{rid}", headers=AUTH)
+        assert patched.status_code == 404 and deleted.status_code == 404
+    assert {r.notes for r in fr.load_records(env.plan).records} == {"agent", "desktop", "legacy"}
+    assert fr.resolve_photo(env.plan, fr.get_record(env.plan, agent.id)).exists()
+
+
+def test_writes_must_quote_the_current_plan_id(env: Env) -> None:
+    ok = env.post(_note())
+    assert ok.status_code == 201 and ok.json()["plan_id"] == plan_id(env.plan)
+    assert env.client.get("/api/field-records", headers=AUTH).json()["plan_id"] == plan_id(env.plan)
+    rec_id = ok.json()["record"]["id"]
+    stale = {**AUTH, "X-Plan-Id": "0" * 16}
+    missing = {**AUTH, "X-Plan-Id": ""}
+    for headers, code, error in ((stale, 409, "plan_changed"), (missing, 400, "plan_id_required")):
+        for res in (
+            env.client.post("/api/records", json=_note("key-other001"), headers=headers),
+            env.client.patch(f"/api/records/{rec_id}", json={"notes": "x"}, headers=headers),
+            env.client.delete(f"/api/records/{rec_id}", headers=headers),
+        ):
+            assert res.status_code == code and res.json()["error"] == error
+    env.plan = env.plan.replace("garden", "other")  # the user opened another plan on the computer
+    res = env.post(_note("key-other002"))
+    assert res.status_code == 409 and res.json()["error"] == "plan_changed"
+    assert not fr.sidecar_paths(env.plan)[0].exists()
+
+
+def test_patch_enforces_kind_rules_and_lat_follows_geometry(env: Env) -> None:
+    line = {"type": "polyline", "points": [[48.0, 11.0], [48.0001, 11.0]]}
+    irrigation = env.post({"kind": "irrigation_path", "idempotency_key": "key-irrig001", "geometry": line}).json()["record"]["id"]
+    res = env.client.patch(f"/api/records/{irrigation}", json={"geometry": _point()}, headers=AUTH)
+    assert res.status_code == 422 and res.json()["error"] == "invalid_record"
+    assert fr.get_record(env.plan, irrigation).geometry["type"] == "polyline"  # type: ignore[index]
+    note = env.post(_note("key-note0001", geometry=_point())).json()["record"]["id"]
+    res = env.client.patch(f"/api/records/{note}", json={"geometry": _point(49.0)}, headers=AUTH)
+    assert res.status_code == 200 and res.json()["record"]["lat"] == 49.0
+
+
+def test_a_phone_cannot_join_a_group_of_another_source(env: Env) -> None:
+    base = {"kind": "placement_request", "what": "apple", "geometry": _point()}
+    agent = fr.add_record(env.plan, {**base, "group_id": "shared", "source": "agent"})
+    res = env.post({**base, "idempotency_key": "key-group001", "group_id": "shared"})
+    assert res.status_code == 201  # allowed, but only its own source's siblings are ever swept
+    fr.approve_candidate(env.plan, agent.id, "obj-1")
+    assert fr.get_record(env.plan, res.json()["record"]["id"]).status == "pending"
+    for bad in ("has space", "x" * 65, "a/b"):
+        assert env.post({**base, "idempotency_key": "key-group002", "group_id": bad}).status_code == 422
+    assert env.post(_note("key-group003", group_id="g1")).status_code == 422  # only placement requests
+
+
+def test_idempotency_conflict_and_withdrawn_keys(env: Env) -> None:
+    first = env.post(_note()).json()["record"]["id"]
+    clash = env.post(_note(notes="something else"))
+    assert clash.status_code == 409 and clash.json()["error"] == "idempotency_conflict"
+    assert env.client.delete(f"/api/records/{first}", headers=AUTH).status_code == 200
+    late = env.post(_note())  # an outbox retry after the phone withdrew it
+    assert late.status_code == 410 and late.json()["error"] == "withdrawn"
+    assert fr.load_records(env.plan).records == []
+
+
+def test_an_unreadable_sidecar_leaks_no_path(env: Env, monkeypatch: pytest.MonkeyPatch) -> None:
+    fr.add_record(env.plan, {"notes": "x", "source": "field_remote"})
+    original = Path.read_bytes
+
+    def boom(self: Path) -> bytes:
+        if self.name.endswith(".fieldnotes.json"):
+            raise PermissionError(13, f"denied {self}")
+        return original(self)
+
+    monkeypatch.setattr(Path, "read_bytes", boom)
+    res = env.post(_note())
+    assert res.status_code == 503 and res.json()["error"] == "storage_unavailable"
+    for text in (res.text, env.client.delete("/api/records/anything", headers=AUTH).text):
+        assert str(env.plan) not in text and "denied" not in text and ".fieldnotes" not in text
+
+
+def test_a_decompression_bomb_photo_is_refused_without_storing_anything(env: Env) -> None:
+    buf = io.BytesIO()
+    Image.new("1", (12000, 9000)).save(buf, "PNG")
+    res = env.client.post(
+        "/api/records", headers=AUTH, data={"meta": json.dumps(_note())}, files={"photo": ("a.png", buf.getvalue(), "image/png")}
+    )
+    assert res.status_code == 422 and "megapixels" in res.json()["detail"]
+    assert fr.load_records(env.plan).records == []
+
+
+def test_a_json_body_never_gets_the_upload_cap(env: Env) -> None:
+    pad = "x" * (limits.MAX_BODY_BYTES + 1000)
+    body = json.dumps({"kind": "note", "idempotency_key": KEY, "notes": pad})
+    assert len(body) < limits.MAX_PHOTO_BYTES  # it would fit the upload cap, which is exactly the point
+    res = env.client.post("/api/records", content=body, headers={**AUTH, "content-type": "application/json"})
+    assert res.status_code == 413 and res.json()["error"] == "body_too_large"

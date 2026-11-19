@@ -22,8 +22,10 @@ client-supplied name can never escape the photos folder.
 from __future__ import annotations
 
 import contextlib
+import hashlib
 import io
 import json
+import logging
 import math
 import os
 import re
@@ -41,6 +43,8 @@ from PIL import Image, UnidentifiedImageError
 
 from open_garden_planner.core.georef import GeorefError, validate_lat_lon
 
+logger = logging.getLogger(__name__)
+
 #: Version of the sidecar JSON. Bump only with a migration in :func:`_migrate`.
 FIELD_RECORDS_VERSION = 2
 MAX_RECORDS = 5000
@@ -48,6 +52,15 @@ MAX_RECORDS = 5000
 MAX_PENDING = 500
 MAX_POLYLINE_POINTS = 2000
 MAX_DISTANCES = 50
+#: Whole-file and photo budgets, so one client cannot make every write rewrite a huge file or fill the disk.
+MAX_SIDECAR_BYTES = 16 * 1024 * 1024
+MAX_PHOTO_TOTAL_BYTES = 2 * 1024 * 1024 * 1024
+MAX_PHOTO_PIXELS = 100_000_000
+#: Idempotency keys of withdrawn records that are remembered (see :func:`delete_pending_record`).
+MAX_WITHDRAWN_KEYS = 2000
+#: The ``source`` of records the phone created; the only ones it may edit or withdraw.
+OWN_SOURCE = "field_remote"
+_WITHDRAWN_KEY = "withdrawn_keys"
 MAX_PHOTO_BYTES = 25 * 1024 * 1024
 MAX_TEXT = 4000
 MAX_NAME = 200
@@ -78,13 +91,14 @@ _KNOWN_KEYS = frozenset(
         "accuracy_m", "bearing_deg", "fix_mode", "timestamp", "placed_object_id",
         "kind", "status", "geometry", "sigma_m", "idempotency_key", "group_id", "what",
         "requester", "precision_hint", "source", "name", "diameter_mm", "flow_lph",
-        "emitter_spacing_cm", "closes_on", "distances", "rms",
+        "emitter_spacing_cm", "closes_on", "distances", "rms", "payload_hash",
     }
 )
 #: The v2 keys written only when set, so a v1 record stays as small as it was.
 _OPTIONAL_V2 = (
     "geometry", "sigma_m", "idempotency_key", "group_id", "what", "requester", "precision_hint",
     "source", "name", "diameter_mm", "flow_lph", "emitter_spacing_cm", "closes_on", "distances", "rms",
+    "payload_hash",
 )
 # Single writer (ADR-080/081): the Field Remote server runs in the GUI process, so the phone
 # routes, the agent tools and the desktop panel are threads of one process under this one lock;
@@ -105,7 +119,19 @@ class RecordNotPendingError(FieldRecordError):
 
 
 class RecordCapError(FieldRecordError):
-    """The record cap or the pending cap is reached."""
+    """A record, pending, photo or file-size cap is reached."""
+
+
+class RecordStorageError(FieldRecordError):
+    """The sidecar cannot be read or changed (unreadable, newer, damaged); the message names no path."""
+
+
+class RecordConflictError(FieldRecordError):
+    """An idempotency key was reused for different content."""
+
+
+class RecordGoneError(FieldRecordError):
+    """The idempotency key belongs to a record the phone withdrew."""
 
 
 def sidecar_paths(plan_path: str | os.PathLike[str] | None) -> tuple[Path, Path]:
@@ -241,6 +267,8 @@ class FieldRecord:
     closes_on: bool | None = None
     distances: list[Any] | None = None
     rms: float | None = None
+    #: Hash of what the client sent under ``idempotency_key`` (to tell a retry from a reused key).
+    payload_hash: str | None = None
     #: Keys this build does not know (a newer writer, the Field Remote); kept verbatim.
     extra: dict[str, Any] = field(default_factory=dict)
 
@@ -307,8 +335,19 @@ class FieldRecord:
         if status not in STATUSES:
             raise FieldRecordError("status must be one of " + ", ".join(sorted(STATUSES)))
         geometry = _geometry(data.get("geometry"))
-        if geometry is not None and geometry["type"] == "point" and lat is None:
+        if geometry is not None and geometry["type"] == "point":
+            if lat is not None and (abs(lat - geometry["lat"]) > 1e-7 or abs(lon - geometry["lon"]) > 1e-7):
+                raise FieldRecordError("lat/lon disagree with the point geometry; give one or the other")
             lat, lon = geometry["lat"], geometry["lon"]
+        group = _text(data.get("group_id"), 64, "group_id")
+        if group is not None:
+            if not _ID_RE.match(group):
+                raise FieldRecordError("group_id must be 1-64 letters, digits, '-' or '_'")
+            if kind != "placement_request":
+                raise FieldRecordError("only a placement_request has a group_id")
+        digest = data.get("payload_hash")
+        if digest is not None and (not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest)):
+            raise FieldRecordError("payload_hash must be a SHA-256 hex digest")
         key = data.get("idempotency_key")
         if key is not None and (not isinstance(key, str) or not _KEY_RE.match(key)):
             raise FieldRecordError("idempotency_key must be 8-64 letters, digits, '-' or '_'")
@@ -340,7 +379,8 @@ class FieldRecord:
             geometry=geometry,
             sigma_m=_number(data.get("sigma_m"), "sigma_m", 0.0, 100000.0),
             idempotency_key=key,
-            group_id=_text(data.get("group_id"), 64, "group_id"),
+            group_id=group,
+            payload_hash=digest,
             what=_text(data.get("what"), MAX_TEXT, "what"),
             requester=_text(data.get("requester"), MAX_NAME, "requester"),
             precision_hint=hint,
@@ -388,6 +428,7 @@ def _migrate(data: dict[str, Any], version: int) -> dict[str, Any]:
                 entry = {**entry}
                 entry.setdefault("kind", "plant")
                 entry.setdefault("status", _derive_status(entry))
+                entry.setdefault("source", "desktop")  # legacy: never editable from the phone
             migrated.append(entry)
         data = {**data, "records": migrated}
     return data
@@ -484,13 +525,10 @@ def save_records(
     with _lock:
         existing = base if base is not None else load_records(plan_path)
         if existing.unreadable:
-            raise FieldRecordError(
-                "the field notes file could not be read; refusing to write over it ("
-                + "; ".join(existing.warnings)
-                + ")"
-            )
+            logger.warning("field notes unreadable: %s", "; ".join(existing.warnings))
+            raise RecordStorageError("the field notes file could not be read; refusing to write over it")
         if existing.newer_version:
-            raise FieldRecordError(
+            raise RecordStorageError(
                 "the field notes file was written by a newer version of the app; refusing to overwrite it"
             )
         document = {
@@ -504,7 +542,8 @@ def save_records(
             try:
                 os.replace(json_path, json_path.with_name(json_path.name + f".corrupt-{stamp}"))
             except OSError as error:
-                raise FieldRecordError(f"cannot set the damaged field notes file aside: {error}") from error
+                logger.warning("cannot set the damaged field notes file aside: %s", error)
+                raise RecordStorageError("cannot set the damaged field notes file aside") from error
         _write_atomic(json_path, payload)
 
 
@@ -517,8 +556,11 @@ def sniff_photo(raw: bytes) -> str:
     try:
         with Image.open(io.BytesIO(raw)) as img:
             fmt = img.format or ""
+            pixels = img.width * img.height
     except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError) as error:
         raise FieldRecordError("the photo is not a supported image (jpg, png, webp, tiff)") from error
+    if pixels > MAX_PHOTO_PIXELS:  # a tiny file that unpacks to gigabytes
+        raise FieldRecordError(f"the photo has more than {MAX_PHOTO_PIXELS // 1_000_000} megapixels")
     ext = _PHOTO_FORMATS.get(fmt)
     if ext is None:
         raise FieldRecordError(f"image format {fmt or 'unknown'} is not supported for field photos")
@@ -529,18 +571,48 @@ def _load_for_write(plan_path: str | os.PathLike[str] | None) -> LoadResult:
     """Load the sidecar for a read-modify-write; refuses a file whose content is unknown."""
     loaded = load_records(plan_path)
     if loaded.unreadable:
-        raise FieldRecordError(
-            "the field notes file could not be read, so nothing was changed (" + "; ".join(loaded.warnings) + ")"
-        )
+        logger.warning("field notes unreadable: %s", "; ".join(loaded.warnings))
+        raise RecordStorageError("the field notes file could not be read, so nothing was changed")
     if loaded.newer_version:
-        raise FieldRecordError(
+        raise RecordStorageError(
             "the field notes file was written by a newer version of the app; refusing to change it"
         )
     return loaded
 
 
 def _pending_count(records: list[FieldRecord]) -> int:
-    return sum(1 for r in records if r.status == "pending")
+    """Records the phone has queued for review; only these count against :data:`MAX_PENDING`,
+    so a plan full of legacy or agent records can never block new ones."""
+    return sum(1 for r in records if r.status == "pending" and r.source == OWN_SOURCE)
+
+
+def _withdrawn(loaded: LoadResult) -> list[str]:
+    keys = loaded.extra.get(_WITHDRAWN_KEY)
+    return [k for k in keys if isinstance(k, str)] if isinstance(keys, list) else []
+
+
+def _payload_digest(data: Mapping[str, Any], photo_bytes: bytes | None) -> str:
+    """A hash of what a client submitted (not of what the store adds), to spot a reused key."""
+    skip = {"status", "source", "payload_hash", "photo", "id"}
+    body = {k: v for k, v in dict(data).items() if k in _KNOWN_KEYS and k not in skip}
+    digest = hashlib.sha256(json.dumps(body, sort_keys=True, default=str).encode("utf-8"))
+    digest.update(hashlib.sha256(photo_bytes).digest() if photo_bytes is not None else b"-")
+    return digest.hexdigest()
+
+
+def check_kind_rules(rec: FieldRecord) -> None:
+    """The geometry and fields each kind needs; enforced on every write (not on load)."""
+    shape = rec.geometry["type"] if rec.geometry else None
+    if rec.kind == "irrigation_path" and shape != "polyline":
+        raise FieldRecordError("irrigation_path needs a polyline geometry")
+    if shape == "polyline" and rec.kind != "irrigation_path":
+        raise FieldRecordError("only an irrigation_path may have a polyline geometry")
+    if rec.kind in ("reference_point", "placement_request") and shape != "point":
+        raise FieldRecordError(f"{rec.kind} needs a point geometry")
+    if rec.kind == "reference_point" and not rec.name:
+        raise FieldRecordError("reference_point needs name")
+    if rec.kind == "placement_request" and not (rec.what and rec.group_id):
+        raise FieldRecordError("placement_request needs what and group_id")
 
 
 def create_record(
@@ -551,34 +623,48 @@ def create_record(
     """Validate and append one record; ``(record, created)``.
 
     A record whose ``idempotency_key`` is already stored is NOT added again: the stored one is
-    returned with ``created=False`` (a phone's retry from its outbox). The check and the write
-    sit under one lock hold, so two racing retries create one record. The photo is written
-    before the record; if the record write then fails the photo is removed again.
+    returned with ``created=False`` (a phone's retry from its outbox) when the same payload comes
+    back, and :class:`RecordConflictError` when the key is reused for different content. A key whose
+    record the phone withdrew raises :class:`RecordGoneError`, so a late retry does not resurrect
+    it. The check and the write sit under one lock hold, so two racing retries create one record.
+    The photo is written before the record; if the record write then fails it is removed again.
     """
-    _, photo_root = sidecar_paths(plan_path)
+    json_path, photo_root = sidecar_paths(plan_path)
     with _lock:
         loaded = load_records(plan_path)
         if loaded.unreadable:
-            raise FieldRecordError(
-                "the field notes file could not be read, so nothing was added ("
-                + "; ".join(loaded.warnings)
-                + ")"
-            )
+            logger.warning("field notes unreadable: %s", "; ".join(loaded.warnings))
+            raise RecordStorageError("the field notes file could not be read, so nothing was added")
         key = data.get("idempotency_key")
+        digest = _payload_digest(data, photo_bytes) if isinstance(key, str) else None
         if isinstance(key, str):
             for existing in loaded.records:
                 if existing.idempotency_key == key:
+                    if existing.payload_hash and existing.payload_hash != digest:
+                        raise RecordConflictError("this idempotency_key was already used for different content")
                     return existing, False
+            if key in _withdrawn(loaded):
+                raise RecordGoneError("this record was withdrawn; send a new idempotency_key to add it again")
         if len(loaded.records) >= MAX_RECORDS:
             raise RecordCapError(f"at most {MAX_RECORDS} field records are kept per plan")
         record_id = uuid.uuid4().hex
-        known = {k: v for k, v in dict(data).items() if k in _KNOWN_KEYS}
+        known = {k: v for k, v in dict(data).items() if k in _KNOWN_KEYS and k != "payload_hash"}
         record = FieldRecord.from_dict({**known, "photo": None}, record_id=record_id)
-        if record.status == "pending" and _pending_count(loaded.records) >= MAX_PENDING:
+        record.payload_hash = digest
+        check_kind_rules(record)
+        if record.status == "pending" and record.source == OWN_SOURCE and _pending_count(loaded.records) >= MAX_PENDING:
             raise RecordCapError(f"at most {MAX_PENDING} records may wait for review; approve or reject some first")
+        try:
+            current = json_path.stat().st_size
+        except OSError:
+            current = 0
+        if current + len(json.dumps(record.to_dict())) > MAX_SIDECAR_BYTES:
+            raise RecordCapError("the field notes file is full; approve, reject or purge records first")
         photo_file: Path | None = None
         if photo_bytes is not None:
             ext = sniff_photo(photo_bytes)
+            if _photo_bytes_used(photo_root) + len(photo_bytes) > MAX_PHOTO_TOTAL_BYTES:
+                raise RecordCapError("the photo storage of this plan is full")
             record.photo = f"photos/{record_id}{ext}"
             photo_file = photo_root / record.photo
             _write_atomic(photo_file, photo_bytes)
@@ -590,6 +676,15 @@ def create_record(
                     photo_file.unlink()
             raise
     return record, True
+
+
+def _photo_bytes_used(photo_root: Path) -> int:
+    total = 0
+    with contextlib.suppress(OSError):
+        for entry in (photo_root / "photos").iterdir():
+            with contextlib.suppress(OSError):
+                total += entry.stat().st_size
+    return total
 
 
 def add_record(
@@ -624,13 +719,27 @@ PHONE_EDITABLE = frozenset(
         "emitter_spacing_cm", "closes_on", "distances", "rms", "precision_hint",
     }
 )
+#: Allowed status moves. ``placed`` is left only by reopening, which drops the object link.
+_TRANSITIONS: dict[str, frozenset[str]] = {
+    "pending": frozenset({"approved", "rejected", "placed", "superseded"}),
+    "approved": frozenset({"pending", "rejected", "placed", "superseded"}),
+    "rejected": frozenset({"pending"}),
+    "superseded": frozenset({"pending"}),
+    "placed": frozenset({"pending"}),
+}
 
 
 def update_record(
     plan_path: str | os.PathLike[str] | None, record_id: str, **changes: Any
 ) -> FieldRecord:
-    """Change fields of one record (validated as a whole). ``id``, ``photo`` and the key are fixed."""
-    forbidden = {"id", "photo", "idempotency_key"} & set(changes)
+    """Change fields of one record (validated as a whole). ``id``, ``photo`` and the key are fixed.
+
+    A status change must follow :data:`_TRANSITIONS`; ``placed`` needs a ``placed_object_id`` and is
+    the only status that may carry one. Giving only ``placed_object_id`` places the record, and
+    clearing it reopens it; leaving ``placed`` drops the link. A new ``geometry`` re-derives
+    ``lat``/``lon`` from it unless they are given too.
+    """
+    forbidden = {"id", "photo", "idempotency_key", "payload_hash"} & set(changes)
     if forbidden:
         raise FieldRecordError("id, photo and idempotency_key cannot be changed")
     with _lock:
@@ -638,10 +747,25 @@ def update_record(
         for index, rec in enumerate(loaded.records):
             if rec.id == record_id:
                 merged = {**rec.to_dict(), **changes}  # to_dict carries unknown keys
+                if "geometry" in changes and "lat" not in changes and "lon" not in changes:
+                    merged["lat"] = merged["lon"] = None
+                if "status" not in changes and "placed_object_id" in changes:
+                    # Linking an object places the record; clearing the link reopens it.
+                    merged["status"] = "placed" if changes["placed_object_id"] else "pending"
+                if rec.status == "placed" and merged.get("status") != "placed" and "placed_object_id" not in changes:
+                    merged["placed_object_id"] = None
                 updated = FieldRecord.from_dict(merged)
+                if updated.status != rec.status and updated.status not in _TRANSITIONS[rec.status]:
+                    raise FieldRecordError(f"a {rec.status} record cannot become {updated.status}")
+                if updated.status == "placed" and not updated.placed_object_id:
+                    raise FieldRecordError("a placed record needs a placed_object_id")
+                if updated.status != "placed" and updated.placed_object_id:
+                    raise FieldRecordError("only a placed record may have a placed_object_id")
+                check_kind_rules(updated)
                 if (
                     updated.status == "pending"
                     and rec.status != "pending"
+                    and updated.source == OWN_SOURCE
                     and _pending_count(loaded.records) >= MAX_PENDING
                 ):
                     raise RecordCapError(f"at most {MAX_PENDING} records may wait for review")
@@ -654,31 +778,40 @@ def update_record(
 def edit_pending_record(
     plan_path: str | os.PathLike[str] | None, record_id: str, changes: Mapping[str, Any]
 ) -> FieldRecord:
-    """The phone's PATCH: only whitelisted fields, only while the record is pending.
+    """The phone's PATCH: only the phone's own record, whitelisted fields, only while pending.
 
-    The status check and the write share one lock hold, so a desktop approval that lands first
-    wins and the edit is refused rather than applied to a placed record.
+    A record the phone did not create (the agent's, the desktop's, a migrated v1 one) answers as
+    not found. The checks and the write share one lock hold, so a desktop approval that lands
+    first wins and the edit is refused rather than applied to a placed record.
     """
     unknown = set(changes) - PHONE_EDITABLE
     if unknown:
         raise FieldRecordError("these fields cannot be changed from the phone: " + ", ".join(sorted(unknown)))
     with _lock:
         current = get_record(plan_path, record_id)
+        if current.source != OWN_SOURCE:
+            raise RecordNotFoundError(f"no field record {record_id!r}")
         if current.status != "pending":
             raise RecordNotPendingError("the record was already decided on the computer and can no longer be changed")
         return update_record(plan_path, record_id, **dict(changes))
 
 
 def delete_pending_record(plan_path: str | os.PathLike[str] | None, record_id: str) -> FieldRecord:
-    """The phone's DELETE: withdraw a record (and its photo) while it is still pending."""
+    """The phone's DELETE: withdraw its own record (and photo) while it is still pending.
+
+    The record's ``idempotency_key`` is remembered, so a retry of the original create does not
+    bring it back.
+    """
     with _lock:
         loaded = _load_for_write(plan_path)
         for index, rec in enumerate(loaded.records):
-            if rec.id != record_id:
+            if rec.id != record_id or rec.source != OWN_SOURCE:
                 continue
             if rec.status != "pending":
                 raise RecordNotPendingError("the record was already decided on the computer and cannot be withdrawn")
             del loaded.records[index]
+            if rec.idempotency_key:
+                loaded.extra[_WITHDRAWN_KEY] = [*_withdrawn(loaded), rec.idempotency_key][-MAX_WITHDRAWN_KEYS:]
             save_records(plan_path, loaded.records, loaded)
             if rec.photo:
                 with contextlib.suppress(FieldRecordError, OSError):
@@ -687,24 +820,31 @@ def delete_pending_record(plan_path: str | os.PathLike[str] | None, record_id: s
     raise RecordNotFoundError(f"no field record {record_id!r}")
 
 
+def _open_siblings(records: list[FieldRecord], chosen: FieldRecord) -> list[FieldRecord]:
+    """Still-open candidates of the chosen record's group, from the same source only."""
+    if not chosen.group_id:
+        return []
+    return [
+        r for r in records
+        if r.group_id == chosen.group_id and r.source == chosen.source and r.id != chosen.id
+        and r.status in ("pending", "approved")
+    ]
+
+
 def supersede_siblings(plan_path: str | os.PathLike[str] | None, record_id: str) -> list[FieldRecord]:
     """Approve one candidate of a group: its still-open siblings become ``superseded``.
 
-    One load and one write, so a reader never sees half the group changed. The chosen record
-    itself is untouched (the caller sets ``placed``). Open means pending or approved; rejected
-    siblings stay rejected. A record without a ``group_id`` has no siblings.
+    One load and one write. The chosen record itself is untouched (see :func:`approve_candidate`,
+    which also places it in the same write). Open means pending or approved; rejected siblings
+    stay rejected; only siblings of the same ``source`` are touched, so a group id a phone picked
+    cannot capture an agent's or the desktop's records. No ``group_id`` means no siblings.
     """
     with _lock:
         loaded = _load_for_write(plan_path)
         chosen = next((r for r in loaded.records if r.id == record_id), None)
         if chosen is None:
             raise RecordNotFoundError(f"no field record {record_id!r}")
-        if not chosen.group_id:
-            return []
-        changed = [
-            r for r in loaded.records
-            if r.group_id == chosen.group_id and r.id != chosen.id and r.status in ("pending", "approved")
-        ]
+        changed = _open_siblings(loaded.records, chosen)
         for rec in changed:
             rec.status = "superseded"
         if changed:
@@ -712,21 +852,54 @@ def supersede_siblings(plan_path: str | os.PathLike[str] | None, record_id: str)
         return changed
 
 
+def approve_candidate(
+    plan_path: str | os.PathLike[str] | None, record_id: str, placed_object_id: str
+) -> tuple[FieldRecord, list[FieldRecord]]:
+    """Mark a record placed and supersede its open siblings, in ONE write.
+
+    The record must be pending, approved or already placed (placed again). Returns ``(placed record, superseded siblings)``.
+    """
+    if not placed_object_id or not isinstance(placed_object_id, str):
+        raise FieldRecordError("a placed record needs a placed_object_id")
+    with _lock:
+        loaded = _load_for_write(plan_path)
+        chosen = next((r for r in loaded.records if r.id == record_id), None)
+        if chosen is None:
+            raise RecordNotFoundError(f"no field record {record_id!r}")
+        if chosen.status not in ("pending", "approved", "placed"):  # placed: placed again on purpose
+            raise FieldRecordError(f"a {chosen.status} record cannot be placed")
+        siblings = _open_siblings(loaded.records, chosen)
+        chosen.status, chosen.placed_object_id = "placed", placed_object_id[:64]
+        for rec in siblings:
+            rec.status = "superseded"
+        save_records(plan_path, loaded.records, loaded)
+        return chosen, siblings
+
+
 def reopen_group(
-    plan_path: str | os.PathLike[str] | None, group_id: str, *, include_rejected: bool = False
+    plan_path: str | os.PathLike[str] | None,
+    group_id: str,
+    *,
+    include_rejected: bool = False,
+    source: str | None = None,
 ) -> list[FieldRecord]:
     """Return a group to review: superseded and placed candidates become ``pending`` again.
 
     A placed candidate loses its ``placed_object_id`` (its object was undone or removed). Rejected
-    candidates stay rejected unless *include_rejected*. Refused when the pending cap would be exceeded.
+    candidates stay rejected unless *include_rejected*. *source* limits it to one source's records
+    (a phone's group id is not the agent's). Refused when the phone's pending cap would be exceeded.
     """
     with _lock:
         loaded = _load_for_write(plan_path)
         states = {"superseded", "placed", "approved"} | ({"rejected"} if include_rejected else set())
-        changed = [r for r in loaded.records if r.group_id == group_id and r.status in states]
+        changed = [
+            r for r in loaded.records
+            if r.group_id == group_id and r.status in states and (source is None or r.source == source)
+        ]
         if not changed:
             return []
-        if _pending_count(loaded.records) + len(changed) > MAX_PENDING:
+        own = sum(1 for r in changed if r.source == OWN_SOURCE)
+        if _pending_count(loaded.records) + own > MAX_PENDING:
             raise RecordCapError(f"reopening would leave more than {MAX_PENDING} records waiting for review")
         for rec in changed:
             rec.status = "pending"

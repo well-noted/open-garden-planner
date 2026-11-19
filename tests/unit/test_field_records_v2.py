@@ -67,6 +67,7 @@ def test_v1_file_loads_unchanged_and_is_migrated_in_memory(plan: Path) -> None:
     by_id = {r.id: r for r in loaded.records}
     assert set(by_id) == {"old1", "old2"} and not loaded.damaged
     assert by_id["old1"].kind == "plant" and by_id["old1"].status == "pending"
+    assert by_id["old1"].source == "desktop"  # legacy records are never the phone's
     assert by_id["old2"].status == "placed"  # it already had a plan object
     assert by_id["old1"].plant_name == "Pear" and by_id["old1"].lat == 48.1
     assert by_id["old1"].extra == {"future_field": [1, 2]}
@@ -83,7 +84,7 @@ def test_v1_file_round_trips_through_a_write_losing_nothing(plan: Path) -> None:
     assert by_id["old2"]["placed_object_id"] == "obj-9" and by_id["old2"]["status"] == "placed"
     assert by_id["../evil"] == {"id": "../evil", "keep": "me"}
     again = fr.load_records(plan)  # and the written file loads cleanly as v2
-    assert [r.id for r in again.records] == ["old1", "old2"] and not again.warnings[:0]
+    assert [r.id for r in again.records] == ["old1", "old2"] and len(again.warnings) == 1  # only the hostile entry
 
 
 def test_newer_version_is_still_never_overwritten(plan: Path) -> None:
@@ -186,7 +187,7 @@ def test_new_fix_modes_are_accepted(plan: Path) -> None:
 # -- idempotency ------------------------------------------------------------------------------
 def test_a_retry_with_the_same_key_returns_the_original(plan: Path) -> None:
     first, created = fr.create_record(plan, {"notes": "a", "idempotency_key": KEY}, _png())
-    again, created_again = fr.create_record(plan, {"notes": "different", "idempotency_key": KEY})
+    again, created_again = fr.create_record(plan, {"notes": "a", "idempotency_key": KEY}, _png())
     assert created and not created_again and again.id == first.id and again.notes == "a"
     assert len(fr.load_records(plan).records) == 1
     assert len(list((fr.sidecar_paths(plan)[1] / "photos").iterdir())) == 1
@@ -227,12 +228,16 @@ def test_status_changes_go_through_update_record(plan: Path) -> None:
 def test_approving_one_candidate_supersedes_the_open_siblings_only(plan: Path) -> None:
     a, b, c = (_candidate(plan, "g1", n) for n in range(3))
     other = _candidate(plan, "g2", 0)
+    agents = fr.add_record(
+        plan,
+        {"kind": "placement_request", "what": "apple", "group_id": "g1", "source": "agent", "geometry": _point()},
+    )
     fr.update_record(plan, c.id, status="rejected")
     fr.update_record(plan, a.id, status="placed", placed_object_id="obj-1")
     changed = fr.supersede_siblings(plan, a.id)
     assert [r.id for r in changed] == [b.id]
     status = {r.id: r.status for r in fr.load_records(plan).records}
-    assert status == {a.id: "placed", b.id: "superseded", c.id: "rejected", other.id: "pending"}
+    assert status == {a.id: "placed", b.id: "superseded", c.id: "rejected", other.id: "pending", agents.id: "pending"}
 
 
 def test_reopen_returns_the_group_to_pending_and_clears_the_link(plan: Path) -> None:
@@ -259,12 +264,12 @@ def test_a_record_without_a_group_has_no_siblings(plan: Path) -> None:
 
 # -- phone edit / withdraw --------------------------------------------------------------------
 def test_phone_edit_only_while_pending_and_only_allowed_fields(plan: Path) -> None:
-    rec = fr.add_record(plan, {"notes": "a"})
+    rec = fr.add_record(plan, {"notes": "a", "source": "field_remote"})
     assert fr.edit_pending_record(plan, rec.id, {"notes": "b"}).notes == "b"
     for forbidden in ({"status": "placed"}, {"placed_object_id": "x"}, {"source": "agent"}, {"photo": "photos/x.png"}):
         with pytest.raises(fr.FieldRecordError):
             fr.edit_pending_record(plan, rec.id, forbidden)
-    fr.update_record(plan, rec.id, status="placed")
+    fr.update_record(plan, rec.id, status="placed", placed_object_id="obj-1")
     with pytest.raises(fr.RecordNotPendingError):
         fr.edit_pending_record(plan, rec.id, {"notes": "c"})
     with pytest.raises(fr.RecordNotFoundError):
@@ -272,31 +277,34 @@ def test_phone_edit_only_while_pending_and_only_allowed_fields(plan: Path) -> No
 
 
 def test_withdraw_removes_the_record_and_its_photo_only_while_pending(plan: Path) -> None:
-    rec = fr.add_record(plan, {"notes": "a"}, _png())
+    rec = fr.add_record(plan, {"notes": "a", "source": "field_remote"}, _png())
     photo = fr.resolve_photo(plan, rec)
     fr.delete_pending_record(plan, rec.id)
     assert not photo.exists() and fr.load_records(plan).records == []
-    kept = fr.add_record(plan, {"notes": "b", "status": "approved"}, _png())
+    kept = fr.add_record(plan, {"notes": "b", "status": "approved", "source": "field_remote"}, _png())
     with pytest.raises(fr.RecordNotPendingError):
         fr.delete_pending_record(plan, kept.id)
     assert fr.resolve_photo(plan, kept).exists()
 
 
 def test_withdraw_keeps_rejected_and_unknown_data(plan: Path) -> None:
-    _write(plan, V1)
-    fr.delete_pending_record(plan, "old1")
+    _write(plan, {**V1, "records": [*V1["records"], {"id": "mine", "source": "field_remote", "notes": "x"}]})
+    fr.delete_pending_record(plan, "mine")
     data = _file(plan)
-    assert [r["id"] for r in data["records"]] == ["old2", "../evil"] and data["top_level_unknown"] == {"keep": True}
+    assert [r["id"] for r in data["records"]] == ["old1", "old2", "../evil"]
+    assert data["top_level_unknown"] == {"keep": True}
 
 
 # -- caps -------------------------------------------------------------------------------------
 def test_pending_cap_stops_a_runaway_phone_but_not_decided_records(plan: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(fr, "MAX_PENDING", 3)
-    made = [fr.add_record(plan, {"notes": str(n)}) for n in range(3)]
+    phone = {"source": "field_remote"}
+    made = [fr.add_record(plan, {"notes": str(n), **phone}) for n in range(3)]
     with pytest.raises(fr.RecordCapError, match="review"):
-        fr.add_record(plan, {"notes": "4"})
+        fr.add_record(plan, {"notes": "4", **phone})
+    fr.add_record(plan, {"notes": "agent", "source": "agent"})  # the agent is never blocked by the phone's queue
     fr.update_record(plan, made[0].id, status="rejected")
-    fr.add_record(plan, {"notes": "4"})  # a decision frees a slot
+    fr.add_record(plan, {"notes": "4", **phone})  # a decision frees a slot
     with pytest.raises(fr.RecordCapError):  # reopening past the cap is refused too
         fr.update_record(plan, made[0].id, status="pending")
 
