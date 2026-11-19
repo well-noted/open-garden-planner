@@ -9,7 +9,7 @@ import contextlib
 import logging
 import weakref
 from collections.abc import Iterator, Sequence
-from contextlib import contextmanager
+from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass
 from datetime import date
 from typing import TYPE_CHECKING, Any, cast
@@ -45,6 +45,7 @@ from open_garden_planner.core.sim_clock import SimClock
 from open_garden_planner.core.sprite_raster import clear_sprite_cache
 from open_garden_planner.core.units import UnitSystem
 from open_garden_planner.models.layer import Layer, create_default_layers
+from open_garden_planner.ui.canvas.style.base import OUTPUT_DPI as _OUTPUT_DPI
 from open_garden_planner.ui.canvas.style.geometry import band_for_scale
 from open_garden_planner.ui.canvas.style.state import StyleState, StyleStateCache
 from open_garden_planner.ui.units_notifier import units_notifier
@@ -366,6 +367,7 @@ class CanvasScene(QGraphicsScene):
         self._paint_revision = 0
         # The scene-wide state of the render style (``ui/canvas/style/state.py``).
         self._style_states = StyleStateCache()
+        self._style_output_dpi: float | None = None
         self._standing_covers: tuple[int, list[StandingCover]] | None = None
         self._annotation_covers: tuple[int, QPainterPath] | None = None
         self._edit_decoration_covers: tuple[int, tuple[float, ...], QPainterPath] | None = None
@@ -1192,6 +1194,10 @@ class CanvasScene(QGraphicsScene):
         if self._render_style is RenderStyle.ILLUSTRATED:
             return
         self.ensure_style_state()
+        # A paint that missed the state drew the plain picture and a device-cached
+        # item keeps it: every item repaints now that the state exists.
+        for item in self.items():
+            item.update()
         self.update()
 
     def _notify_style_geometry(self) -> None:
@@ -1204,17 +1210,58 @@ class CanvasScene(QGraphicsScene):
                 hook()
             item.update()
 
+    @property
+    def style_output_dpi(self) -> float | None:
+        """The dpi of the output being rendered (None on screen)."""
+        return self._style_output_dpi
+
     @contextmanager
-    def style_band_for_render(self, px_per_cm: float) -> Iterator[None]:
-        """Paint at the LOD band of an output ``px_per_cm`` wide, its state
-        prewarmed (an export's, not the screen's: the cache keeps both)."""
-        previous = self._style_band
-        self._style_band = band_for_scale(px_per_cm)
+    def style_for_render(
+        self,
+        style: RenderStyle | None = None,
+        px_per_cm: float | None = None,
+        dpi: float | None = None,
+    ) -> Iterator[None]:
+        """Paint at the style, LOD band and dpi of an output, then restore.
+
+        An export's, not the screen's: the style switch moves no paint revision
+        (nothing the state is built from changed), so the state cache, which keys
+        ``(style, revision, band)``, keeps the screen's state alive across the
+        export and the restore is a cache hit. The output's state is built once,
+        at the output's band. The pad of a styled bounding rect depends on the
+        style and the band, so items re-announce their geometry on entry and exit
+        whenever either differs.
+        """
+        previous_style = self._render_style
+        previous_band = self._style_band
+        previous_dpi = self._style_output_dpi
+        new_style = previous_style if style is None else normalise_render_style(
+            style, previous_style)
+        new_band = previous_band if px_per_cm is None else band_for_scale(px_per_cm)
+        changed = new_style is not previous_style or new_band != previous_band
+        self._render_style = new_style
+        self._style_band = new_band
+        self._style_output_dpi = dpi
+        token = _OUTPUT_DPI.set(dpi)
         try:
+            if changed:
+                self._style_miss_logged = False
+                self._notify_style_geometry()
             self.ensure_style_state()
             yield
         finally:
-            self._style_band = previous
+            _OUTPUT_DPI.reset(token)
+            self._render_style = previous_style
+            self._style_band = previous_band
+            self._style_output_dpi = previous_dpi
+            if changed:
+                self._notify_style_geometry()
+
+    def style_band_for_render(
+        self, px_per_cm: float, dpi: float | None = None
+    ) -> AbstractContextManager[None]:
+        """``style_for_render`` that keeps the style: just the band (and dpi)."""
+        return self.style_for_render(None, px_per_cm, dpi)
 
     @pyqtSlot()
     def note_paint_changed(self) -> None:

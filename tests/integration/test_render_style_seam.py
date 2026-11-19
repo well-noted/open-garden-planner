@@ -10,7 +10,7 @@ import json
 from pathlib import Path
 
 import pytest
-from PyQt6.QtCore import QPointF
+from PyQt6.QtCore import QPointF, QRectF
 from PyQt6.QtGui import QColor, QImage, QPainter
 
 from open_garden_planner.core.commands import CommandManager, CreateItemCommand
@@ -26,7 +26,19 @@ def _plan(qtbot: object) -> tuple[CanvasScene, CommandManager, ProjectManager]:
     scene = CanvasScene(width_cm=1000, height_cm=800)
     commands = CommandManager()
     commands.execute(CreateItemCommand(scene, RectangleItem(100, 100, 200, 100)))
-    return scene, commands, ProjectManager()
+    project = ProjectManager()
+    # What the application wires (application.py: stack_changed -> mark_dirty); without
+    # it a "the style switch left the plan clean" assertion could never fail.
+    commands.stack_changed.connect(project.mark_dirty)
+    return scene, commands, project
+
+
+def test_the_dirty_wiring_of_the_fixture_can_fail(qtbot: object, tmp_path: Path) -> None:
+    scene, commands, project = _plan(qtbot)
+    project.save(scene, tmp_path / "a.ogp")
+    assert not project.is_dirty
+    commands.execute(CreateItemCommand(scene, RectangleItem(0, 0, 10, 10)))
+    assert project.is_dirty
 
 
 def _stable(path: Path) -> dict:
@@ -55,14 +67,29 @@ def test_switching_style_leaves_the_plan_untouched(qtbot: object, tmp_path: Path
     assert _stable(first) == _stable(second)
 
 
-def test_default_png_is_the_illustrated_png(qtbot: object, tmp_path: Path) -> None:
+def test_default_png_is_a_bare_scene_render(qtbot: object, tmp_path: Path) -> None:
+    """The default export is what the code painted before the seam existed: the
+    same pixels as a plain ``scene.render`` with no style machinery."""
     scene, _commands, _project = _plan(qtbot)
-    plain, explicit = tmp_path / "plain.png", tmp_path / "explicit.png"
-    ExportService.export_to_png(scene, plain, dpi=72, output_width_cm=10)
-    ExportService.export_to_png(
-        scene, explicit, dpi=72, output_width_cm=10, render_style=RenderStyle.ILLUSTRATED
-    )
-    assert plain.read_bytes() == explicit.read_bytes()
+    out = tmp_path / "plain.png"
+    ExportService.export_to_png(scene, out, dpi=72, output_width_cm=10)
+    exported = QImage(str(out))
+
+    rect = scene.canvas_rect if hasattr(scene, "canvas_rect") else scene.sceneRect()
+    bare = QImage(exported.width(), exported.height(), QImage.Format.Format_ARGB32)
+    bare.fill(QColor(scene.CANVAS_COLOR))
+    painter = QPainter(bare)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+    painter.setRenderHint(QPainter.RenderHint.TextAntialiasing)
+    painter.translate(0, bare.height())
+    painter.scale(1.0, -1.0)
+    # The export has always rendered uncached; that is not the seam's doing.
+    cached = ExportService._disable_item_caches(scene)
+    scene.render(painter, QRectF(0, 0, bare.width(), bare.height()), rect)
+    ExportService._restore_item_caches(cached)
+    painter.end()
+    assert exported.convertToFormat(QImage.Format.Format_ARGB32) == bare
     assert scene.render_style is RenderStyle.ILLUSTRATED
 
 

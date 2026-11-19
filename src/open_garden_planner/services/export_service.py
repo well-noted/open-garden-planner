@@ -320,6 +320,7 @@ class ExportService:
                 text_point_size=text_point_size,
                 y_flip=True,
                 render_style=render_style,
+                dpi=dpi,
             )
         finally:
             painter.end()

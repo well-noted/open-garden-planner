@@ -159,7 +159,7 @@ def _scene_to_image(
         p.save()
         p.translate(0, h)
         p.scale(1.0, -1.0)
-        with styled_scene(scene, render_style, w / max(source.width(), 1e-9)):
+        with styled_scene(scene, render_style, w / max(source.width(), 1e-9), dpi):
             scene.render(p, QRectF(0, 0, w, h), source)
         p.restore()
         p.end()

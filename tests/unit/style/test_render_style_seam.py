@@ -132,10 +132,6 @@ class TestStyledScene:
 
 
 class TestRenderRegion:
-    def test_default_is_pixel_identical_to_illustrated(self, scene: CanvasScene) -> None:
-        scene.addItem(CircleItem(500, 400, 100))
-        assert _render(scene) == _render(scene, render_style=RenderStyle.ILLUSTRATED)
-
     def test_item_sees_the_requested_style_and_scene_is_restored(
         self, scene: CanvasScene
     ) -> None:
@@ -170,30 +166,66 @@ class TestBackground:
         assert style_background(RenderStyle.LINE_AND_WASH, scene) == QColor("#f4eedf")
 
 
-def _is_styled(node: ast.AST, parents: dict[ast.AST, ast.AST]) -> bool:
+#: ``.render(`` calls that are not a scene's, or that deliberately paint the screen
+#: style: ``(file, owner expression)``. A new entry needs a reason.
+_RENDER_ALLOW = {
+    ("core/furniture_renderer.py", "renderer"),  # QSvgRenderer
+    ("core/plant_renderer.py", "renderer"),  # QSvgRenderer
+    ("ui/icons.py", "renderer"),  # QSvgRenderer
+    ("ui/widgets/gallery_data.py", "renderer"),  # QSvgRenderer
+    ("ui/panels/constraints_panel.py", "descriptor"),  # a text descriptor
+    ("agent_api/server.py", "providers"),  # the provider reaches render_scene_region
+    # The minimap is a screen overview that follows the canvas style as it is.
+    ("ui/widgets/minimap_widget.py", "self._canvas_scene"),
+}
+
+
+def _styled_names(tree: ast.AST) -> set[str]:
+    """Variables bound to a ``styled_scene(...)`` call."""
+    names: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign) and _calls_styled_scene(node.value):
+            names.update(t.id for t in node.targets if isinstance(t, ast.Name))
+    return names
+
+
+def _calls_styled_scene(expr: ast.AST) -> bool:
+    if not isinstance(expr, ast.Call):
+        return False
+    func = expr.func
+    return (isinstance(func, ast.Name) and func.id == "styled_scene") or (
+        isinstance(func, ast.Attribute) and func.attr == "styled_scene"
+    )
+
+
+def _is_styled(node: ast.AST, parents: dict[ast.AST, ast.AST], names: set[str]) -> bool:
     while node in parents:
         node = parents[node]
         if isinstance(node, ast.With):
             for item in node.items:
                 expr = item.context_expr
-                if isinstance(expr, ast.Call) and getattr(expr.func, "id", "") == "styled_scene":
+                if _calls_styled_scene(expr):
                     return True
-                if isinstance(expr, ast.Name) and expr.id == "style_ctx":
+                if isinstance(expr, ast.Name) and expr.id in names:
                     return True
     return False
 
 
+def _parents(tree: ast.AST) -> dict[ast.AST, ast.AST]:
+    return {c: p for p in ast.walk(tree) for c in ast.iter_child_nodes(p)}
+
+
 def test_every_scene_render_call_site_is_styled() -> None:
     """A scene.render call that bypasses styled_scene would paint in the wrong
-    style in one output (design 1.2): the rule is enforced here."""
+    style in one output (design 1.2). Every ``.render(`` in src/ is either inside
+    a ``with`` that really is ``styled_scene`` (or a variable bound to one), or
+    on the explicit allow-list; the receiver's name is not trusted."""
     offenders: list[str] = []
     seen = 0
-    files = [*(SRC / "services").glob("*.py"), SRC / "ui" / "dialogs" / "print_dialog.py"]
-    for path in files:
+    for path in SRC.rglob("*.py"):
+        rel = path.relative_to(SRC).as_posix()
         tree = ast.parse(path.read_text(encoding="utf-8"))
-        parents = {
-            child: parent for parent in ast.walk(tree) for child in ast.iter_child_nodes(parent)
-        }
+        parents, names = _parents(tree), _styled_names(tree)
         for node in ast.walk(tree):
             if not (
                 isinstance(node, ast.Call)
@@ -202,10 +234,65 @@ def test_every_scene_render_call_site_is_styled() -> None:
             ):
                 continue
             owner = ast.unparse(node.func.value)
-            if "scene" not in owner:
+            if (rel, owner) in _RENDER_ALLOW:
                 continue
             seen += 1
-            if not _is_styled(node, parents):
-                offenders.append(f"{path.name}:{node.lineno} {owner}.render")
+            if not _is_styled(node, parents, names):
+                offenders.append(f"{rel}:{node.lineno} {owner}.render")
     assert seen >= 5
     assert offenders == []
+
+
+def test_the_allow_list_has_no_stale_entries() -> None:
+    present: set[tuple[str, str]] = set()
+    for path in SRC.rglob("*.py"):
+        rel = path.relative_to(SRC).as_posix()
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "render"
+            ):
+                present.add((rel, ast.unparse(node.func.value)))
+    assert present >= _RENDER_ALLOW
+
+
+def test_thumbnail_writers_use_the_thumbnail_helper() -> None:
+    """A function that writes a thumbnail goes through ``render_thumbnail_region``
+    (always illustrated), never ``render_scene_region`` with a style."""
+    offenders: list[str] = []
+    for path in SRC.rglob("*.py"):
+        rel = path.relative_to(SRC).as_posix()
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for fn in ast.walk(tree):
+            if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            if "thumbnail" not in fn.name.lower() or rel == "services/scene_rendering.py":
+                continue
+            for call in ast.walk(fn):
+                if isinstance(call, ast.Call) and getattr(
+                    call.func, "id", getattr(call.func, "attr", "")
+                ) in {"render_scene_region", "styled_scene"}:
+                    offenders.append(f"{rel}:{call.lineno} in {fn.name}")
+    assert offenders == []
+
+
+class TestSeamDefaults:
+    def test_none_style_still_paints_at_the_output_band(self, scene: CanvasScene) -> None:
+        from open_garden_planner.ui.canvas.style.geometry import band_for_scale
+
+        scene.set_style_band(3)
+        with styled_scene(scene, None, 0.1):
+            assert scene.style_band == band_for_scale(0.1)
+        assert scene.style_band == 3
+
+    def test_default_output_is_a_bare_scene_render(self, scene: CanvasScene) -> None:
+        scene.addItem(CircleItem(500, 400, 100))
+        bare = QImage(80, 60, QImage.Format.Format_ARGB32)
+        bare.fill(QColor("white"))
+        painter = QPainter(bare)
+        painter.translate(0, 60)
+        painter.scale(1.0, -1.0)
+        scene.render(painter, QRectF(0, 0, 80, 60), scene.sceneRect())
+        painter.end()
+        assert _render(scene, hide_overlays=False, hide_construction=False) == bare

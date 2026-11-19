@@ -15,6 +15,7 @@ inside a paint").
 
 from __future__ import annotations
 
+from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, Protocol
 
 from PyQt6.QtCore import QRectF
@@ -29,6 +30,11 @@ if TYPE_CHECKING:
 
 #: Device pixels per paper millimetre at 96 dpi (design 2.1).
 SCREEN_DPI = 96.0
+
+#: The dpi of the output a scene is being rendered for, set by
+#: ``CanvasScene.style_for_render`` (None on screen). ``pen_for_painter`` reads it so
+#: a 300-dpi PNG gets the same paper line weights as a 96-dpi screen.
+OUTPUT_DPI: ContextVar[float | None] = ContextVar("ogp_style_output_dpi", default=None)
 
 
 class StylePainter(Protocol):
@@ -113,10 +119,12 @@ def pen_for_painter(
 
     Line weights are paper units, so they stay the same when the view zooms, as
     in a CAD tool (design 2.1). On screen a weight is ``mm`` at 96 dpi times the
-    device pixel ratio, at least 1 device pixel; an export passes its own ``dpi``
-    and gets ``mm * dpi / 25.4`` device pixels. The pen is cosmetic, so its width
+    device pixel ratio, at least 1 device pixel; an export gets ``mm * dpi / 25.4``
+    device pixels, from ``dpi`` or else the output dpi the scene is rendering for. The pen is cosmetic, so its width
     is in device pixels whatever the painter's scale.
     """
+    if dpi is None:
+        dpi = OUTPUT_DPI.get()
     ratio = 1.0
     device = painter.device()
     if device is not None:

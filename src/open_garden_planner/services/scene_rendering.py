@@ -80,6 +80,7 @@ def styled_scene(
     scene: QGraphicsScene,
     style: RenderStyle | None,
     px_per_cm: float | None = None,
+    dpi: float | None = None,
 ) -> Iterator[None]:
     """Paint ``scene`` in ``style`` for the duration, then restore its own.
 
@@ -87,23 +88,15 @@ def styled_scene(
     through this, so the styles of two outputs cannot diverge. ``None`` keeps the
     scene's current style. A scene that has no render style (a plain
     ``QGraphicsScene``) is rendered as it is. ``px_per_cm`` is the target's
-    resolution, for the scene-wide state prewarmed for its LOD band.
+    resolution: the scene paints at its LOD band, also for ``style=None``.
+    ``dpi`` is the output's, for the paper line weights (None: screen).
     """
-    setter = getattr(scene, "set_render_style", None)
-    if style is None or setter is None:
+    render_ctx = getattr(scene, "style_for_render", None)
+    if render_ctx is None:
         yield
         return
-    previous = scene.render_style  # type: ignore[attr-defined]
-    setter(style)
-    try:
-        band_ctx = getattr(scene, "style_band_for_render", None)
-        if band_ctx is not None and px_per_cm is not None:
-            with band_ctx(px_per_cm):
-                yield
-        else:
-            yield
-    finally:
-        setter(previous)
+    with render_ctx(style, px_per_cm, dpi):
+        yield
 
 
 class FontCarrier(Protocol):
@@ -258,6 +251,7 @@ def render_scene_region(
     text_point_size: int | None = None,
     y_flip: bool = True,
     render_style: RenderStyle | None = None,
+    dpi: float | None = None,
 ) -> None:
     """Render ``source_rect`` of ``scene`` into ``target_rect`` on ``painter``.
 
@@ -282,6 +276,7 @@ def render_scene_region(
             target "up".
         render_style: The drawing style of this output; ``None`` is the scene's
             current one (``styled_scene``).
+        dpi: The output's resolution, for the style's line weights; None on screen.
     """
     px_per_cm = target_rect.width() / source_rect.width() if source_rect.width() else None
     overlay_ctx = (
@@ -300,7 +295,7 @@ def render_scene_region(
         else _noop_context()
     )
 
-    style_ctx = styled_scene(scene, render_style, px_per_cm)
+    style_ctx = styled_scene(scene, render_style, px_per_cm, dpi)
 
     with style_ctx, overlay_ctx, construction_ctx, text_ctx, _uncached_items(scene):
         painter.save()

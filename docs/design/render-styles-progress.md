@@ -32,6 +32,26 @@ Branch `claude/render-styles-wp3-310d4a` (renamed on request if the name matters
   `PathStylePaint.paint(render_style=)` ask `STYLE_PAINTERS`. A switch or band change calls
   `update()` on every item (a device-cached item kept the previous style's picture).
 
+## Review fixes (Opus review of WP1/WP2)
+- `styled_scene` always enters `CanvasScene.style_for_render(style|None, px_per_cm, dpi)`: a
+  `None` style (print, PDF report, default exports) now paints at the output's LOD band.
+- `style_for_render` switches style, band and output dpi without moving the paint revision,
+  so the 2-entry state LRU keeps the screen's state across an export override and the
+  restore is a cache hit. Geometry is re-announced on entry and exit when style or band
+  differ (option chosen for the bounding pad: notify, not a band-independent pad).
+- `_rebuild_style_state` repaints every item (device-cached pixmaps).
+- Output dpi: `OUTPUT_DPI` context var in `style/base.py`, set by `style_for_render` (and
+  mirrored as `scene.style_output_dpi`); `pen_for_painter` reads it when no `dpi` is given.
+  PNG, SVG, PDF report and print pass their dpi; screen and the agent render stay at 96.
+- Tests: default PNG against a bare `scene.render`; call-site rule scans all of `src/`
+  with an allow-list; thumbnail writers must use `render_thumbnail_region`; the dirty
+  assertion is wired to `stack_changed` as the application does.
+
+## Deferred (P2 from the review, not done)
+- Re-sync the LOD band when `devicePixelRatio` changes (moving the window between screens).
+- `CanvasScene.drawBackground` still paints the canvas colour, not the style paper.
+- The Agent API render tool takes no `render_style` argument yet (WP11).
+
 ## Not done
 - No painters (WP4-6), UI (WP7), agent (WP11), NprStyle production code (WP9).
 - No new user-visible strings, so no translation changes needed yet.

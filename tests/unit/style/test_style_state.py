@@ -221,3 +221,115 @@ class TestPen:
             painter.end()
         assert pen.widthF() == pytest.approx(0.25 * 300 / 25.4)
         assert pen.color() == QColor("red")
+
+
+class _CountingRect(RectangleItem):
+    """A canvas item that counts its repaint requests and geometry announcements."""
+
+    def __init__(self) -> None:
+        super().__init__(0, 0, 10, 10)
+        self.updates = 0
+        self.geometry_calls = 0
+
+    def update(self, *args: Any) -> None:
+        self.updates += 1
+        super().update(*args)
+
+    def style_geometry_changed(self) -> None:
+        self.geometry_calls += 1
+
+
+class TestRenderOverride:
+    def test_override_keeps_the_screen_state_and_the_revision(
+        self, scene: CanvasScene, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        screen, other = FakePainter(), FakePainter()
+        monkeypatch.setitem(base.STYLE_PAINTERS, RenderStyle.CAD, screen)
+        monkeypatch.setitem(base.STYLE_PAINTERS, RenderStyle.LINE_AND_WASH, other)
+        scene.set_render_style(RenderStyle.CAD)
+        kept = scene.ensure_style_state()
+        revision = scene.paint_revision
+        screen_builds = len(screen.builds)
+        with scene.style_for_render(RenderStyle.LINE_AND_WASH, 0.5):
+            assert scene.render_style is RenderStyle.LINE_AND_WASH
+        assert scene.paint_revision == revision
+        assert scene.render_style is RenderStyle.CAD
+        assert scene.style_state() is kept
+        assert len(screen.builds) == screen_builds
+        # The override built exactly one state: at the output's band.
+        assert other.builds == [-1]
+
+    def test_band_and_style_changes_announce_geometry_on_entry_and_exit(
+        self, scene: CanvasScene, fake: FakePainter
+    ) -> None:
+        item = _CountingRect()
+        scene.addItem(item)
+        scene.set_render_style(RenderStyle.CAD)
+        item.geometry_calls = 0
+        with scene.style_for_render(None, 0.001):
+            assert item.geometry_calls == 1
+        assert item.geometry_calls == 2
+        item.geometry_calls = 0
+        with scene.style_for_render(None, None):  # nothing differs
+            pass
+        assert item.geometry_calls == 0
+
+    def test_pad_follows_the_band_inside_a_render(
+        self, scene: CanvasScene, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        class Banded(FakePainter):
+            def bounding_pad_cm(self, item: Any, band: int) -> float:
+                return 10.0 if band < 0 else 1.0
+
+        monkeypatch.setitem(base.STYLE_PAINTERS, RenderStyle.CAD, Banded())
+        item = RectangleItem(0, 0, 10, 10)
+        scene.addItem(item)
+        scene.set_render_style(RenderStyle.CAD)
+        screen = styled_bounding_rect(item, QRectF(0, 0, 10, 10))
+        with scene.style_for_render(None, 0.001):
+            wide = styled_bounding_rect(item, QRectF(0, 0, 10, 10))
+        assert wide.width() > screen.width()
+        assert styled_bounding_rect(item, QRectF(0, 0, 10, 10)) == screen
+
+    def test_a_deferred_rebuild_repaints_every_item(
+        self, scene: CanvasScene, fake: FakePainter
+    ) -> None:
+        item = _CountingRect()
+        scene.addItem(item)
+        scene.set_render_style(RenderStyle.CAD)
+        item.updates = 0
+        scene._rebuild_style_state()
+        assert item.updates >= 1
+
+
+class TestOutputDpi:
+    def test_a_300_dpi_output_gets_300_dpi_weights_and_screen_is_unchanged(
+        self, scene: CanvasScene
+    ) -> None:
+        image = QImage(10, 10, QImage.Format.Format_ARGB32)  # device ratio 1
+        painter = QPainter(image)
+        try:
+            with scene.style_for_render(None, 1.0, 300.0):
+                inside = pen_for_painter(painter, 0.5, QColor("black")).widthF()
+                assert scene.style_output_dpi == 300.0
+            after = pen_for_painter(painter, 0.5, QColor("black")).widthF()
+        finally:
+            painter.end()
+        assert inside == pytest.approx(0.5 * 300 / 25.4)
+        assert after == pytest.approx(0.5 * 96 / 25.4)
+        assert scene.style_output_dpi is None
+
+    def test_png_export_passes_its_dpi(
+        self, scene: CanvasScene, monkeypatch: pytest.MonkeyPatch, tmp_path: Any
+    ) -> None:
+        from open_garden_planner.services.export_service import ExportService
+
+        seen: list[float | None] = []
+
+        class Probe(RectangleItem):
+            def paint(self, painter: QPainter, option: Any, widget: Any = None) -> None:
+                seen.append(pen_for_painter(painter, 1.0, QColor("black")).widthF())
+
+        scene.addItem(Probe(0, 0, 100, 100))
+        ExportService.export_to_png(scene, tmp_path / "a.png", dpi=300, output_width_cm=10)
+        assert seen and all(w == pytest.approx(300 / 25.4) for w in seen)

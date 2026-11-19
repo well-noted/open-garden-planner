@@ -511,7 +511,9 @@ class GardenPrintManager:
         painter.setClipRect(target_rect, Qt.ClipOperation.IntersectClip)
         painter.translate(0, 2 * offset_y + target_h)
         painter.scale(1, -1)
-        with styled_scene(self._scene, None, target_rect.width() / canvas_w):
+        with styled_scene(
+            self._scene, None, target_rect.width() / canvas_w, resolution
+        ):
             self._scene.render(painter, target_rect, canvas_rect)
         painter.restore()
 
@@ -600,7 +602,7 @@ class GardenPrintManager:
                 painter.setClipRect(target_rect, Qt.ClipOperation.IntersectClip)
                 painter.translate(0, tgt_h)
                 painter.scale(1, -1)
-                with styled_scene(self._scene, None, tgt_w / src_w):
+                with styled_scene(self._scene, None, tgt_w / src_w, resolution):
                     self._scene.render(painter, target_rect, source_rect)
                 painter.restore()
 

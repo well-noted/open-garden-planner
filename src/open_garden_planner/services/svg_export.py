@@ -547,7 +547,9 @@ def record_scene(
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
         painter.translate(0, height)
         painter.scale(1.0, -1.0)
-        with styled_scene(scene, render_style, width / max(source_rect.width(), 1e-9)):
+        with styled_scene(
+            scene, render_style, width / max(source_rect.width(), 1e-9), units_per_inch
+        ):
             scene.render(painter, QRectF(0, 0, width, height), source_rect)
     finally:
         painter.end()
