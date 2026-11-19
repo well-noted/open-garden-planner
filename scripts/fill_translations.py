@@ -27,6 +27,7 @@ from scripts.translations_l4 import DE as _L4_TRANSLATIONS
 from scripts.translations_l5 import DE as _L5_TRANSLATIONS
 from scripts.translations_l6 import DE as _L6_TRANSLATIONS
 from scripts.translations_l7 import DE as _L7_TRANSLATIONS
+from scripts.translations_species_az import DE as _SPECIES_AZ_TRANSLATIONS
 from scripts.translations_sun_map import DE as _SUN_MAP_TRANSLATIONS
 
 if sys.stdout is not None and hasattr(sys.stdout, "reconfigure"):
@@ -3570,6 +3571,10 @@ for _ctx, _strings in _L6_TRANSLATIONS.items():
 
 # ── Phase 17 L7: the atmosphere sky (#391) ──
 for _ctx, _strings in _L7_TRANSLATIONS.items():
+    TRANSLATIONS.setdefault(_ctx, {}).update(_strings)
+
+# ── Arizona lower-desert species names ──
+for _ctx, _strings in _SPECIES_AZ_TRANSLATIONS.items():
     TRANSLATIONS.setdefault(_ctx, {}).update(_strings)
 
 # ── Export fixes: PDF report pages and legend (#787, #788, #789) ──
