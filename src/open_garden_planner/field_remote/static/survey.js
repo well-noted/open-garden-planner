@@ -1,3 +1,5 @@
+import { clockNow } from './api.js';
+
 // Survey-In and calibration (design 2.5, 2.6, 4.2 items 3 and 4). Stand still, average the
 // phone's own fixes for a few seconds, then either fix today's position to a known plan spot
 // (session only) or send corner recordings that change the georeference only once approved.
@@ -22,7 +24,7 @@ export function initSurvey(ctx) {
     if (S.watch === null) { toast('Turn GPS on first (the GPS button on the map).'); return; }
     busy = true;
     const btn = $('btn-survey');
-    const t0 = Date.now() / 1000;
+    const t0 = clockNow();
     S.raw.length = 0;
     try {
       for (let i = SURVEY_SECONDS; i > 0; i -= 1) {
@@ -159,16 +161,27 @@ export function initXr(ctx) {
   let flushTimer = 0;
   let locked = false;
   let mapHome = null;
-  const vioQ = [];
-  const imuQ = [];
+  let nextId = 1;
+  let inFlight = null; // the request now on its way: never two at once, never the same slice twice
+  let lastVioT = null; // t of the last pose the server acknowledged
+  let alertText = ''; // the server's GNSS disagreement alert, shown beside the banner text
+  let bannerText = '';
+  let vioQ = []; // { id, s }: the id survives queue trimming, so an ack removes exactly what was sent
+  let imuQ = [];
+  function enqueue(q, s) {
+    q.push({ id: nextId++, s });
+    if (q.length > MAX_QUEUE) q.splice(0, q.length - MAX_QUEUE);
+  }
 
   function say(text, cls) {
     status.textContent = text;
     status.className = 'hint ' + (cls || '');
   }
   function setBanner(text) {
-    banner.textContent = text || '';
-    banner.hidden = !text;
+    bannerText = text || '';
+    const shown = [bannerText, alertText].filter(Boolean).join(' · ');
+    banner.textContent = shown; // textContent only: server text never becomes markup
+    banner.hidden = !shown;
   }
   function ready() { return Boolean(hit) && tracking === 'tracking'; }
   function refreshButtons() {
@@ -178,22 +191,46 @@ export function initXr(ctx) {
 
   // ---- sending -----------------------------------------------------------------------------
 
-  async function flush() {
-    if (!vioQ.length && !imuQ.length) return;
-    const body = { vio_batch: vioQ.slice(0, 50), imu_batch: imuQ.slice(0, 50) };
-    const r = await api('/api/position', { method: 'POST', body }).catch(() => null);
-    if (!r) return; // keep them; the next tick retries
-    vioQ.splice(0, body.vio_batch.length);
-    imuQ.splice(0, body.imu_batch.length);
-    if (!r.ok) { if (r.status !== 429 && r.status !== 409) toast(errorText(r)); return; }
-    const t = r.json.telemetry;
-    if (t.x_cm != null) showFix(t);
+  function onTelemetry(t) {
+    if (!t) return;
+    const next = t.fused && t.fused.gnss_alert ? String(t.fused.gnss_alert) : '';
+    if (next !== alertText) { alertText = next; setBanner(bannerText); }
     const state = t.fused ? t.fused.state : 'unlocked';
     if (locked && state === 'unlocked') {
       locked = false;
       setBanner(UNLOCKED_TEXT); // the server dropped the lock; never resumed, only re-locked
       say(UNLOCKED_TEXT, 'warn');
     }
+  }
+
+  async function sendOnce() {
+    if (!vioQ.length && !imuQ.length) return true;
+    const vio = vioQ.slice(0, 50), imu = imuQ.slice(0, 50);
+    const body = { vio_batch: vio.map((i) => i.s), imu_batch: imu.map((i) => i.s) };
+    const r = await api('/api/position', { method: 'POST', body }).catch(() => null);
+    if (!r || r.status === 429) return false; // keep them; the next tick retries
+    const vMax = vio.length ? vio[vio.length - 1].id : 0, iMax = imu.length ? imu[imu.length - 1].id : 0;
+    vioQ = vioQ.filter((i) => i.id > vMax); // remove what was sent, by id, after the answer
+    imuQ = imuQ.filter((i) => i.id > iMax);
+    if (vio.length) lastVioT = vio[vio.length - 1].s.t;
+    if (!r.ok) { if (r.status !== 409) toast(errorText(r)); return false; }
+    const t = r.json.telemetry;
+    if (t.x_cm != null) showFix(t);
+    onTelemetry(t);
+    return true;
+  }
+  function flush() {
+    if (!inFlight) inFlight = sendOnce().finally(() => { inFlight = null; });
+    return inFlight;
+  }
+  // Before a lock: everything queued (a reset or a loss included) must reach the server first.
+  async function drain(untilT) {
+    for (let i = 0; i < 8; i += 1) {
+      if (inFlight) { await inFlight; continue; }
+      if (lastVioT !== null && lastVioT >= untilT) return true;
+      if (!vioQ.length || !(await flush())) return false;
+    }
+    return lastVioT !== null && lastVioT >= untilT;
   }
   function startFlush() { if (!flushTimer) flushTimer = setInterval(flush, SEND_EVERY_MS); }
 
@@ -214,14 +251,13 @@ export function initXr(ctx) {
     let last = 0;
     window.addEventListener('devicemotion', (e) => {
       const a = e.accelerationIncludingGravity;
-      const now = Date.now() / 1000;
+      const now = clockNow();
       if (!a || now - last < 0.04) return; // about 25 per second
       last = now;
       const v = (n) => (typeof n === 'number' && Number.isFinite(n) ? n : 0);
       const item = { t: now, ax: v(a.x), ay: v(a.y), az: v(a.z) };
       if (heading !== null) { item.heading_deg = heading; item.absolute = true; }
-      imuQ.push(item);
-      if (imuQ.length > MAX_QUEUE) imuQ.splice(0, imuQ.length - MAX_QUEUE);
+      enqueue(imuQ, item);
     });
     startFlush();
   }
@@ -232,7 +268,7 @@ export function initXr(ctx) {
     if (!xr) return;
     xr.session.requestAnimationFrame(onFrame);
     const vp = frame.getViewerPose(xr.local);
-    const t = (performance.timeOrigin + time) / 1000; // the same clock as the GNSS timestamps
+    const t = (performance.timeOrigin + time) / 1000; // frame time: the same timeline as clockNow()
     if (vp) {
       const p = vp.transform.position, q = vp.transform.orientation;
       pose = { x: p.x, y: p.y, z: p.z, qx: q.x, qy: q.y, qz: q.z, qw: q.w };
@@ -245,8 +281,7 @@ export function initXr(ctx) {
     hit = hp ? { x: hp.transform.position.x, y: hp.transform.position.y, z: hp.transform.position.z } : null;
     if (pose && t - lastT >= VIO_MIN_DT_S) {
       lastT = t;
-      vioQ.push({ t, ...pose, tracking });
-      if (vioQ.length > MAX_QUEUE) vioQ.splice(0, vioQ.length - MAX_QUEUE);
+      enqueue(vioQ, { t, ...pose, tracking });
     }
     if (t - lastSent > 0.25) {
       lastSent = t;
@@ -300,7 +335,9 @@ export function initXr(ctx) {
       const src = await session.requestHitTestSource({ space: viewer });
       xr = { session, local, hit: src, gl };
       local.addEventListener('reset', () => {
-        vioQ.push({ t: Date.now() / 1000, ...(pose || { x: 0, y: 0, z: 0, qx: 0, qy: 0, qz: 0, qw: 1 }), tracking: 'limited', reset: true });
+        const t = Math.max(clockNow(), lastT); // never behind the last queued pose
+        lastT = t;
+        enqueue(vioQ, { t, ...(pose || { x: 0, y: 0, z: 0, qx: 0, qy: 0, qz: 0, qw: 1 }), tracking: 'limited', reset: true });
         locked = false; setBanner(UNLOCKED_TEXT);
       });
       session.addEventListener('end', onEnd);
@@ -322,7 +359,12 @@ export function initXr(ctx) {
   async function lock(which) {
     if (!xr || !ready()) { toast('Wait for a steady reticle on the ground.'); return; }
     if (S.target == null) { toast('Tap the known spot on the map first.'); return; }
-    const body = { plan: { x_cm: S.target.x, y_cm: S.target.y }, hit: { x: hit.x, y: hit.y, z: hit.z }, t: Date.now() / 1000 };
+    const taken = { x: hit.x, y: hit.y, z: hit.z };
+    const takenT = lastT; // the last pose queued when the hit was taken: the hit is in its frame
+    // Send the queued poses up to that one first, then name it: the server refuses the lock
+    // until its stream has reached it, and if a reset or loss broke the frame after it.
+    if (!takenT || !(await drain(takenT))) { say('Sending tracking data... try again in a moment.', 'warn'); return; }
+    const body = { plan: { x_cm: S.target.x, y_cm: S.target.y }, hit: taken, vio_t: takenT };
     const r = await api(which === 'c' ? '/api/ar/check' : '/api/ar/lock/' + which, { method: 'POST', body });
     if (!r.ok) { say(errorText(r), 'bad'); return; }
     if (which === 'a') { say('A captured. Walk to the second known spot, tap it on the map, then lock B.'); return; }
@@ -353,5 +395,5 @@ export function initXr(ctx) {
     navigator.xr.isSessionSupported('immersive-ar').then((ok) => { card.hidden = !ok; }).catch(() => { card.hidden = true; });
   }
   refreshButtons();
-  return { startMotion };
+  return { startMotion, onTelemetry };
 }

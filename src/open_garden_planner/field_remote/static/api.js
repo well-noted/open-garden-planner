@@ -13,6 +13,12 @@ export function initToken() {
   return Boolean(token);
 }
 
+// One clock for every time the page sends that the server compares (GNSS, VIO, IMU, resets,
+// lock points): epoch seconds on the high-resolution timeline. WebXR frame times share its base.
+export function clockNow() {
+  return (performance.timeOrigin + performance.now()) / 1000;
+}
+
 export async function api(path, opts = {}) {
   const headers = { Authorization: 'Bearer ' + token, ...(opts.headers || {}) };
   let body = opts.body;

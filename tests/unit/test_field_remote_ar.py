@@ -274,3 +274,15 @@ def test_a_hostile_lock_time_can_never_break_the_position_answers(env: Env, bad:
 def test_survey_samples_refuse_non_finite_times(env: Env, bad: str) -> None:
     text = '{"samples":[{"t":' + bad + ',"lat":48,"lon":11,"accuracy_m":3}]}'
     assert _raw_post(env, "/api/survey", text).status_code == 422
+
+
+def test_the_page_sends_every_compared_time_on_one_clock_and_claims_no_quality_for_the_lock() -> None:
+    from open_garden_planner.field_remote import static
+
+    survey = static.ASSETS["/static/survey.js"].body.decode("utf-8")
+    app = static.ASSETS["/static/app.js"].body.decode("utf-8")
+    api = static.ASSETS["/static/api.js"].body.decode("utf-8")
+    assert "performance.timeOrigin + performance.now()" in api
+    assert "Date.now()" not in survey and "p.timestamp" not in app  # GNSS, IMU, resets, locks: clockNow()
+    assert "innerHTML" not in survey and "insertAdjacentHTML" not in survey
+    assert "t.quality === 'unknown' ? ''" in app  # the AR lock track gets no OK badge

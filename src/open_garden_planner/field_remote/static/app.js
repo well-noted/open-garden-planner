@@ -1,6 +1,6 @@
 // Field Remote phone page. No framework, no build step. All user and plan text is written with
 // textContent/createElement, never as markup; there is no eval and no inline script or style.
-import { api, errorText, fetchBasemap, fetchPhoto, initToken, uuid } from './api.js';
+import { api, clockNow, errorText, fetchBasemap, fetchPhoto, initToken, uuid } from './api.js';
 import { canvasToGps, trilaterate } from './geo.js';
 import { PlanMap } from './map.js';
 import { initRecord } from './record.js';
@@ -104,7 +104,7 @@ function startGps() {
   if (S.watch !== null) { navigator.geolocation.clearWatch(S.watch); S.watch = null; $('btn-locate').textContent = 'GPS'; return; }
   S.watch = navigator.geolocation.watchPosition((p) => {
     const c = p.coords, num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
-    const item = { t: p.timestamp / 1000, lat: c.latitude, lon: c.longitude, accuracy_m: Math.max(0, c.accuracy || 0), source: 'browser' };
+    const item = { t: clockNow(), lat: c.latitude, lon: c.longitude, accuracy_m: Math.max(0, c.accuracy || 0), source: 'browser' };
     for (const [k, v] of [['alt', num(c.altitude)], ['heading_deg', num(c.heading)], ['speed_mps', num(c.speed)]]) if (v !== null) item[k] = v;
     S.queue.push(item);
     S.raw.push({ t: item.t, lat: item.lat, lon: item.lon, accuracy_m: item.accuracy_m });
@@ -118,14 +118,22 @@ function startGps() {
 }
 $('btn-locate').addEventListener('click', startGps);
 
+let positionsInFlight = false;
 async function flushPositions() {
-  if (!S.queue.length) return;
-  const batch = S.queue.slice(0, 50);
-  const r = await api('/api/position', { method: 'POST', body: { positions: batch } }).catch(() => null);
-  if (!r) return; // keep them; the next tick retries
-  S.queue.splice(0, batch.length);
-  if (!r.ok) { if (r.status !== 429) toast(errorText(r)); return; }
-  showFix(r.json.telemetry);
+  if (positionsInFlight || !S.queue.length) return; // never resend a slice still on its way
+  positionsInFlight = true;
+  try {
+    const batch = S.queue.slice(0, 50);
+    const r = await api('/api/position', { method: 'POST', body: { positions: batch } }).catch(() => null);
+    if (!r) return; // keep them; the next tick retries
+    const sent = new Set(batch);
+    S.queue = S.queue.filter((item) => !sent.has(item)); // by identity: the queue may have been trimmed meanwhile
+    if (!r.ok) { if (r.status !== 429) toast(errorText(r)); return; }
+    showFix(r.json.telemetry);
+    xr.onTelemetry(r.json.telemetry);
+  } finally {
+    positionsInFlight = false;
+  }
 }
 
 function showFix(t) {
@@ -135,7 +143,8 @@ function showFix(t) {
   const spread = t.sigma_m == null ? '' : ' ±' + Number(t.sigma_m).toFixed(1) + ' m';
   const mode = t.fix_mode === 'vio_fused' ? 'AR lock (experimental)' : t.fix_mode;
   f.textContent = mode + spread + (t.motion_model ? ' · ' + t.motion_model : '') + (t.heading_source === 'none' ? '' : ' · ' + t.heading_source);
-  f.className = 'overlay badge ' + (t.quality === 'poor' ? 'bad' : 'ok');
+  // "unknown" (the AR lock track until WP-M measures it) gets no OK styling: no quality is implied
+  f.className = 'overlay badge ' + (t.quality === 'poor' ? 'bad' : t.quality === 'unknown' ? '' : 'ok');
 }
 
 // ---- choosing a spot -------------------------------------------------------------------------

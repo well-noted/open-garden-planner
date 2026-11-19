@@ -57,3 +57,50 @@ def test_trilateration_finds_the_spot_and_reports_the_mirror_and_the_misfit() ->
     assert third["ambiguous"] is False and third["pos"]["y"] > 0 and third["rms_m"] < 0.05  # type: ignore[index]
     bad = run_js("console.log(JSON.stringify(g.trilaterate([{x:0,y:0},{x:1000,y:0}], [1, 2], 0.01)));")
     assert bad["error"] == "noreach"  # type: ignore[index]
+
+
+SURVEY_JS = GEO_JS.with_name("survey.js")
+
+# A DOM-free harness for the AR card's sender: fake elements, a manual interval tick, a held
+# api() promise, and the motion handler as the only sample source (no WebXR under Node).
+_XR_HARNESS = """
+const handlers = {}; let tick = null; let tnow = 1000;
+Object.defineProperty(globalThis, 'performance', { value: { timeOrigin: 1.7e12, now: () => tnow }, configurable: true });
+globalThis.document = { addEventListener() {}, hidden: false };
+globalThis.window = { DeviceMotionEvent: function () {}, addEventListener(k, f) { handlers[k] = f; } };
+globalThis.DeviceMotionEvent = globalThis.window.DeviceMotionEvent;
+globalThis.setInterval = (f) => { tick = f; return 1; };
+const els = {};
+const $ = (id) => (els[id] ||= { addEventListener() {}, textContent: '', hidden: true, disabled: false, className: '' });
+const calls = []; const pending = [];
+const telemetry = { x_cm: null, fused: { state: 'unlocked', gnss_alert: 'locked frame and filtered GNSS disagree by 9.0 m' } };
+const api = (path, opts) => new Promise((ok) => {
+  calls.push(opts.body); pending.push(() => ok({ ok: true, status: 200, json: { telemetry } }));
+});
+const m = await import(SURVEY);
+const xr = m.initXr({ S: {}, $, toast() {}, api, errorText: () => '', map: {}, showFix() {} });
+await xr.startMotion();
+const move = () => { tnow += 50; handlers.devicemotion({ accelerationIncludingGravity: { x: 0, y: 0, z: 9.8 } }); };
+move(); move();
+tick(); tick(); // the second tick fires while the first request is still on its way
+const inFlightCalls = calls.length;
+move();
+pending.shift()(); await new Promise((r) => setTimeout(r, 0));
+tick();
+console.log(JSON.stringify({
+  inFlightCalls, sent: calls.map((b) => b.imu_batch.map((i) => i.t)),
+  banner: els['xr-banner'].textContent, hidden: els['xr-banner'].hidden,
+}));
+"""
+
+
+def test_the_ar_sender_never_resends_a_slice_and_shows_the_gnss_alert() -> None:
+    code = f"const SURVEY = {json.dumps(SURVEY_JS.as_uri())};\n{_XR_HARNESS}"
+    out = subprocess.run(
+        [NODE or "node", "--input-type=module", "-e", code], capture_output=True, text=True, timeout=30, check=True
+    )
+    got = json.loads(out.stdout)
+    assert got["inFlightCalls"] == 1  # no second request while the first is unanswered
+    first, second = got["sent"]
+    assert len(first) == 2 and len(second) == 1 and second[0] > first[-1]  # nothing sent twice, nothing lost
+    assert "disagree" in got["banner"] and got["hidden"] is False  # the alert reaches the phone banner
