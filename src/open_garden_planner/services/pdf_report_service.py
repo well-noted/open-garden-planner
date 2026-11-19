@@ -20,6 +20,7 @@ from open_garden_planner.core.measurements import (
     format_scale_distance,
 )
 from open_garden_planner.core.plant_cycle_label import plant_cycle_label
+from open_garden_planner.core.render_style import RenderStyle
 from open_garden_planner.core.unit_preference import active_unit_system
 from open_garden_planner.core.units import LengthStyle, UnitSystem, nice_distances
 
@@ -116,7 +117,11 @@ def _font(point_size: int) -> QFont:
 
 
 def _scene_to_image(
-    scene: Any, source: QRectF, dest: QRectF, dpi: float | None = None
+    scene: Any,
+    source: QRectF,
+    dest: QRectF,
+    dpi: float | None = None,
+    render_style: RenderStyle | None = None,
 ) -> QImage:
     """Render *source* of *scene*, Y-up, into a picture for the page rectangle *dest*.
 
@@ -130,6 +135,7 @@ def _scene_to_image(
     size it has on the plan (#789).
     """
     from open_garden_planner.services.export_service import ExportService
+    from open_garden_planner.services.scene_rendering import styled_scene
 
     dpi = PLAN_RENDER_DPI if dpi is None else dpi
     w = max(1, int(round(dest.width() * dpi / 72.0)))
@@ -153,7 +159,8 @@ def _scene_to_image(
         p.save()
         p.translate(0, h)
         p.scale(1.0, -1.0)
-        scene.render(p, QRectF(0, 0, w, h), source)
+        with styled_scene(scene, render_style, w / max(source.width(), 1e-9)):
+            scene.render(p, QRectF(0, 0, w, h), source)
         p.restore()
         p.end()
     finally:

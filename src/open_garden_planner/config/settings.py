@@ -255,6 +255,16 @@ class AppSettings:
 
     KEY_VIEW3D_SKY_MODEL = "view3d/sky_model"
 
+    # Render style (Package 4): a view preference, never plan data. ``follow`` in
+    # the export override means "the style the canvas shows".
+    KEY_RENDER_STYLE = "appearance/render_style"
+    KEY_CAD_CALLOUTS = "appearance/cad_callouts"
+    KEY_EXPORT_RENDER_STYLE_OVERRIDE = "export/render_style_override"
+    DEFAULT_RENDER_STYLE = "illustrated"
+    EXPORT_STYLE_FOLLOW = "follow"
+    # Owner decision Q4 (2026-11-19): callouts are off until the user turns them on.
+    DEFAULT_CAD_CALLOUTS = False
+
     # Default values
     DEFAULT_AUTOSAVE_ENABLED = True
     DEFAULT_SHOW_WELCOME = True
@@ -956,6 +966,53 @@ class AppSettings:
         if text not in self.VIEW3D_SKY_MODELS:
             text = self.DEFAULT_VIEW3D_SKY_MODEL
         self._settings.setValue(self.KEY_VIEW3D_SKY_MODEL, text)
+
+    @property
+    def render_style(self) -> str:
+        """The drawing style the canvas shows: a ``RenderStyle`` id. Anything
+        unknown in the store reads as ``illustrated`` (lenient, like the sky model)."""
+        from open_garden_planner.core.render_style import normalise_render_style
+
+        value = self._settings.value(self.KEY_RENDER_STYLE, self.DEFAULT_RENDER_STYLE, type=str)
+        return normalise_render_style(value).value
+
+    @render_style.setter
+    def render_style(self, value: str) -> None:
+        from open_garden_planner.core.render_style import normalise_render_style
+
+        self._settings.setValue(self.KEY_RENDER_STYLE, normalise_render_style(value).value)
+
+    @property
+    def cad_callouts(self) -> bool:
+        """Whether the CAD style draws leader callouts (off by default, Q4)."""
+        return cast(bool, self._settings.value(
+            self.KEY_CAD_CALLOUTS, self.DEFAULT_CAD_CALLOUTS, type=bool))
+
+    @cad_callouts.setter
+    def cad_callouts(self, enabled: bool) -> None:
+        self._settings.setValue(self.KEY_CAD_CALLOUTS, bool(enabled))
+
+    @property
+    def export_render_style_override(self) -> str:
+        """The last style chosen in an export dialog: a ``RenderStyle`` id, or
+        ``follow`` (the canvas's style). Anything else reads as ``follow``."""
+        from open_garden_planner.core.render_style import RENDER_STYLES
+
+        value = self._settings.value(
+            self.KEY_EXPORT_RENDER_STYLE_OVERRIDE, self.EXPORT_STYLE_FOLLOW, type=str)
+        text = str(value).strip().lower()
+        valid = {style.value for style in RENDER_STYLES}
+        return text if text in valid else self.EXPORT_STYLE_FOLLOW
+
+    @export_render_style_override.setter
+    def export_render_style_override(self, value: str) -> None:
+        from open_garden_planner.core.render_style import RENDER_STYLES
+
+        text = str(value).strip().lower()
+        valid = {style.value for style in RENDER_STYLES}
+        self._settings.setValue(
+            self.KEY_EXPORT_RENDER_STYLE_OVERRIDE,
+            text if text in valid else self.EXPORT_STYLE_FOLLOW)
 
     @property
     def view3d_auto_level(self) -> str:

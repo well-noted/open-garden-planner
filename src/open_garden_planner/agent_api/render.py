@@ -22,14 +22,16 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Any
 
-from PyQt6.QtCore import QBuffer, QIODevice, QRectF, Qt
+from PyQt6.QtCore import QBuffer, QIODevice, QRectF
 from PyQt6.QtGui import QImage, QPainter
 from PyQt6.QtWidgets import QGraphicsScene
 
 from open_garden_planner.services.export_service import ExportService
 from open_garden_planner.services.scene_rendering import (
     compute_export_font_size,
+    effective_style,
     render_scene_region,
+    style_background,
 )
 
 MIN_IMAGE_PX = 128
@@ -156,8 +158,7 @@ def render_canvas_image(
     text_point_size = compute_export_font_size(equivalent_scale, ExportService.DPI_SCREEN)
 
     image = QImage(width_px, height_px, QImage.Format.Format_ARGB32)
-    background = getattr(scene, "CANVAS_COLOR", Qt.GlobalColor.white)
-    image.fill(background)
+    image.fill(style_background(effective_style(scene, None), scene))
     painter = QPainter(image)
     painter.setRenderHint(QPainter.RenderHint.Antialiasing)
     painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)

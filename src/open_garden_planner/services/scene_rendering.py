@@ -17,16 +17,91 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Protocol
+from typing import Any, Final, Protocol
 
 from PyQt6.QtCore import QRectF
-from PyQt6.QtGui import QFont, QPainter
+from PyQt6.QtGui import QColor, QFont, QPainter
 from PyQt6.QtWidgets import (
     QGraphicsItem,
     QGraphicsScene,
     QGraphicsSimpleTextItem,
     QGraphicsTextItem,
 )
+
+from open_garden_planner.core.render_style import RenderStyle
+
+#: What every picture that is stored or shown beside the plan is drawn in: an
+#: embedded thumbnail, a Paper Space viewport thumbnail. A thumbnail goes into
+#: the file, so it never follows the render style (a view preference would leak
+#: into the .ogp bytes; Package 4 design 1.1).
+THUMBNAIL_STYLE: Final = RenderStyle.ILLUSTRATED
+
+#: The paper of each style that has a fixed one. Illustrated paints the scene's
+#: own (theme-dependent) canvas colour, so it has none here.
+_STYLE_PAPER: Final = {
+    RenderStyle.CAD: "#ffffff",
+    RenderStyle.LINE_AND_WASH: "#f4eedf",
+}
+
+
+def style_background(style: RenderStyle, scene: Any = None) -> QColor:
+    """The colour an output of ``style`` is filled with before the scene is
+    painted: the style's paper, or for illustrated the scene's ``CANVAS_COLOR``
+    (white for a scene without one) — what each caller hard-coded until now."""
+    paper = _STYLE_PAPER.get(style)
+    if paper is not None:
+        return QColor(paper)
+    canvas = getattr(scene, "CANVAS_COLOR", None)
+    return QColor(canvas) if canvas is not None else QColor("white")
+
+
+def effective_style(scene: Any, style: RenderStyle | None) -> RenderStyle:
+    """``style``, or the scene's own when ``None`` (illustrated for a scene that
+    has none)."""
+    if style is not None:
+        return style
+    return getattr(scene, "render_style", RenderStyle.ILLUSTRATED)
+
+
+def paint_style_paper(
+    painter: QPainter,
+    target_rect: QRectF,
+    source_rect: QRectF,
+    style: RenderStyle,
+    px_per_cm: float,
+) -> None:
+    """Paint the paper texture of ``style`` under the scene. No style has one
+    yet (the Line & Wash grain is Package 4, WP6): the seam exists so the
+    callers are wired once."""
+
+
+@contextmanager
+def styled_scene(
+    scene: QGraphicsScene,
+    style: RenderStyle | None,
+    px_per_cm: float | None = None,
+) -> Iterator[None]:
+    """Paint ``scene`` in ``style`` for the duration, then restore its own.
+
+    Every ``scene.render`` call site (PNG, SVG, PDF, print, the Agent API) goes
+    through this, so the styles of two outputs cannot diverge. ``None`` keeps the
+    scene's current style. A scene that has no render style (a plain
+    ``QGraphicsScene``) is rendered as it is. ``px_per_cm`` is the target's
+    resolution, for the scene-wide state prewarmed for its LOD band.
+    """
+    setter = getattr(scene, "set_render_style", None)
+    if style is None or setter is None:
+        yield
+        return
+    previous = scene.render_style  # type: ignore[attr-defined]
+    setter(style)
+    try:
+        prewarm = getattr(scene, "prewarm_render_style", None)
+        if prewarm is not None and px_per_cm is not None:
+            prewarm(px_per_cm)
+        yield
+    finally:
+        setter(previous)
 
 
 class FontCarrier(Protocol):
@@ -180,6 +255,7 @@ def render_scene_region(
     hide_construction: bool = True,
     text_point_size: int | None = None,
     y_flip: bool = True,
+    render_style: RenderStyle | None = None,
 ) -> None:
     """Render ``source_rect`` of ``scene`` into ``target_rect`` on ``painter``.
 
@@ -202,7 +278,10 @@ def render_scene_region(
             already prepared them.
         y_flip: If True, apply the standard Y-flip so scene "up" maps to
             target "up".
+        render_style: The drawing style of this output; ``None`` is the scene's
+            current one (``styled_scene``).
     """
+    px_per_cm = target_rect.width() / source_rect.width() if source_rect.width() else None
     overlay_ctx = (
         _hidden_overlay_items(scene)
         if hide_overlays
@@ -219,7 +298,9 @@ def render_scene_region(
         else _noop_context()
     )
 
-    with overlay_ctx, construction_ctx, text_ctx, _uncached_items(scene):
+    style_ctx = styled_scene(scene, render_style, px_per_cm)
+
+    with style_ctx, overlay_ctx, construction_ctx, text_ctx, _uncached_items(scene):
         painter.save()
         if y_flip:
             painter.translate(target_rect.x(), target_rect.y() + target_rect.height())
@@ -229,6 +310,19 @@ def render_scene_region(
         else:
             scene.render(painter, target_rect, source_rect)
         painter.restore()
+
+
+def render_thumbnail_region(
+    scene: QGraphicsScene,
+    painter: QPainter,
+    target_rect: QRectF,
+    source_rect: QRectF,
+    **kwargs: Any,
+) -> None:
+    """``render_scene_region`` for a thumbnail: always ``THUMBNAIL_STYLE``."""
+    render_scene_region(
+        scene, painter, target_rect, source_rect, render_style=THUMBNAIL_STYLE, **kwargs
+    )
 
 
 @contextmanager

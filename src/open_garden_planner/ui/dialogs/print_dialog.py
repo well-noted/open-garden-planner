@@ -21,6 +21,7 @@ from PyQt6.QtWidgets import (
 )
 
 from open_garden_planner.core.measurement_display import length_text
+from open_garden_planner.services.scene_rendering import styled_scene
 
 # Scale presets: display name -> scale denominator (0 = fit to page)
 SCALE_PRESETS = [
@@ -510,7 +511,8 @@ class GardenPrintManager:
         painter.setClipRect(target_rect, Qt.ClipOperation.IntersectClip)
         painter.translate(0, 2 * offset_y + target_h)
         painter.scale(1, -1)
-        self._scene.render(painter, target_rect, canvas_rect)
+        with styled_scene(self._scene, None, target_rect.width() / canvas_w):
+            self._scene.render(painter, target_rect, canvas_rect)
         painter.restore()
 
         if self._include_grid:
@@ -598,7 +600,8 @@ class GardenPrintManager:
                 painter.setClipRect(target_rect, Qt.ClipOperation.IntersectClip)
                 painter.translate(0, tgt_h)
                 painter.scale(1, -1)
-                self._scene.render(painter, target_rect, source_rect)
+                with styled_scene(self._scene, None, tgt_w / src_w):
+                    self._scene.render(painter, target_rect, source_rect)
                 painter.restore()
 
                 if self._include_grid:

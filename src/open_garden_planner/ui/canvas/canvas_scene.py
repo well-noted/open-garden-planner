@@ -38,6 +38,7 @@ from open_garden_planner.core import stacking
 from open_garden_planner.core.object_height import lies_on_ground
 from open_garden_planner.core.object_types import is_plant_type
 from open_garden_planner.core.plan_timeline import plant_present
+from open_garden_planner.core.render_style import RenderStyle, normalise_render_style
 from open_garden_planner.core.sim_clock import SimClock
 from open_garden_planner.core.sprite_raster import clear_sprite_cache
 from open_garden_planner.core.units import UnitSystem
@@ -250,6 +251,9 @@ class CanvasScene(QGraphicsScene):
     #: something to count on (the #230 teardown trap; seen as "'CanvasScene'
     #: object has no attribute" in the group menu tests; PF-CAN-61).
     _paint_revision = 0
+    #: The render style (``render_style``): a class attribute too, for the same
+    #: teardown reason as ``_paint_revision``.
+    _render_style = RenderStyle.ILLUSTRATED
     diagnostics_changed = pyqtSignal()
     timeline_changed = pyqtSignal()
     active_layer_changed = pyqtSignal(object)  # Layer or None
@@ -1098,6 +1102,23 @@ class CanvasScene(QGraphicsScene):
     def paint_revision(self) -> int:
         """Moves whenever a picture of the scene may differ (class docstring)."""
         return self._paint_revision
+
+    @property
+    def render_style(self) -> RenderStyle:
+        """The drawing style the scene is painted in (Package 4). A view
+        preference, never plan data: it is not saved in the .ogp, not on the
+        undo stack and does not mark the plan modified."""
+        return self._render_style
+
+    def set_render_style(self, style: RenderStyle | str) -> None:
+        """Paint the scene in ``style``. Moves the paint revision and repaints;
+        touches no plan state (no ``plan_changed``, no command)."""
+        new = normalise_render_style(style, self._render_style)
+        if new is self._render_style:
+            return
+        self._render_style = new
+        self.note_paint_changed()
+        self.update()
 
     @pyqtSlot()
     def note_paint_changed(self) -> None:

@@ -55,6 +55,8 @@ from PyQt6.QtGui import (
 )
 from PyQt6.QtSvg import QSvgGenerator
 
+from open_garden_planner.core.render_style import RenderStyle
+
 #: User units per inch of an exported SVG. A drawing is written at print
 #: resolution, so a picture rasterised for the painter's scale (a plant sprite,
 #: a texture tile) is as sharp in the SVG as in a 300-dpi PNG, and a
@@ -528,8 +530,13 @@ def record_scene(
     width: float,
     height: float,
     units_per_inch: float = SVG_UNITS_PER_INCH,
+    render_style: RenderStyle | None = None,
 ) -> list[_ShapeOp | _PixmapOp | _TextOp]:
-    """Paint *source_rect* of *scene*, Y-up, onto a recorder of *width* x *height* units."""
+    """Paint *source_rect* of *scene*, Y-up, onto a recorder of *width* x *height* units.
+
+    *render_style* is the drawing style (None: the scene's own)."""
+    from open_garden_planner.services.scene_rendering import styled_scene
+
     device = _RecordingDevice(width, height, units_per_inch)
     painter = QPainter()
     if not painter.begin(device):
@@ -540,7 +547,8 @@ def record_scene(
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
         painter.translate(0, height)
         painter.scale(1.0, -1.0)
-        scene.render(painter, QRectF(0, 0, width, height), source_rect)
+        with styled_scene(scene, render_style, width / max(source_rect.width(), 1e-9)):
+            scene.render(painter, QRectF(0, 0, width, height), source_rect)
     finally:
         painter.end()
     return device.engine.ops
