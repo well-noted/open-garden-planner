@@ -4576,6 +4576,118 @@ class SetPlanNorthCommand(Command):
         self._pm.set_north_angle(self._old)
 
 
+class SetGeoreferenceCommand(Command):
+    """Set (or clear) the plan's georeference — ONE undo step (ADR-079).
+
+    A georeference's rotation IS the plan's north angle, so a change that
+    carries a new north (a fit from reference points, a north-up satellite
+    import) moves both in this one command: *new_north_deg* ``None`` keeps the
+    plan's north. Old values are captured at construction; ``georef`` (a
+    ``GeoReference``) was validated when it was built, before anything reaches
+    the undo stack. No canvas item is touched.
+    """
+
+    changes_ground_band = False
+    changes_containment = False
+
+    def __init__(
+        self,
+        project_manager: "Any",
+        new_georef: "Any",
+        new_north_deg: object = None,
+        *,
+        description: str | None = None,
+    ) -> None:
+        self._pm = project_manager
+        self._old_georef = project_manager.georef
+        self._old_north: float = project_manager.north_angle_deg
+        self._new_georef = new_georef
+        self._new_north: float | None = (
+            None if new_north_deg is None else normalize_north_angle(new_north_deg)
+        )
+        self._description = description
+
+    @property
+    def description(self) -> str:
+        return self._description or QCoreApplication.translate("Commands", "Set georeference")
+
+    def execute(self) -> None:
+        if self._new_north is not None:
+            self._pm.set_north_angle(self._new_north)
+        self._pm.set_georef(self._new_georef)
+
+    def undo(self) -> None:
+        self._pm.set_georef(self._old_georef)
+        self._pm.set_north_angle(self._old_north)
+
+
+class SetInitialMapCommand(Command):
+    """Establish the plan's initial map in ONE undo step (ADR-079).
+
+    The satellite background, the canvas size, the garden location, the
+    georeference and the north angle change together: the agent's
+    ``set_initial_map`` is one gesture and one Ctrl+Z. The new background item
+    arrives fully built and positioned; the old background items and canvas
+    size are captured at construction and restored by undo.
+    """
+
+    changes_ground_band = False
+    changes_containment = False
+
+    def __init__(
+        self,
+        scene: "Any",
+        project_manager: "Any",
+        image_item: "Any",
+        canvas_size_cm: tuple[float, float],
+        location: "dict[str, Any] | None",
+        georef: "Any",
+        north_deg: float = 0.0,
+    ) -> None:
+        from open_garden_planner.ui.canvas.items import BackgroundImageItem
+
+        self._scene = scene
+        self._pm = project_manager
+        self._item = image_item
+        self._canvas = canvas_size_cm
+        self._old_canvas = (scene.width_cm, scene.height_cm)
+        self._old_images = [i for i in scene.items() if isinstance(i, BackgroundImageItem)]
+        self._old_location = project_manager.location
+        self._new_location = location
+        self._old_georef = project_manager.georef
+        self._new_georef = georef
+        self._old_north: float = project_manager.north_angle_deg
+        self._new_north = normalize_north_angle(north_deg)
+
+    @property
+    def description(self) -> str:
+        return QCoreApplication.translate("Commands", "Set initial map")
+
+    def execute(self) -> None:
+        for old in self._old_images:
+            if old.scene() is self._scene:
+                self._scene.removeItem(old)
+        if self._item.scene() is not self._scene:
+            self._scene.addItem(self._item)
+        self._scene.resize_canvas(*self._canvas)
+        if self._new_location is not None:
+            self._pm.set_location(self._new_location)
+        self._pm.set_north_angle(self._new_north)
+        self._pm.set_georef(self._new_georef)
+
+    def undo(self) -> None:
+        self._pm.set_georef(self._old_georef)
+        self._pm.set_north_angle(self._old_north)
+        if self._new_location is not None:
+            self._pm.set_location(self._old_location)
+        if self._item.scene() is self._scene:
+            self._scene.removeItem(self._item)
+        for old in self._old_images:
+            if old.scene() is not self._scene:
+                self._scene.addItem(old)
+        self._scene.resize_canvas(*self._old_canvas)
+
+
 class AddJournalNoteCommand(Command):
     """Place a garden journal pin and persist its note dict — undoable (US-12.9).
 
