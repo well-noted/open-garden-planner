@@ -10096,3 +10096,21 @@ A callout names a plant (common name, else the object name, else "Tree" / "Shrub
 - **One layer item.** `StyleCalloutLayer` (`style/callouts.py`, z 9000, empty `shape()`, no mouse buttons) draws the leaders and owns the text as `QGraphicsSimpleTextItem` children with `ItemIgnoresTransformations`, so `retarget_constant_size_text` sizes them in an export like an object label. It exists only while the scene paints in CAD with the flag on, and is added and removed through `QGraphicsScene` directly, so it moves no paint revision and is no plan change.
 - **Layout is state.** `compute_callouts` runs inside `CadPainter.build_state` and lives in `StyleState.data["callouts"]`, keyed `(style, paint_revision, band)`; `CanvasScene.ensure_style_state` syncs the layer after it, never a paint. Greedy, fixed order (top to bottom, left to right, id), 8 compass slots at 12 mm of paper, start slot from the crc32 seed of the item id, further rings of 6 mm before a plant goes without a callout. A slot is rejected when its box meets a placed box, a building outline or another plant's anchor dot. Boxes come from a paper-mm text model, not font metrics, so the layout does not depend on the installed font.
 - **Determinism.** No `hash()`, random or time (the AST lint in `tests/unit/style` covers the module). Pinned by `tests/unit/style/test_cad_callouts.py` and `tests/integration/test_cad_callouts.py` (PNG, SVG, no overlaps at bands -1..1).
+
+## 8.39 Species data: Arizona set and the USDA import
+
+- **Shape.** Records tagged `regions: ["arizona_lower_desert"]` extend the bundled DB with
+  the optional keys `regions`, `uncertain_fields` and `notes`; nothing reads them yet, the
+  species lookup and calendar paths are unchanged. A record's `uncertain_fields` must name
+  keys the record has (`tests/unit/test_arizona_species.py`).
+- **Calendar.** Weeks are relative to the last spring frost; the Arizona vegetables assume
+  about 10 Feb. One window per task means no second (fall) sowing: it is in `notes`.
+- **Import.** `scripts/import_usda_species.py` (offline tests in
+  `tests/unit/test_import_usda_species.py`): dry run by default, `--write` rewrites the file
+  in its own CRLF/2-space format. Hand-curated keys are never overwritten; only the
+  `usda_*` keys are import-owned. Sources, terms and what each does not provide:
+  `resources/data/PROVENANCE.md`.
+- **Adding species moves pinned numbers.** The sprite-resolution golden
+  (`scripts/make_sprite_resolution_golden.py`), the counts in `test_plant_art.py` and the
+  harness figures quoted in the ADR and pitfall docs (`test_retracted_figures.py`) all
+  derive from the species count; regenerate or update them in the same change.

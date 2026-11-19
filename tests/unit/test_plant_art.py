@@ -249,7 +249,7 @@ class TestTables:
 class TestResolution:
     def test_the_golden_covers_the_whole_sprite_set(self) -> None:
         answers = {sprite for *_rest, sprite in GOLDEN_ROWS if sprite}
-        assert len(GOLDEN_ROWS) == 1562 and len(answers) == 123
+        assert len(GOLDEN_ROWS) == 1724 and len(answers) == 123
         assert any(sprite is None for *_rest, sprite in GOLDEN_ROWS)
 
     @pytest.mark.parametrize("available", [None, _file_exists, resolve.has_recipe],
@@ -272,7 +272,7 @@ class TestResolution:
         exactly the committed rows."""
         script = _load_golden_script()
         assert script.golden_text() == GOLDEN.read_text(encoding="utf-8")
-        assert len(script.cases()) == len(GOLDEN_ROWS) == 1562
+        assert len(script.cases()) == len(GOLDEN_ROWS) == 1724
 
     def test_the_2d_renderer_resolves_through_it(self, qtbot, monkeypatch) -> None:
         from open_garden_planner.core import plant_renderer
@@ -585,8 +585,9 @@ class TestTheNameIsMatchedAsAWholeName:
 
     def test_the_rule_changes_nothing_else_in_the_bundled_data(self) -> None:
         """The blast radius, measured rather than asserted: of the bundled
-        species' 118 names, the new rule changes exactly one name — the melon,
-        which was drawn as an eggplant — in all three plant kinds."""
+        species' 159 names, the new rule changes five names in all three plant kinds: the melon,
+        which was drawn as an eggplant; lemon balm, drawn as a lemon tree; and the cowpea
+        (a pea), roselle (a rose) and prickly pear (a pea) added with the Arizona set."""
         bundled = json.loads(BUNDLED.read_text(encoding="utf-8"))["plants"]
         script = _load_golden_script()
         changed = []
@@ -604,16 +605,25 @@ class TestTheNameIsMatchedAsAWholeName:
             ("Lemon Balm", "PERENNIAL", "species/lemon_tree", "categories/herb"),
             ("Lemon Balm", "SHRUB", "species/lemon_tree", "categories/herb"),
             ("Lemon Balm", "TREE", "species/lemon_tree", "categories/herb"),
+            ("Prickly Pear", "PERENNIAL", "species/pea", "species/pear_tree"),
+            ("Prickly Pear", "SHRUB", "species/pea", "species/pear_tree"),
+            ("Prickly Pear", "TREE", "species/pea", "species/pear_tree"),
+            ("Cowpea", "PERENNIAL", "species/pea", "categories/flowering_perennial"),
+            ("Cowpea", "SHRUB", "species/pea", "categories/spreading_shrub"),
+            ("Cowpea", "TREE", "species/pea", "categories/round_deciduous"),
+            ("Roselle", "PERENNIAL", "species/rose", "categories/flowering_perennial"),
+            ("Roselle", "SHRUB", "species/rose", "categories/spreading_shrub"),
+            ("Roselle", "TREE", "species/rose", "categories/round_deciduous"),
         ]
 
     def test_the_change_is_small_and_measured(self) -> None:
-        """80 of the golden's 1,562 answers change, and 41 distinct names are
+        """86 of the golden's 1,724 answers change, and 46 distinct names are
         involved. The number is pinned so that a later change to the rule is a
         deliberate act with a visible number attached."""
         script = _load_golden_script()
         rows = script.legacy_diff()
-        assert len(rows) == 80
-        assert len({(name, was, now) for name, _kind, _cat, was, now in rows}) == 41
+        assert len(rows) == 86
+        assert len({(name, was, now) for name, _kind, _cat, was, now in rows}) == 46
 
     def test_recipe_for_and_resolve_recipe(self) -> None:
         assert recipe_for(SpriteRef("species", "tomato")) is recipes.SPECIES["tomato"]
@@ -630,7 +640,7 @@ class TestTheNameIsMatchedAsAWholeName:
         from open_garden_planner.core.object_types import ObjectType
 
         plants = json.loads(BUNDLED.read_text(encoding="utf-8"))["plants"]
-        assert len(plants) == 118
+        assert len(plants) == 159
         species_sprites = 0
         for record in plants:
             name = record["common_name"]
@@ -643,7 +653,7 @@ class TestTheNameIsMatchedAsAWholeName:
                 assert path is not None
                 assert (path.parent.name, path.stem) == (sprite.group, sprite.name), name
             species_sprites += resolved[0].group == "species"
-        assert species_sprites == 104  # the other 14 take a category recipe
+        assert species_sprites == 110  # the other 49 take a category recipe
 
 
 class TestTraits3D:

@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "description": "Curated bundled species database for Open Garden Planner. Single source of truth for both species records (pH, NPK demand, sun/water, growth, hardiness) and planting-calendar timing (sow/transplant/harvest weeks relative to last frost). Calendar windows are weeks relative to last frost (negative = before). Harvest windows are weeks relative to last spring frost (consistent with sow/transplant timing; positive = after). NPK demand levels are categorical (high/medium/low/fixer). pH ranges are mineral-soil targets, not absolute hard limits. Records are intended for typical temperate-climate gardens; refine per local conditions.",
+  "description": "Curated bundled species database for Open Garden Planner. Single source of truth for both species records (pH, NPK demand, sun/water, growth, hardiness) and planting-calendar timing (sow/transplant/harvest weeks relative to last frost). Calendar windows are weeks relative to last frost (negative = before). Harvest windows are weeks relative to last spring frost (consistent with sow/transplant timing; positive = after). NPK demand levels are categorical (high/medium/low/fixer). pH ranges are mineral-soil targets, not absolute hard limits. Records are intended for typical temperate-climate gardens; refine per local conditions. Records tagged regions=arizona_lower_desert are tuned for the Phoenix/Mesa lower desert (USDA zone 9b/10a); their sow/harvest weeks assume a last spring frost of about 10 Feb.",
   "sources": [
     "RHS — Royal Horticultural Society plant profiles (including Allium sativum summer harvest timing)",
     "Cornell University Cooperative Extension (vegetable growing guides; Allium sativum maturity)",
@@ -11,7 +11,8 @@
     "RHS Plants for Pollinators (borage, aster, strawberry): https://www.rhs.org.uk/science/research/plants-for-pollinators",
     "Cornell Three Sisters (bean fixation, squash ground cover): https://warren.cce.cornell.edu/gardening-landscape/warren-county-master-gardener-articles/creating-a-three-sisters-garden",
     "Penn State walnut tolerance (observational): https://extension.psu.edu/landscaping-and-gardening-around-walnuts-and-other-juglone-producing-plants",
-    "University of Minnesota legume/rhizobia guidance (bean, pea, broad bean fixation): https://blog-fruit-vegetable-ipm.extension.umn.edu/2022/01/rhizobia-inoculation-for-organic.html"
+    "University of Minnesota legume/rhizobia guidance (bean, pea, broad bean fixation): https://blog-fruit-vegetable-ipm.extension.umn.edu/2022/01/rhizobia-inoculation-for-organic.html",
+    "Arizona lower-desert set (41 records tagged regions=arizona_lower_desert): values compiled from general horticultural knowledge of Phoenix-area gardening, not machine-verified against a published table; every value the author was unsure of is listed per record in uncertain_fields."
   ],
   "license": {
     "spdx": "CC-BY-SA-4.0",
@@ -25,7 +26,8 @@
       "Royal Botanic Gardens, Kew",
       "USDA / GRIN-Global taxonomy",
       "University of Minnesota Extension (vegetable nutrient management)",
-      "Oregon State University Extension (commercial vegetable production)"
+      "Oregon State University Extension (commercial vegetable production)",
+      "Arizona lower-desert set: compiled horticultural knowledge, uncertain values flagged per record"
     ],
     "note": "Curated from public horticultural references. Derived data, not verbatim copies."
   },
@@ -4592,6 +4594,1890 @@
       "k_demand": "low",
       "permaculture_layer": "herbaceous",
       "functions": []
+    },
+    {
+      "scientific_name": "Punica granatum",
+      "common_name": "Pomegranate",
+      "aliases": [
+        "pomegranate tree"
+      ],
+      "family": "Lythraceae",
+      "genus": "Punica",
+      "cycle": "perennial",
+      "growth_rate": "medium",
+      "flower_type": "hermaphrodite",
+      "pollination_type": "self_fertile",
+      "min_height_cm": 200.0,
+      "max_height_cm": 500.0,
+      "min_spread_cm": 200.0,
+      "max_spread_cm": 400.0,
+      "sun_requirement": "full_sun",
+      "water_needs": "medium",
+      "hardiness_zone_min": 7,
+      "hardiness_zone_max": 11,
+      "ph_min": 6.0,
+      "ph_max": 8.0,
+      "edible": true,
+      "edible_parts": [
+        "fruit"
+      ],
+      "data_source": "bundled",
+      "frost_tolerance": "half-hardy",
+      "nutrient_demand": "light",
+      "n_demand": "low",
+      "p_demand": "low",
+      "k_demand": "medium",
+      "permaculture_layer": "sub_canopy",
+      "functions": [],
+      "regions": [
+        "arizona_lower_desert"
+      ],
+      "uncertain_fields": [
+        "ph_min",
+        "ph_max",
+        "max_height_cm"
+      ]
+    },
+    {
+      "scientific_name": "Phoenix dactylifera",
+      "common_name": "Date Palm",
+      "aliases": [
+        "date palm tree",
+        "date"
+      ],
+      "family": "Arecaceae",
+      "genus": "Phoenix",
+      "cycle": "perennial",
+      "growth_rate": "slow",
+      "flower_type": "dioecious_female",
+      "pollination_type": "self_sterile",
+      "min_height_cm": 1000.0,
+      "max_height_cm": 2500.0,
+      "min_spread_cm": 600.0,
+      "max_spread_cm": 1000.0,
+      "sun_requirement": "full_sun",
+      "water_needs": "medium",
+      "hardiness_zone_min": 9,
+      "hardiness_zone_max": 11,
+      "ph_min": 7.0,
+      "ph_max": 8.5,
+      "edible": true,
+      "edible_parts": [
+        "fruit"
+      ],
+      "data_source": "bundled",
+      "frost_tolerance": "half-hardy",
+      "nutrient_demand": "medium",
+      "n_demand": "medium",
+      "p_demand": "low",
+      "k_demand": "high",
+      "permaculture_layer": "canopy",
+      "functions": [],
+      "regions": [
+        "arizona_lower_desert"
+      ],
+      "uncertain_fields": [
+        "ph_min",
+        "ph_max",
+        "water_needs",
+        "max_height_cm"
+      ],
+      "notes": "Fruit needs a male palm (or hand pollination) nearby. Record describes the fruiting female."
+    },
+    {
+      "scientific_name": "Ziziphus jujuba",
+      "common_name": "Jujube",
+      "aliases": [
+        "jujube tree",
+        "chinese date"
+      ],
+      "family": "Rhamnaceae",
+      "genus": "Ziziphus",
+      "cycle": "perennial",
+      "growth_rate": "medium",
+      "flower_type": "hermaphrodite",
+      "pollination_type": "self_fertile",
+      "min_height_cm": 300.0,
+      "max_height_cm": 800.0,
+      "min_spread_cm": 300.0,
+      "max_spread_cm": 600.0,
+      "sun_requirement": "full_sun",
+      "water_needs": "low",
+      "hardiness_zone_min": 6,
+      "hardiness_zone_max": 10,
+      "ph_min": 6.0,
+      "ph_max": 8.5,
+      "edible": true,
+      "edible_parts": [
+        "fruit"
+      ],
+      "data_source": "bundled",
+      "frost_tolerance": "hardy",
+      "nutrient_demand": "light",
+      "n_demand": "low",
+      "p_demand": "low",
+      "k_demand": "medium",
+      "permaculture_layer": "sub_canopy",
+      "functions": [],
+      "regions": [
+        "arizona_lower_desert"
+      ],
+      "uncertain_fields": [
+        "ph_min",
+        "ph_max"
+      ]
+    },
+    {
+      "scientific_name": "Eriobotrya japonica",
+      "common_name": "Loquat",
+      "aliases": [
+        "loquat tree"
+      ],
+      "family": "Rosaceae",
+      "genus": "Eriobotrya",
+      "cycle": "perennial",
+      "growth_rate": "medium",
+      "flower_type": "hermaphrodite",
+      "pollination_type": "self_fertile",
+      "min_height_cm": 400.0,
+      "max_height_cm": 800.0,
+      "min_spread_cm": 400.0,
+      "max_spread_cm": 600.0,
+      "sun_requirement": "full_sun",
+      "water_needs": "medium",
+      "hardiness_zone_min": 8,
+      "hardiness_zone_max": 10,
+      "ph_min": 6.0,
+      "ph_max": 7.5,
+      "edible": true,
+      "edible_parts": [
+        "fruit"
+      ],
+      "data_source": "bundled",
+      "frost_tolerance": "half-hardy",
+      "nutrient_demand": "medium",
+      "n_demand": "medium",
+      "p_demand": "low",
+      "k_demand": "medium",
+      "permaculture_layer": "sub_canopy",
+      "functions": [],
+      "regions": [
+        "arizona_lower_desert"
+      ],
+      "uncertain_fields": [
+        "max_height_cm"
+      ],
+      "notes": "Fruit ripens late winter to spring."
+    },
+    {
+      "scientific_name": "Citrus x paradisi",
+      "common_name": "Grapefruit Tree",
+      "aliases": [
+        "grapefruit"
+      ],
+      "family": "Rutaceae",
+      "genus": "Citrus",
+      "cycle": "perennial",
+      "growth_rate": "medium",
+      "flower_type": "hermaphrodite",
+      "pollination_type": "self_fertile",
+      "min_height_cm": 400.0,
+      "max_height_cm": 800.0,
+      "min_spread_cm": 400.0,
+      "max_spread_cm": 600.0,
+      "sun_requirement": "full_sun",
+      "water_needs": "medium",
+      "hardiness_zone_min": 9,
+      "hardiness_zone_max": 11,
+      "ph_min": 6.0,
+      "ph_max": 7.5,
+      "edible": true,
+      "edible_parts": [
+        "fruit"
+      ],
+      "data_source": "bundled",
+      "frost_tolerance": "tender",
+      "nutrient_demand": "heavy",
+      "n_demand": "high",
+      "p_demand": "medium",
+      "k_demand": "high",
+      "permaculture_layer": "sub_canopy",
+      "functions": [],
+      "regions": [
+        "arizona_lower_desert"
+      ]
+    },
+    {
+      "scientific_name": "Citrus x aurantiifolia",
+      "common_name": "Lime Tree",
+      "aliases": [
+        "lime",
+        "key lime",
+        "mexican lime"
+      ],
+      "family": "Rutaceae",
+      "genus": "Citrus",
+      "cycle": "perennial",
+      "growth_rate": "medium",
+      "flower_type": "hermaphrodite",
+      "pollination_type": "self_fertile",
+      "min_height_cm": 200.0,
+      "max_height_cm": 500.0,
+      "min_spread_cm": 200.0,
+      "max_spread_cm": 400.0,
+      "sun_requirement": "full_sun",
+      "water_needs": "medium",
+      "hardiness_zone_min": 10,
+      "hardiness_zone_max": 11,
+      "ph_min": 6.0,
+      "ph_max": 7.5,
+      "edible": true,
+      "edible_parts": [
+        "fruit"
+      ],
+      "data_source": "bundled",
+      "frost_tolerance": "tender",
+      "nutrient_demand": "heavy",
+      "n_demand": "high",
+      "p_demand": "medium",
+      "k_demand": "high",
+      "permaculture_layer": "sub_canopy",
+      "functions": [],
+      "regions": [
+        "arizona_lower_desert"
+      ],
+      "uncertain_fields": [
+        "hardiness_zone_min"
+      ],
+      "notes": "Most frost-tender citrus here; protect on cold nights in a Mesa winter."
+    },
+    {
+      "scientific_name": "Citrus reticulata",
+      "common_name": "Mandarin Tree",
+      "aliases": [
+        "mandarin",
+        "mandarin orange",
+        "tangerine",
+        "satsuma"
+      ],
+      "family": "Rutaceae",
+      "genus": "Citrus",
+      "cycle": "perennial",
+      "growth_rate": "medium",
+      "flower_type": "hermaphrodite",
+      "pollination_type": "self_fertile",
+      "min_height_cm": 300.0,
+      "max_height_cm": 500.0,
+      "min_spread_cm": 300.0,
+      "max_spread_cm": 450.0,
+      "sun_requirement": "full_sun",
+      "water_needs": "medium",
+      "hardiness_zone_min": 9,
+      "hardiness_zone_max": 11,
+      "ph_min": 6.0,
+      "ph_max": 7.5,
+      "edible": true,
+      "edible_parts": [
+        "fruit"
+      ],
+      "data_source": "bundled",
+      "frost_tolerance": "tender",
+      "nutrient_demand": "heavy",
+      "n_demand": "high",
+      "p_demand": "medium",
+      "k_demand": "high",
+      "permaculture_layer": "sub_canopy",
+      "functions": [],
+      "regions": [
+        "arizona_lower_desert"
+      ]
+    },
+    {
+      "scientific_name": "Prunus armeniaca",
+      "common_name": "Apricot Tree",
+      "aliases": [
+        "apricot"
+      ],
+      "family": "Rosaceae",
+      "genus": "Prunus",
+      "cycle": "perennial",
+      "growth_rate": "medium",
+      "flower_type": "hermaphrodite",
+      "pollination_type": "partially_self_fertile",
+      "min_height_cm": 400.0,
+      "max_height_cm": 800.0,
+      "min_spread_cm": 400.0,
+      "max_spread_cm": 600.0,
+      "sun_requirement": "full_sun",
+      "water_needs": "medium",
+      "hardiness_zone_min": 5,
+      "hardiness_zone_max": 9,
+      "ph_min": 6.0,
+      "ph_max": 7.5,
+      "edible": true,
+      "edible_parts": [
+        "fruit"
+      ],
+      "data_source": "bundled",
+      "frost_tolerance": "hardy",
+      "nutrient_demand": "medium",
+      "n_demand": "medium",
+      "p_demand": "low",
+      "k_demand": "medium",
+      "permaculture_layer": "sub_canopy",
+      "functions": [],
+      "regions": [
+        "arizona_lower_desert"
+      ],
+      "uncertain_fields": [
+        "hardiness_zone_max",
+        "pollination_type"
+      ],
+      "notes": "Needs a low-chill cultivar in the Phoenix area; blossoms can be lost to late frost."
+    },
+    {
+      "scientific_name": "Vitis vinifera",
+      "common_name": "Grape Vine",
+      "aliases": [
+        "grape",
+        "grapevine"
+      ],
+      "family": "Vitaceae",
+      "genus": "Vitis",
+      "cycle": "perennial",
+      "growth_rate": "fast",
+      "flower_type": "hermaphrodite",
+      "pollination_type": "self_fertile",
+      "min_height_cm": 200.0,
+      "max_height_cm": 1000.0,
+      "min_spread_cm": 200.0,
+      "max_spread_cm": 500.0,
+      "sun_requirement": "full_sun",
+      "water_needs": "medium",
+      "hardiness_zone_min": 6,
+      "hardiness_zone_max": 10,
+      "ph_min": 6.0,
+      "ph_max": 7.5,
+      "edible": true,
+      "edible_parts": [
+        "fruit",
+        "leaves"
+      ],
+      "data_source": "bundled",
+      "frost_tolerance": "hardy",
+      "nutrient_demand": "medium",
+      "n_demand": "medium",
+      "p_demand": "low",
+      "k_demand": "high",
+      "permaculture_layer": "vine",
+      "functions": [],
+      "regions": [
+        "arizona_lower_desert"
+      ],
+      "uncertain_fields": [
+        "max_height_cm",
+        "max_spread_cm"
+      ],
+      "notes": "Trained size depends on the trellis; choose a low-chill, heat-tolerant cultivar for Mesa."
+    },
+    {
+      "scientific_name": "Prosopis velutina",
+      "common_name": "Velvet Mesquite",
+      "aliases": [
+        "mesquite",
+        "mesquite tree",
+        "arizona mesquite"
+      ],
+      "family": "Fabaceae",
+      "genus": "Prosopis",
+      "cycle": "perennial",
+      "growth_rate": "medium",
+      "flower_type": "hermaphrodite",
+      "pollination_type": "self_fertile",
+      "min_height_cm": 600.0,
+      "max_height_cm": 1200.0,
+      "min_spread_cm": 600.0,
+      "max_spread_cm": 1200.0,
+      "sun_requirement": "full_sun",
+      "water_needs": "low",
+      "hardiness_zone_min": 7,
+      "hardiness_zone_max": 11,
+      "ph_min": 6.5,
+      "ph_max": 8.5,
+      "edible": true,
+      "edible_parts": [
+        "pods"
+      ],
+      "data_source": "bundled",
+      "frost_tolerance": "hardy",
+      "nutrient_demand": "fixer",
+      "n_demand": "fixer",
+      "p_demand": "low",
+      "k_demand": "low",
+      "permaculture_layer": "canopy",
+      "functions": [
+        "nitrogen_fixer"
+      ],
+      "regions": [
+        "arizona_lower_desert"
+      ],
+      "uncertain_fields": [
+        "ph_min",
+        "ph_max",
+        "hardiness_zone_min"
+      ],
+      "notes": "Native to the Sonoran Desert. Pods are milled into flour; ripe pods fall in early summer."
+    },
+    {
+      "scientific_name": "Opuntia ficus-indica",
+      "common_name": "Prickly Pear",
+      "aliases": [
+        "nopal",
+        "nopales",
+        "indian fig cactus",
+        "prickly pear cactus"
+      ],
+      "family": "Cactaceae",
+      "genus": "Opuntia",
+      "cycle": "perennial",
+      "growth_rate": "medium",
+      "flower_type": "hermaphrodite",
+      "pollination_type": "self_fertile",
+      "min_height_cm": 300.0,
+      "max_height_cm": 500.0,
+      "min_spread_cm": 200.0,
+      "max_spread_cm": 400.0,
+      "sun_requirement": "full_sun",
+      "water_needs": "low",
+      "hardiness_zone_min": 8,
+      "hardiness_zone_max": 11,
+      "ph_min": 6.0,
+      "ph_max": 8.0,
+      "edible": true,
+      "edible_parts": [
+        "fruit",
+        "stems"
+      ],
+      "data_source": "bundled",
+      "frost_tolerance": "half-hardy",
+      "nutrient_demand": "light",
+      "n_demand": "low",
+      "p_demand": "low",
+      "k_demand": "low",
+      "permaculture_layer": "shrub",
+      "functions": [],
+      "regions": [
+        "arizona_lower_desert"
+      ],
+      "uncertain_fields": [
+        "max_height_cm",
+        "ph_min",
+        "ph_max"
+      ],
+      "notes": "Pads (nopales) and fruit (tunas) are eaten; glochids need careful handling."
+    },
+    {
+      "scientific_name": "Carnegiea gigantea",
+      "common_name": "Saguaro",
+      "aliases": [
+        "saguaro cactus"
+      ],
+      "family": "Cactaceae",
+      "genus": "Carnegiea",
+      "cycle": "perennial",
+      "growth_rate": "slow",
+      "flower_type": "hermaphrodite",
+      "pollination_type": "unknown",
+      "min_height_cm": 300.0,
+      "max_height_cm": 1500.0,
+      "min_spread_cm": 60.0,
+      "max_spread_cm": 150.0,
+      "sun_requirement": "full_sun",
+      "water_needs": "low",
+      "hardiness_zone_min": 9,
+      "hardiness_zone_max": 11,
+      "ph_min": 6.5,
+      "ph_max": 8.0,
+      "edible": true,
+      "edible_parts": [
+        "fruit"
+      ],
+      "data_source": "bundled",
+      "frost_tolerance": "half-hardy",
+      "nutrient_demand": "light",
+      "n_demand": "low",
+      "p_demand": "low",
+      "k_demand": "low",
+      "permaculture_layer": "sub_canopy",
+      "functions": [],
+      "regions": [
+        "arizona_lower_desert"
+      ],
+      "uncertain_fields": [
+        "max_height_cm",
+        "max_spread_cm",
+        "ph_min",
+        "ph_max",
+        "pollination_type",
+        "hardiness_zone_min"
+      ],
+      "notes": "Protected by Arizona native-plant law: moving or removing one needs a permit. Fruit ripens June to July. Takes decades to reach full size."
+    },
+    {
+      "scientific_name": "Tipuana tipu",
+      "common_name": "Tipu Tree",
+      "aliases": [
+        "tipuana",
+        "tipu",
+        "rosewood tree"
+      ],
+      "family": "Fabaceae",
+      "genus": "Tipuana",
+      "cycle": "perennial",
+      "growth_rate": "fast",
+      "flower_type": "hermaphrodite",
+      "pollination_type": "self_fertile",
+      "min_height_cm": 900.0,
+      "max_height_cm": 1800.0,
+      "min_spread_cm": 900.0,
+      "max_spread_cm": 1500.0,
+      "sun_requirement": "full_sun",
+      "water_needs": "medium",
+      "hardiness_zone_min": 9,
+      "hardiness_zone_max": 11,
+      "ph_min": 6.0,
+      "ph_max": 8.0,
+      "edible": false,
+      "edible_parts": [],
+      "data_source": "bundled",
+      "frost_tolerance": "tender",
+      "nutrient_demand": "light",
+      "n_demand": "low",
+      "p_demand": "low",
+      "k_demand": "low",
+      "permaculture_layer": "canopy",
+      "functions": [],
+      "regions": [
+        "arizona_lower_desert"
+      ],
+      "uncertain_fields": [
+        "max_height_cm",
+        "max_spread_cm",
+        "ph_min",
+        "ph_max"
+      ],
+      "notes": "Brittle wood; young trees are frost-tender."
+    },
+    {
+      "scientific_name": "Bauhinia variegata",
+      "common_name": "Orchid Tree",
+      "aliases": [
+        "phanera variegata",
+        "mountain ebony",
+        "bauhinia"
+      ],
+      "family": "Fabaceae",
+      "genus": "Bauhinia",
+      "cycle": "perennial",
+      "growth_rate": "medium",
+      "flower_type": "hermaphrodite",
+      "pollination_type": "self_fertile",
+      "min_height_cm": 400.0,
+      "max_height_cm": 700.0,
+      "min_spread_cm": 400.0,
+      "max_spread_cm": 600.0,
+      "sun_requirement": "full_sun",
+      "water_needs": "medium",
+      "hardiness_zone_min": 9,
+      "hardiness_zone_max": 11,
+      "ph_min": 6.0,
+      "ph_max": 8.0,
+      "edible": false,
+      "edible_parts": [],
+      "data_source": "bundled",
+      "frost_tolerance": "tender",
+      "nutrient_demand": "light",
+      "n_demand": "low",
+      "p_demand": "low",
+      "k_demand": "low",
+      "permaculture_layer": "sub_canopy",
+      "functions": [],
+      "regions": [
+        "arizona_lower_desert"
+      ],
+      "uncertain_fields": [
+        "max_height_cm",
+        "ph_min",
+        "ph_max"
+      ],
+      "notes": "Currently accepted name is Phanera variegata; Bauhinia variegata remains the nursery name. Semi-deciduous in Phoenix winters."
+    },
+    {
+      "scientific_name": "Nerium oleander",
+      "common_name": "Oleander",
+      "aliases": [
+        "oleander shrub"
+      ],
+      "family": "Apocynaceae",
+      "genus": "Nerium",
+      "cycle": "perennial",
+      "growth_rate": "fast",
+      "flower_type": "hermaphrodite",
+      "pollination_type": "self_fertile",
+      "min_height_cm": 200.0,
+      "max_height_cm": 600.0,
+      "min_spread_cm": 200.0,
+      "max_spread_cm": 400.0,
+      "sun_requirement": "full_sun",
+      "water_needs": "low",
+      "hardiness_zone_min": 8,
+      "hardiness_zone_max": 11,
+      "ph_min": 6.0,
+      "ph_max": 8.5,
+      "edible": false,
+      "edible_parts": [],
+      "data_source": "bundled",
+      "frost_tolerance": "half-hardy",
+      "nutrient_demand": "light",
+      "n_demand": "low",
+      "p_demand": "low",
+      "k_demand": "low",
+      "permaculture_layer": "shrub",
+      "functions": [],
+      "regions": [
+        "arizona_lower_desert"
+      ],
+      "uncertain_fields": [
+        "ph_min",
+        "ph_max"
+      ],
+      "notes": "All parts are highly poisonous. Not edible; keep clippings away from people, pets and compost."
+    },
+    {
+      "scientific_name": "Parkinsonia florida",
+      "common_name": "Blue Palo Verde",
+      "aliases": [
+        "palo verde",
+        "blue paloverde",
+        "cercidium floridum"
+      ],
+      "family": "Fabaceae",
+      "genus": "Parkinsonia",
+      "cycle": "perennial",
+      "growth_rate": "fast",
+      "flower_type": "hermaphrodite",
+      "pollination_type": "self_fertile",
+      "min_height_cm": 400.0,
+      "max_height_cm": 800.0,
+      "min_spread_cm": 400.0,
+      "max_spread_cm": 800.0,
+      "sun_requirement": "full_sun",
+      "water_needs": "low",
+      "hardiness_zone_min": 8,
+      "hardiness_zone_max": 11,
+      "ph_min": 6.5,
+      "ph_max": 8.5,
+      "edible": false,
+      "edible_parts": [],
+      "data_source": "bundled",
+      "frost_tolerance": "half-hardy",
+      "nutrient_demand": "light",
+      "n_demand": "low",
+      "p_demand": "low",
+      "k_demand": "low",
+      "permaculture_layer": "sub_canopy",
+      "functions": [],
+      "regions": [
+        "arizona_lower_desert"
+      ],
+      "uncertain_fields": [
+        "ph_min",
+        "ph_max",
+        "max_height_cm"
+      ],
+      "notes": "Native to the Sonoran Desert. Leafless most of the year; green bark photosynthesises."
+    },
+    {
+      "scientific_name": "Olneya tesota",
+      "common_name": "Desert Ironwood",
+      "aliases": [
+        "ironwood",
+        "palo fierro"
+      ],
+      "family": "Fabaceae",
+      "genus": "Olneya",
+      "cycle": "perennial",
+      "growth_rate": "slow",
+      "flower_type": "hermaphrodite",
+      "pollination_type": "self_fertile",
+      "min_height_cm": 600.0,
+      "max_height_cm": 1000.0,
+      "min_spread_cm": 600.0,
+      "max_spread_cm": 900.0,
+      "sun_requirement": "full_sun",
+      "water_needs": "low",
+      "hardiness_zone_min": 9,
+      "hardiness_zone_max": 11,
+      "ph_min": 6.5,
+      "ph_max": 8.5,
+      "edible": false,
+      "edible_parts": [],
+      "data_source": "bundled",
+      "frost_tolerance": "half-hardy",
+      "nutrient_demand": "light",
+      "n_demand": "low",
+      "p_demand": "low",
+      "k_demand": "low",
+      "permaculture_layer": "sub_canopy",
+      "functions": [],
+      "regions": [
+        "arizona_lower_desert"
+      ],
+      "uncertain_fields": [
+        "max_height_cm",
+        "max_spread_cm",
+        "ph_min",
+        "ph_max"
+      ],
+      "notes": "Native; protected by Arizona law. Very slow and long-lived."
+    },
+    {
+      "scientific_name": "Vachellia farnesiana",
+      "common_name": "Sweet Acacia",
+      "aliases": [
+        "acacia farnesiana",
+        "sweet acacia tree"
+      ],
+      "family": "Fabaceae",
+      "genus": "Vachellia",
+      "cycle": "perennial",
+      "growth_rate": "medium",
+      "flower_type": "hermaphrodite",
+      "pollination_type": "self_fertile",
+      "min_height_cm": 300.0,
+      "max_height_cm": 700.0,
+      "min_spread_cm": 300.0,
+      "max_spread_cm": 700.0,
+      "sun_requirement": "full_sun",
+      "water_needs": "low",
+      "hardiness_zone_min": 8,
+      "hardiness_zone_max": 11,
+      "ph_min": 6.5,
+      "ph_max": 8.5,
+      "edible": false,
+      "edible_parts": [],
+      "data_source": "bundled",
+      "frost_tolerance": "half-hardy",
+      "nutrient_demand": "light",
+      "n_demand": "low",
+      "p_demand": "low",
+      "k_demand": "low",
+      "permaculture_layer": "sub_canopy",
+      "functions": [],
+      "regions": [
+        "arizona_lower_desert"
+      ],
+      "uncertain_fields": [
+        "ph_min",
+        "ph_max",
+        "hardiness_zone_min"
+      ],
+      "notes": "Thorny; heavy pollen in late winter."
+    },
+    {
+      "scientific_name": "Chilopsis linearis",
+      "common_name": "Desert Willow",
+      "aliases": [
+        "desert willow tree"
+      ],
+      "family": "Bignoniaceae",
+      "genus": "Chilopsis",
+      "cycle": "perennial",
+      "growth_rate": "fast",
+      "flower_type": "hermaphrodite",
+      "pollination_type": "self_fertile",
+      "min_height_cm": 300.0,
+      "max_height_cm": 700.0,
+      "min_spread_cm": 300.0,
+      "max_spread_cm": 500.0,
+      "sun_requirement": "full_sun",
+      "water_needs": "low",
+      "hardiness_zone_min": 7,
+      "hardiness_zone_max": 11,
+      "ph_min": 6.5,
+      "ph_max": 8.5,
+      "edible": false,
+      "edible_parts": [],
+      "data_source": "bundled",
+      "frost_tolerance": "hardy",
+      "nutrient_demand": "light",
+      "n_demand": "low",
+      "p_demand": "low",
+      "k_demand": "low",
+      "permaculture_layer": "sub_canopy",
+      "functions": [],
+      "regions": [
+        "arizona_lower_desert"
+      ],
+      "uncertain_fields": [
+        "ph_min",
+        "ph_max"
+      ],
+      "notes": "Native; blooms from spring into autumn."
+    },
+    {
+      "scientific_name": "Washingtonia robusta",
+      "common_name": "Mexican Fan Palm",
+      "aliases": [
+        "washingtonia palm",
+        "fan palm"
+      ],
+      "family": "Arecaceae",
+      "genus": "Washingtonia",
+      "cycle": "perennial",
+      "growth_rate": "fast",
+      "flower_type": "hermaphrodite",
+      "pollination_type": "self_fertile",
+      "min_height_cm": 1500.0,
+      "max_height_cm": 2500.0,
+      "min_spread_cm": 300.0,
+      "max_spread_cm": 400.0,
+      "sun_requirement": "full_sun",
+      "water_needs": "medium",
+      "hardiness_zone_min": 9,
+      "hardiness_zone_max": 11,
+      "ph_min": 6.0,
+      "ph_max": 8.5,
+      "edible": false,
+      "edible_parts": [],
+      "data_source": "bundled",
+      "frost_tolerance": "half-hardy",
+      "nutrient_demand": "medium",
+      "n_demand": "medium",
+      "p_demand": "low",
+      "k_demand": "high",
+      "permaculture_layer": "canopy",
+      "functions": [],
+      "regions": [
+        "arizona_lower_desert"
+      ],
+      "uncertain_fields": [
+        "max_height_cm",
+        "ph_min",
+        "ph_max"
+      ]
+    },
+    {
+      "scientific_name": "Leucophyllum frutescens",
+      "common_name": "Texas Sage",
+      "aliases": [
+        "texas ranger",
+        "cenizo",
+        "leucophyllum"
+      ],
+      "family": "Scrophulariaceae",
+      "genus": "Leucophyllum",
+      "cycle": "perennial",
+      "growth_rate": "medium",
+      "flower_type": "hermaphrodite",
+      "pollination_type": "self_fertile",
+      "min_height_cm": 150.0,
+      "max_height_cm": 250.0,
+      "min_spread_cm": 150.0,
+      "max_spread_cm": 200.0,
+      "sun_requirement": "full_sun",
+      "water_needs": "low",
+      "hardiness_zone_min": 8,
+      "hardiness_zone_max": 11,
+      "ph_min": 7.0,
+      "ph_max": 8.5,
+      "edible": false,
+      "edible_parts": [],
+      "data_source": "bundled",
+      "frost_tolerance": "hardy",
+      "nutrient_demand": "light",
+      "n_demand": "low",
+      "p_demand": "low",
+      "k_demand": "low",
+      "permaculture_layer": "shrub",
+      "functions": [],
+      "regions": [
+        "arizona_lower_desert"
+      ],
+      "uncertain_fields": [
+        "ph_min",
+        "ph_max"
+      ],
+      "notes": "Blooms after summer humidity or rain."
+    },
+    {
+      "scientific_name": "Caesalpinia pulcherrima",
+      "common_name": "Red Bird of Paradise",
+      "aliases": [
+        "pride of barbados",
+        "caesalpinia"
+      ],
+      "family": "Fabaceae",
+      "genus": "Caesalpinia",
+      "cycle": "perennial",
+      "growth_rate": "fast",
+      "flower_type": "hermaphrodite",
+      "pollination_type": "self_fertile",
+      "min_height_cm": 200.0,
+      "max_height_cm": 400.0,
+      "min_spread_cm": 200.0,
+      "max_spread_cm": 400.0,
+      "sun_requirement": "full_sun",
+      "water_needs": "low",
+      "hardiness_zone_min": 9,
+      "hardiness_zone_max": 11,
+      "ph_min": 6.5,
+      "ph_max": 8.5,
+      "edible": false,
+      "edible_parts": [],
+      "data_source": "bundled",
+      "frost_tolerance": "tender",
+      "nutrient_demand": "light",
+      "n_demand": "low",
+      "p_demand": "low",
+      "k_demand": "low",
+      "permaculture_layer": "shrub",
+      "functions": [],
+      "regions": [
+        "arizona_lower_desert"
+      ],
+      "uncertain_fields": [
+        "ph_min",
+        "ph_max"
+      ],
+      "notes": "Dies back in a hard frost and regrows in spring. Seeds are poisonous."
+    },
+    {
+      "scientific_name": "Tecoma stans",
+      "common_name": "Yellow Bells",
+      "aliases": [
+        "esperanza",
+        "yellow trumpetbush"
+      ],
+      "family": "Bignoniaceae",
+      "genus": "Tecoma",
+      "cycle": "perennial",
+      "growth_rate": "fast",
+      "flower_type": "hermaphrodite",
+      "pollination_type": "self_fertile",
+      "min_height_cm": 300.0,
+      "max_height_cm": 600.0,
+      "min_spread_cm": 200.0,
+      "max_spread_cm": 400.0,
+      "sun_requirement": "full_sun",
+      "water_needs": "low",
+      "hardiness_zone_min": 9,
+      "hardiness_zone_max": 11,
+      "ph_min": 6.0,
+      "ph_max": 8.5,
+      "edible": false,
+      "edible_parts": [],
+      "data_source": "bundled",
+      "frost_tolerance": "tender",
+      "nutrient_demand": "light",
+      "n_demand": "low",
+      "p_demand": "low",
+      "k_demand": "low",
+      "permaculture_layer": "shrub",
+      "functions": [],
+      "regions": [
+        "arizona_lower_desert"
+      ],
+      "uncertain_fields": [
+        "ph_min",
+        "ph_max"
+      ],
+      "notes": "Freezes to the ground in a hard frost and regrows."
+    },
+    {
+      "scientific_name": "Bougainvillea spectabilis",
+      "common_name": "Bougainvillea",
+      "aliases": [
+        "bougainvillea vine"
+      ],
+      "family": "Nyctaginaceae",
+      "genus": "Bougainvillea",
+      "cycle": "perennial",
+      "growth_rate": "fast",
+      "flower_type": "hermaphrodite",
+      "pollination_type": "self_fertile",
+      "min_height_cm": 300.0,
+      "max_height_cm": 1200.0,
+      "min_spread_cm": 300.0,
+      "max_spread_cm": 600.0,
+      "sun_requirement": "full_sun",
+      "water_needs": "low",
+      "hardiness_zone_min": 9,
+      "hardiness_zone_max": 11,
+      "ph_min": 5.5,
+      "ph_max": 7.5,
+      "edible": false,
+      "edible_parts": [],
+      "data_source": "bundled",
+      "frost_tolerance": "tender",
+      "nutrient_demand": "light",
+      "n_demand": "low",
+      "p_demand": "low",
+      "k_demand": "low",
+      "permaculture_layer": "vine",
+      "functions": [],
+      "regions": [
+        "arizona_lower_desert"
+      ],
+      "uncertain_fields": [
+        "max_height_cm",
+        "max_spread_cm",
+        "ph_min",
+        "ph_max"
+      ],
+      "notes": "Frost-tender; winter damage is common in Mesa. Thorny."
+    },
+    {
+      "scientific_name": "Hesperaloe parviflora",
+      "common_name": "Red Yucca",
+      "aliases": [
+        "hummingbird yucca"
+      ],
+      "family": "Asparagaceae",
+      "genus": "Hesperaloe",
+      "cycle": "perennial",
+      "growth_rate": "medium",
+      "flower_type": "hermaphrodite",
+      "pollination_type": "self_fertile",
+      "min_height_cm": 90.0,
+      "max_height_cm": 150.0,
+      "min_spread_cm": 90.0,
+      "max_spread_cm": 120.0,
+      "sun_requirement": "full_sun",
+      "water_needs": "low",
+      "hardiness_zone_min": 5,
+      "hardiness_zone_max": 11,
+      "ph_min": 6.5,
+      "ph_max": 8.5,
+      "edible": false,
+      "edible_parts": [],
+      "data_source": "bundled",
+      "frost_tolerance": "hardy",
+      "nutrient_demand": "light",
+      "n_demand": "low",
+      "p_demand": "low",
+      "k_demand": "low",
+      "permaculture_layer": "herbaceous",
+      "functions": [],
+      "regions": [
+        "arizona_lower_desert"
+      ],
+      "uncertain_fields": [
+        "ph_min",
+        "ph_max"
+      ]
+    },
+    {
+      "scientific_name": "Agave americana",
+      "common_name": "Century Plant",
+      "aliases": [
+        "agave",
+        "american aloe"
+      ],
+      "family": "Asparagaceae",
+      "genus": "Agave",
+      "cycle": "perennial",
+      "growth_rate": "slow",
+      "flower_type": "hermaphrodite",
+      "pollination_type": "self_fertile",
+      "min_height_cm": 150.0,
+      "max_height_cm": 200.0,
+      "min_spread_cm": 200.0,
+      "max_spread_cm": 400.0,
+      "sun_requirement": "full_sun",
+      "water_needs": "low",
+      "hardiness_zone_min": 8,
+      "hardiness_zone_max": 11,
+      "ph_min": 6.5,
+      "ph_max": 8.5,
+      "edible": false,
+      "edible_parts": [],
+      "data_source": "bundled",
+      "frost_tolerance": "half-hardy",
+      "nutrient_demand": "light",
+      "n_demand": "low",
+      "p_demand": "low",
+      "k_demand": "low",
+      "permaculture_layer": "herbaceous",
+      "functions": [],
+      "regions": [
+        "arizona_lower_desert"
+      ],
+      "uncertain_fields": [
+        "ph_min",
+        "ph_max",
+        "max_spread_cm"
+      ],
+      "notes": "Flowering stalk reaches several metres; the rosette dies after flowering and leaves pups. Sharp spines; sap is a skin irritant."
+    },
+    {
+      "scientific_name": "Agave parryi",
+      "common_name": "Parry Agave",
+      "aliases": [
+        "parrys agave",
+        "mescal agave"
+      ],
+      "family": "Asparagaceae",
+      "genus": "Agave",
+      "cycle": "perennial",
+      "growth_rate": "slow",
+      "flower_type": "hermaphrodite",
+      "pollination_type": "self_fertile",
+      "min_height_cm": 60.0,
+      "max_height_cm": 90.0,
+      "min_spread_cm": 60.0,
+      "max_spread_cm": 90.0,
+      "sun_requirement": "full_sun",
+      "water_needs": "low",
+      "hardiness_zone_min": 5,
+      "hardiness_zone_max": 11,
+      "ph_min": 6.5,
+      "ph_max": 8.5,
+      "edible": false,
+      "edible_parts": [],
+      "data_source": "bundled",
+      "frost_tolerance": "hardy",
+      "nutrient_demand": "light",
+      "n_demand": "low",
+      "p_demand": "low",
+      "k_demand": "low",
+      "permaculture_layer": "herbaceous",
+      "functions": [],
+      "regions": [
+        "arizona_lower_desert"
+      ],
+      "uncertain_fields": [
+        "ph_min",
+        "ph_max"
+      ]
+    },
+    {
+      "scientific_name": "Aloe vera",
+      "common_name": "Aloe Vera",
+      "aliases": [
+        "aloe",
+        "aloe barbadensis"
+      ],
+      "family": "Asphodelaceae",
+      "genus": "Aloe",
+      "cycle": "perennial",
+      "growth_rate": "slow",
+      "flower_type": "hermaphrodite",
+      "pollination_type": "self_fertile",
+      "min_height_cm": 40.0,
+      "max_height_cm": 90.0,
+      "min_spread_cm": 40.0,
+      "max_spread_cm": 90.0,
+      "sun_requirement": "partial_sun",
+      "water_needs": "low",
+      "hardiness_zone_min": 9,
+      "hardiness_zone_max": 11,
+      "ph_min": 6.0,
+      "ph_max": 8.0,
+      "edible": true,
+      "edible_parts": [
+        "leaves"
+      ],
+      "data_source": "bundled",
+      "frost_tolerance": "tender",
+      "nutrient_demand": "light",
+      "n_demand": "low",
+      "p_demand": "low",
+      "k_demand": "low",
+      "permaculture_layer": "herbaceous",
+      "functions": [],
+      "regions": [
+        "arizona_lower_desert"
+      ],
+      "uncertain_fields": [
+        "ph_min",
+        "ph_max"
+      ],
+      "notes": "Only the inner leaf gel is used; the yellow latex under the skin is a laxative. Partial afternoon shade avoids sunburn in a Mesa summer."
+    },
+    {
+      "scientific_name": "Larrea tridentata",
+      "common_name": "Creosote Bush",
+      "aliases": [
+        "creosote",
+        "creosotebush",
+        "greasewood"
+      ],
+      "family": "Zygophyllaceae",
+      "genus": "Larrea",
+      "cycle": "perennial",
+      "growth_rate": "slow",
+      "flower_type": "hermaphrodite",
+      "pollination_type": "self_fertile",
+      "min_height_cm": 100.0,
+      "max_height_cm": 400.0,
+      "min_spread_cm": 100.0,
+      "max_spread_cm": 300.0,
+      "sun_requirement": "full_sun",
+      "water_needs": "low",
+      "hardiness_zone_min": 7,
+      "hardiness_zone_max": 11,
+      "ph_min": 7.0,
+      "ph_max": 8.5,
+      "edible": false,
+      "edible_parts": [],
+      "data_source": "bundled",
+      "frost_tolerance": "hardy",
+      "nutrient_demand": "light",
+      "n_demand": "low",
+      "p_demand": "low",
+      "k_demand": "low",
+      "permaculture_layer": "shrub",
+      "functions": [],
+      "regions": [
+        "arizona_lower_desert"
+      ],
+      "uncertain_fields": [
+        "max_height_cm",
+        "max_spread_cm",
+        "ph_min",
+        "ph_max"
+      ],
+      "notes": "Native; the signature plant of the Sonoran lowlands. Very long-lived."
+    },
+    {
+      "scientific_name": "Simmondsia chinensis",
+      "common_name": "Jojoba",
+      "aliases": [
+        "jojoba shrub",
+        "goatnut"
+      ],
+      "family": "Simmondsiaceae",
+      "genus": "Simmondsia",
+      "cycle": "perennial",
+      "growth_rate": "slow",
+      "flower_type": "dioecious_female",
+      "pollination_type": "self_sterile",
+      "min_height_cm": 100.0,
+      "max_height_cm": 300.0,
+      "min_spread_cm": 100.0,
+      "max_spread_cm": 250.0,
+      "sun_requirement": "full_sun",
+      "water_needs": "low",
+      "hardiness_zone_min": 8,
+      "hardiness_zone_max": 11,
+      "ph_min": 6.5,
+      "ph_max": 8.5,
+      "edible": false,
+      "edible_parts": [],
+      "data_source": "bundled",
+      "frost_tolerance": "half-hardy",
+      "nutrient_demand": "light",
+      "n_demand": "low",
+      "p_demand": "low",
+      "k_demand": "low",
+      "permaculture_layer": "shrub",
+      "functions": [],
+      "regions": [
+        "arizona_lower_desert"
+      ],
+      "uncertain_fields": [
+        "ph_min",
+        "ph_max",
+        "max_height_cm"
+      ],
+      "notes": "Dioecious: seed-bearing plants are female and need a male nearby. Seed is a wax source, not a food."
+    },
+    {
+      "scientific_name": "Encelia farinosa",
+      "common_name": "Brittlebush",
+      "aliases": [
+        "brittle bush"
+      ],
+      "family": "Asteraceae",
+      "genus": "Encelia",
+      "cycle": "perennial",
+      "growth_rate": "fast",
+      "flower_type": "hermaphrodite",
+      "pollination_type": "self_fertile",
+      "min_height_cm": 60.0,
+      "max_height_cm": 150.0,
+      "min_spread_cm": 60.0,
+      "max_spread_cm": 150.0,
+      "sun_requirement": "full_sun",
+      "water_needs": "low",
+      "hardiness_zone_min": 8,
+      "hardiness_zone_max": 11,
+      "ph_min": 7.0,
+      "ph_max": 8.5,
+      "edible": false,
+      "edible_parts": [],
+      "data_source": "bundled",
+      "frost_tolerance": "half-hardy",
+      "nutrient_demand": "light",
+      "n_demand": "low",
+      "p_demand": "low",
+      "k_demand": "low",
+      "permaculture_layer": "shrub",
+      "functions": [],
+      "regions": [
+        "arizona_lower_desert"
+      ],
+      "uncertain_fields": [
+        "ph_min",
+        "ph_max",
+        "max_spread_cm"
+      ],
+      "notes": "Native; goes semi-dormant and silver in summer drought."
+    },
+    {
+      "scientific_name": "Echinocactus grusonii",
+      "common_name": "Golden Barrel Cactus",
+      "aliases": [
+        "golden barrel",
+        "barrel cactus"
+      ],
+      "family": "Cactaceae",
+      "genus": "Echinocactus",
+      "cycle": "perennial",
+      "growth_rate": "slow",
+      "flower_type": "hermaphrodite",
+      "pollination_type": "self_fertile",
+      "min_height_cm": 40.0,
+      "max_height_cm": 100.0,
+      "min_spread_cm": 40.0,
+      "max_spread_cm": 100.0,
+      "sun_requirement": "full_sun",
+      "water_needs": "low",
+      "hardiness_zone_min": 9,
+      "hardiness_zone_max": 11,
+      "ph_min": 6.0,
+      "ph_max": 8.0,
+      "edible": false,
+      "edible_parts": [],
+      "data_source": "bundled",
+      "frost_tolerance": "tender",
+      "nutrient_demand": "light",
+      "n_demand": "low",
+      "p_demand": "low",
+      "k_demand": "low",
+      "permaculture_layer": "herbaceous",
+      "functions": [],
+      "regions": [
+        "arizona_lower_desert"
+      ],
+      "uncertain_fields": [
+        "max_height_cm",
+        "ph_min",
+        "ph_max"
+      ],
+      "notes": "Late-afternoon shade prevents scorch in a Mesa summer."
+    },
+    {
+      "scientific_name": "Lantana camara",
+      "common_name": "Lantana",
+      "aliases": [
+        "lantana shrub"
+      ],
+      "family": "Verbenaceae",
+      "genus": "Lantana",
+      "cycle": "perennial",
+      "growth_rate": "fast",
+      "flower_type": "hermaphrodite",
+      "pollination_type": "self_fertile",
+      "min_height_cm": 60.0,
+      "max_height_cm": 150.0,
+      "min_spread_cm": 90.0,
+      "max_spread_cm": 200.0,
+      "sun_requirement": "full_sun",
+      "water_needs": "low",
+      "hardiness_zone_min": 8,
+      "hardiness_zone_max": 11,
+      "ph_min": 6.0,
+      "ph_max": 8.0,
+      "edible": false,
+      "edible_parts": [],
+      "data_source": "bundled",
+      "frost_tolerance": "half-hardy",
+      "nutrient_demand": "light",
+      "n_demand": "low",
+      "p_demand": "low",
+      "k_demand": "low",
+      "permaculture_layer": "shrub",
+      "functions": [],
+      "regions": [
+        "arizona_lower_desert"
+      ],
+      "uncertain_fields": [
+        "max_spread_cm",
+        "ph_min",
+        "ph_max"
+      ],
+      "notes": "Unripe berries and leaves are poisonous. Cut back after a frost."
+    },
+    {
+      "scientific_name": "Moringa oleifera",
+      "common_name": "Moringa",
+      "aliases": [
+        "drumstick tree",
+        "moringa tree"
+      ],
+      "family": "Moringaceae",
+      "genus": "Moringa",
+      "cycle": "perennial",
+      "growth_rate": "fast",
+      "flower_type": "hermaphrodite",
+      "pollination_type": "self_fertile",
+      "min_height_cm": 300.0,
+      "max_height_cm": 1000.0,
+      "min_spread_cm": 200.0,
+      "max_spread_cm": 400.0,
+      "sun_requirement": "full_sun",
+      "water_needs": "low",
+      "hardiness_zone_min": 10,
+      "hardiness_zone_max": 11,
+      "ph_min": 6.3,
+      "ph_max": 7.0,
+      "edible": true,
+      "edible_parts": [
+        "leaves",
+        "pods",
+        "seeds"
+      ],
+      "data_source": "bundled",
+      "frost_tolerance": "tender",
+      "nutrient_demand": "medium",
+      "n_demand": "medium",
+      "p_demand": "low",
+      "k_demand": "medium",
+      "permaculture_layer": "sub_canopy",
+      "functions": [],
+      "regions": [
+        "arizona_lower_desert"
+      ],
+      "uncertain_fields": [
+        "hardiness_zone_min",
+        "max_height_cm",
+        "ph_min",
+        "ph_max",
+        "water_needs"
+      ],
+      "notes": "Dies back below freezing and regrows from the base in Mesa. Prune to keep it manageable."
+    },
+    {
+      "scientific_name": "Abelmoschus esculentus",
+      "common_name": "Okra",
+      "aliases": [
+        "gumbo"
+      ],
+      "family": "Malvaceae",
+      "genus": "Abelmoschus",
+      "cycle": "annual",
+      "growth_rate": "fast",
+      "flower_type": "hermaphrodite",
+      "pollination_type": "self_fertile",
+      "min_height_cm": 100.0,
+      "max_height_cm": 200.0,
+      "min_spread_cm": 40.0,
+      "max_spread_cm": 60.0,
+      "sun_requirement": "full_sun",
+      "water_needs": "medium",
+      "hardiness_zone_min": 4,
+      "hardiness_zone_max": 12,
+      "ph_min": 6.0,
+      "ph_max": 7.0,
+      "edible": true,
+      "edible_parts": [
+        "pods"
+      ],
+      "data_source": "bundled",
+      "frost_tolerance": "tender",
+      "direct_sow_start": 6,
+      "direct_sow_end": 18,
+      "harvest_start": 14,
+      "harvest_end": 34,
+      "days_to_germination_min": 4,
+      "days_to_germination_max": 10,
+      "days_to_maturity_min": 50,
+      "days_to_maturity_max": 65,
+      "min_germination_temp_c": 21.0,
+      "seed_depth_cm": 2.5,
+      "nutrient_demand": "medium",
+      "n_demand": "medium",
+      "p_demand": "medium",
+      "k_demand": "medium",
+      "permaculture_layer": "herbaceous",
+      "functions": [],
+      "regions": [
+        "arizona_lower_desert"
+      ],
+      "uncertain_fields": [
+        "hardiness_zone_min",
+        "hardiness_zone_max",
+        "ph_min",
+        "ph_max"
+      ],
+      "notes": "Frost-relative weeks assume a Mesa/Phoenix last spring frost of about 10 Feb. A second sowing in August is not encoded because the schema holds one window per task."
+    },
+    {
+      "scientific_name": "Vigna unguiculata",
+      "common_name": "Cowpea",
+      "aliases": [
+        "black-eyed pea",
+        "black eyed pea",
+        "southern pea"
+      ],
+      "family": "Fabaceae",
+      "genus": "Vigna",
+      "cycle": "annual",
+      "growth_rate": "fast",
+      "flower_type": "hermaphrodite",
+      "pollination_type": "self_fertile",
+      "min_height_cm": 30.0,
+      "max_height_cm": 100.0,
+      "min_spread_cm": 30.0,
+      "max_spread_cm": 60.0,
+      "sun_requirement": "full_sun",
+      "water_needs": "low",
+      "hardiness_zone_min": 5,
+      "hardiness_zone_max": 12,
+      "ph_min": 5.5,
+      "ph_max": 7.0,
+      "edible": true,
+      "edible_parts": [
+        "pods",
+        "seeds"
+      ],
+      "data_source": "bundled",
+      "frost_tolerance": "tender",
+      "direct_sow_start": 6,
+      "direct_sow_end": 22,
+      "harvest_start": 14,
+      "harvest_end": 34,
+      "days_to_germination_min": 5,
+      "days_to_germination_max": 10,
+      "days_to_maturity_min": 60,
+      "days_to_maturity_max": 90,
+      "min_germination_temp_c": 18.0,
+      "seed_depth_cm": 3.0,
+      "nutrient_demand": "fixer",
+      "n_demand": "fixer",
+      "p_demand": "medium",
+      "k_demand": "medium",
+      "permaculture_layer": "herbaceous",
+      "functions": [
+        "nitrogen_fixer"
+      ],
+      "regions": [
+        "arizona_lower_desert"
+      ],
+      "uncertain_fields": [
+        "hardiness_zone_min",
+        "hardiness_zone_max",
+        "ph_min",
+        "ph_max"
+      ],
+      "notes": "Frost-relative weeks assume a Mesa/Phoenix last spring frost of about 10 Feb."
+    },
+    {
+      "scientific_name": "Phaseolus acutifolius",
+      "common_name": "Tepary Bean",
+      "aliases": [
+        "tepary"
+      ],
+      "family": "Fabaceae",
+      "genus": "Phaseolus",
+      "cycle": "annual",
+      "growth_rate": "fast",
+      "flower_type": "hermaphrodite",
+      "pollination_type": "self_fertile",
+      "min_height_cm": 30.0,
+      "max_height_cm": 60.0,
+      "min_spread_cm": 30.0,
+      "max_spread_cm": 60.0,
+      "sun_requirement": "full_sun",
+      "water_needs": "low",
+      "hardiness_zone_min": 5,
+      "hardiness_zone_max": 12,
+      "ph_min": 6.0,
+      "ph_max": 8.0,
+      "edible": true,
+      "edible_parts": [
+        "seeds",
+        "pods"
+      ],
+      "data_source": "bundled",
+      "frost_tolerance": "tender",
+      "direct_sow_start": 20,
+      "direct_sow_end": 24,
+      "harvest_start": 30,
+      "harvest_end": 38,
+      "days_to_germination_min": 5,
+      "days_to_germination_max": 10,
+      "days_to_maturity_min": 60,
+      "days_to_maturity_max": 90,
+      "min_germination_temp_c": 18.0,
+      "seed_depth_cm": 3.0,
+      "nutrient_demand": "fixer",
+      "n_demand": "fixer",
+      "p_demand": "medium",
+      "k_demand": "medium",
+      "permaculture_layer": "herbaceous",
+      "functions": [
+        "nitrogen_fixer"
+      ],
+      "regions": [
+        "arizona_lower_desert"
+      ],
+      "uncertain_fields": [
+        "direct_sow_start",
+        "direct_sow_end",
+        "harvest_start",
+        "harvest_end",
+        "hardiness_zone_min",
+        "hardiness_zone_max",
+        "ph_min",
+        "ph_max"
+      ],
+      "notes": "Frost-relative weeks assume a Mesa/Phoenix last spring frost of about 10 Feb. Traditionally sown with the July monsoon; window is a best estimate."
+    },
+    {
+      "scientific_name": "Hibiscus sabdariffa",
+      "common_name": "Roselle",
+      "aliases": [
+        "jamaica",
+        "sorrel",
+        "red sorrel"
+      ],
+      "family": "Malvaceae",
+      "genus": "Hibiscus",
+      "cycle": "annual",
+      "growth_rate": "medium",
+      "flower_type": "hermaphrodite",
+      "pollination_type": "self_fertile",
+      "min_height_cm": 120.0,
+      "max_height_cm": 250.0,
+      "min_spread_cm": 90.0,
+      "max_spread_cm": 150.0,
+      "sun_requirement": "full_sun",
+      "water_needs": "medium",
+      "hardiness_zone_min": 8,
+      "hardiness_zone_max": 12,
+      "ph_min": 5.5,
+      "ph_max": 7.0,
+      "edible": true,
+      "edible_parts": [
+        "flowers",
+        "leaves"
+      ],
+      "data_source": "bundled",
+      "frost_tolerance": "tender",
+      "direct_sow_start": 6,
+      "direct_sow_end": 12,
+      "harvest_start": 32,
+      "harvest_end": 42,
+      "days_to_germination_min": 5,
+      "days_to_germination_max": 10,
+      "days_to_maturity_min": 150,
+      "days_to_maturity_max": 180,
+      "min_germination_temp_c": 21.0,
+      "seed_depth_cm": 1.0,
+      "nutrient_demand": "medium",
+      "n_demand": "medium",
+      "p_demand": "medium",
+      "k_demand": "medium",
+      "permaculture_layer": "herbaceous",
+      "functions": [],
+      "regions": [
+        "arizona_lower_desert"
+      ],
+      "uncertain_fields": [
+        "harvest_start",
+        "harvest_end",
+        "days_to_maturity_min",
+        "days_to_maturity_max",
+        "hardiness_zone_min",
+        "ph_min",
+        "ph_max"
+      ],
+      "notes": "Frost-relative weeks assume a Mesa/Phoenix last spring frost of about 10 Feb. Edible part is the fleshy calyx; it forms as days shorten in autumn."
+    },
+    {
+      "scientific_name": "Pachyrhizus erosus",
+      "common_name": "Jicama",
+      "aliases": [
+        "yam bean",
+        "mexican turnip"
+      ],
+      "family": "Fabaceae",
+      "genus": "Pachyrhizus",
+      "cycle": "annual",
+      "growth_rate": "medium",
+      "flower_type": "hermaphrodite",
+      "pollination_type": "self_fertile",
+      "min_height_cm": 150.0,
+      "max_height_cm": 300.0,
+      "min_spread_cm": 60.0,
+      "max_spread_cm": 100.0,
+      "sun_requirement": "full_sun",
+      "water_needs": "medium",
+      "hardiness_zone_min": 9,
+      "hardiness_zone_max": 12,
+      "ph_min": 6.0,
+      "ph_max": 7.0,
+      "edible": true,
+      "edible_parts": [
+        "roots"
+      ],
+      "data_source": "bundled",
+      "frost_tolerance": "tender",
+      "direct_sow_start": 8,
+      "direct_sow_end": 14,
+      "harvest_start": 34,
+      "harvest_end": 44,
+      "days_to_germination_min": 7,
+      "days_to_germination_max": 14,
+      "days_to_maturity_min": 150,
+      "days_to_maturity_max": 200,
+      "min_germination_temp_c": 21.0,
+      "seed_depth_cm": 2.0,
+      "nutrient_demand": "fixer",
+      "n_demand": "fixer",
+      "p_demand": "medium",
+      "k_demand": "high",
+      "permaculture_layer": "root",
+      "functions": [],
+      "regions": [
+        "arizona_lower_desert"
+      ],
+      "uncertain_fields": [
+        "harvest_start",
+        "harvest_end",
+        "hardiness_zone_min",
+        "hardiness_zone_max",
+        "ph_min",
+        "ph_max",
+        "n_demand",
+        "nutrient_demand"
+      ],
+      "notes": "Frost-relative weeks assume a Mesa/Phoenix last spring frost of about 10 Feb. Leaves, pods and seeds are poisonous; only the root is eaten."
+    },
+    {
+      "scientific_name": "Brassica juncea",
+      "common_name": "Mustard Greens",
+      "aliases": [
+        "mustard",
+        "indian mustard",
+        "brown mustard"
+      ],
+      "family": "Brassicaceae",
+      "genus": "Brassica",
+      "cycle": "annual",
+      "growth_rate": "fast",
+      "flower_type": "hermaphrodite",
+      "pollination_type": "self_fertile",
+      "min_height_cm": 30.0,
+      "max_height_cm": 90.0,
+      "min_spread_cm": 20.0,
+      "max_spread_cm": 40.0,
+      "sun_requirement": "full_sun",
+      "water_needs": "medium",
+      "hardiness_zone_min": 4,
+      "hardiness_zone_max": 11,
+      "ph_min": 6.0,
+      "ph_max": 7.5,
+      "edible": true,
+      "edible_parts": [
+        "leaves"
+      ],
+      "data_source": "bundled",
+      "frost_tolerance": "hardy",
+      "direct_sow_start": 30,
+      "direct_sow_end": 38,
+      "harvest_start": 38,
+      "harvest_end": 52,
+      "days_to_germination_min": 4,
+      "days_to_germination_max": 7,
+      "days_to_maturity_min": 40,
+      "days_to_maturity_max": 55,
+      "min_germination_temp_c": 4.0,
+      "seed_depth_cm": 1.0,
+      "nutrient_demand": "heavy",
+      "n_demand": "high",
+      "p_demand": "medium",
+      "k_demand": "medium",
+      "permaculture_layer": "herbaceous",
+      "functions": [],
+      "regions": [
+        "arizona_lower_desert"
+      ],
+      "uncertain_fields": [
+        "hardiness_zone_min",
+        "hardiness_zone_max"
+      ],
+      "notes": "Frost-relative weeks assume a Mesa/Phoenix last spring frost of about 10 Feb. A cool-season crop for the Phoenix autumn and winter: sown September to early November, harvested from late October to February."
+    },
+    {
+      "scientific_name": "Cucurbita moschata",
+      "common_name": "Butternut Squash",
+      "aliases": [
+        "butternut",
+        "calabaza",
+        "seminole pumpkin"
+      ],
+      "family": "Cucurbitaceae",
+      "genus": "Cucurbita",
+      "cycle": "annual",
+      "growth_rate": "fast",
+      "flower_type": "monoecious",
+      "pollination_type": "self_fertile",
+      "min_height_cm": 30.0,
+      "max_height_cm": 60.0,
+      "min_spread_cm": 300.0,
+      "max_spread_cm": 600.0,
+      "sun_requirement": "full_sun",
+      "water_needs": "medium",
+      "hardiness_zone_min": 4,
+      "hardiness_zone_max": 12,
+      "ph_min": 6.0,
+      "ph_max": 7.5,
+      "edible": true,
+      "edible_parts": [
+        "fruit",
+        "seeds"
+      ],
+      "data_source": "bundled",
+      "frost_tolerance": "tender",
+      "direct_sow_start": 1,
+      "direct_sow_end": 5,
+      "harvest_start": 12,
+      "harvest_end": 20,
+      "days_to_germination_min": 5,
+      "days_to_germination_max": 10,
+      "days_to_maturity_min": 90,
+      "days_to_maturity_max": 110,
+      "min_germination_temp_c": 18.0,
+      "seed_depth_cm": 2.5,
+      "nutrient_demand": "heavy",
+      "n_demand": "high",
+      "p_demand": "medium",
+      "k_demand": "high",
+      "permaculture_layer": "vine",
+      "functions": [],
+      "regions": [
+        "arizona_lower_desert"
+      ],
+      "uncertain_fields": [
+        "max_spread_cm",
+        "hardiness_zone_min",
+        "hardiness_zone_max"
+      ],
+      "notes": "Frost-relative weeks assume a Mesa/Phoenix last spring frost of about 10 Feb. A second sowing in August is not encoded. Copes with desert heat better than C. pepo."
     }
   ]
 }
