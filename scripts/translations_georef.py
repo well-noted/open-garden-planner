@@ -25,7 +25,7 @@ DE = {
         "Set initial map": "Ausgangskarte setzen",
     },
     "GardenPlannerApp": {
-        "&Georeference...": "&Georeferenz...",
+        "Georeference...": "Georeferenz...",
         "Georeference updated": "Georeferenz aktualisiert",
         _LINK: "Zeichenfläche mit GPS-Koordinaten verknüpfen: Ursprung, Maßstab, Drehung, Referenzpunkte",
         "Replace georeference?": "Georeferenz ersetzen?",
@@ -82,7 +82,7 @@ ES = {
         "Set initial map": "Establecer mapa inicial",
     },
     "GardenPlannerApp": {
-        "&Georeference...": "&Georreferencia...",
+        "Georeference...": "Georreferencia...",
         "Georeference updated": "Georreferencia actualizada",
         _LINK: "Vincular el lienzo con coordenadas GPS: origen, escala, rotación, puntos de referencia",
         "Replace georeference?": "¿Reemplazar la georreferencia?",
@@ -140,7 +140,7 @@ RU = {
         "Set initial map": "Задать начальную карту",
     },
     "GardenPlannerApp": {
-        "&Georeference...": "&Геопривязка...",
+        "Georeference...": "Геопривязка...",
         "Georeference updated": "Геопривязка обновлена",
         _LINK: "Связать холст с GPS-координатами: начало координат, масштаб, поворот, опорные точки",
         "Replace georeference?": "Заменить геопривязку?",

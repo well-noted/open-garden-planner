@@ -5416,9 +5416,8 @@ Use 0.1 for DXF in mm, 100 for DXF in metres.</translation>
             <translation>&amp;Garden</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1212" />
             <source>&amp;Georeference...</source>
-            <translation>&amp;Georeference...</translation>
+            <translation type="vanished">&amp;Georeference...</translation>
         </message>
         <message>
             <location filename="../../app/application.py" line="1101" />
@@ -6312,6 +6311,11 @@ Would you like to recover this file?</translation>
             <location filename="../../app/application.py" line="6251" />
             <source>Georeference updated</source>
             <translation>Georeference updated</translation>
+        </message>
+        <message>
+            <location filename="../../app/application.py" line="1212" />
+            <source>Georeference...</source>
+            <translation>Georeference...</translation>
         </message>
         <message>
             <location filename="../../app/application.py" line="2457" />
@@ -7366,112 +7370,112 @@ Please save your project to a permanent location.</translation>
     <context>
         <name>GeoreferenceDialog</name>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="143" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="147" />
             <source>Add point</source>
             <translation>Add point</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="221" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="231" />
             <source>Cannot fit: {reason}</source>
             <translation>Cannot fit: {reason}</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="105" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="107" />
             <source>Canvas origin and orientation</source>
             <translation>Canvas origin and orientation</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="147" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="151" />
             <source>Fit from reference points</source>
             <translation>Fit from reference points</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="233" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="245" />
             <source>Fit of {n} point(s): RMS {rms:.3f} m</source>
             <translation>Fit of {n} point(s): RMS {rms:.3f} m</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="64" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="66" />
             <source>Georeference</source>
             <translation>Georeference</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="80" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="82" />
             <source>Last fit: RMS {rms:.3f} m</source>
             <translation>Last fit: RMS {rms:.3f} m</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="132" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="134" />
             <source>Latitude</source>
             <translation>Latitude</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="112" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="114" />
             <source>Latitude of the origin (0, 0):</source>
             <translation>Latitude of the origin (0, 0):</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="133" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="135" />
             <source>Longitude</source>
             <translation>Longitude</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="113" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="115" />
             <source>Longitude of the origin (0, 0):</source>
             <translation>Longitude of the origin (0, 0):</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="114" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="116" />
             <source>Metres per canvas unit:</source>
             <translation>Metres per canvas unit:</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="131" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="133" />
             <source>Name</source>
             <translation>Name</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="158" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="162" />
             <source>One point sets only the position; two or more also set scale and rotation. X and Y are canvas coordinates in cm (Y points up).</source>
             <translation>One point sets only the position; two or more also set scale and rotation. X and Y are canvas coordinates in cm (Y points up).</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="126" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="128" />
             <source>Reference points</source>
             <translation>Reference points</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="145" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="149" />
             <source>Remove selected</source>
             <translation>Remove selected</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="136" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="138" />
             <source>Residual (m)</source>
             <translation>Residual (m)</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="117" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="119" />
             <source>The rotation is the plan's north orientation: changing it here changes it everywhere (sun, shade, reports).</source>
             <translation>The rotation is the plan's north orientation: changing it here changes it everywhere (sun, shade, reports).</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="97" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="99" />
             <source>This plan is georeferenced</source>
             <translation>This plan is georeferenced</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="115" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="117" />
             <source>True north, clockwise from plan-up:</source>
             <translation>True north, clockwise from plan-up:</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="134" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="136" />
             <source>X (cm)</source>
             <translation>X (cm)</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="135" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="137" />
             <source>Y (cm)</source>
             <translation>Y (cm)</translation>
         </message>

@@ -1209,7 +1209,7 @@ class GardenPlannerApp(QMainWindow):
         menu.addAction(north_action)
 
         # Georeference (ADR-079)
-        georef_action = QAction(self.tr("&Georeference..."), self)
+        georef_action = QAction(self.tr("Georeference..."), self)
         georef_action.setStatusTip(
             self.tr("Link the canvas to GPS coordinates: origin, scale, rotation, reference points")
         )
