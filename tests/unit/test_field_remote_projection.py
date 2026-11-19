@@ -291,4 +291,4 @@ def test_canvas_heading_agrees_with_the_georef_frame() -> None:
 def test_empty_batch_is_refused_and_a_solver_hook_is_used() -> None:
     with pytest.raises(pj.ProjectionError):
         pj.telemetry([], GEO)
-    assert pj.telemetry([_fix()], GEO, solver=lambda fixes, geo: {"solved": len(fixes)}) == {"solved": 1}
+    assert pj.telemetry([_fix()], GEO, solver=lambda fixes, _geo: {"solved": len(fixes)}) == {"solved": 1}

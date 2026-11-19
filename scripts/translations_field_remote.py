@@ -244,3 +244,19 @@ RU["PreferencesDialog"].update({
     _PORT_SHARED: "Field Remote и Agent API не могут использовать один порт {port}.",
 })
 RU["FieldRemoteHost"][_AGENT_PORT] = "Порт {port} используется Agent API"
+
+# View menu entry for the phone's position overlay (WP-C).
+_PHONE_POSITION = "Show &Phone Position"
+_PHONE_POSITION_TIP = "Show the position a paired phone reports (not saved with the plan)"
+DE["GardenPlannerApp"].update({
+    _PHONE_POSITION: "&Smartphone-Position anzeigen",
+    _PHONE_POSITION_TIP: "Die vom gekoppelten Smartphone gemeldete Position anzeigen (wird nicht im Plan gespeichert)",
+})
+ES["GardenPlannerApp"].update({
+    _PHONE_POSITION: "Mostrar posición del &teléfono",
+    _PHONE_POSITION_TIP: "Mostrar la posición que informa un teléfono vinculado (no se guarda en el plan)",
+})
+RU["GardenPlannerApp"].update({
+    _PHONE_POSITION: "Показывать &положение телефона",
+    _PHONE_POSITION_TIP: "Показывать положение, которое сообщает подключённый телефон (не сохраняется в плане)",
+})

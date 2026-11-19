@@ -283,6 +283,10 @@ class GardenPlannerApp(QMainWindow):
         current = self._project_manager.current_file
         return Path(current).stem if current is not None else None
 
+    def _on_toggle_phone_position(self, checked: bool) -> None:
+        """View > Show Phone Position: hide or show the puck (the scene remembers the choice)."""
+        self.canvas_scene.set_position_puck_enabled(checked)
+
     def _on_field_remote_position(self, telemetry: Any) -> None:
         """Show the phone's position as a canvas overlay (not saved, not in undo)."""
         self.canvas_scene.show_position(telemetry)
@@ -1808,7 +1812,7 @@ class GardenPlannerApp(QMainWindow):
         self._phone_position_action.setStatusTip(
             self.tr("Show the position a paired phone reports (not saved with the plan)")
         )
-        self._phone_position_action.toggled.connect(self.canvas_scene.set_position_puck_enabled)
+        self._phone_position_action.toggled.connect(self._on_toggle_phone_position)
         menu.addAction(self._phone_position_action)
 
         # Fullscreen Preview
