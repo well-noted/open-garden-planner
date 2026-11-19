@@ -122,7 +122,7 @@ export function initSurvey(ctx) {
       sigma_m: last.sigma_m, precision_hint: 'survey_in',
     };
     const r = await ctx.post(body, null);
-    toast(r.ok ? 'Saved for review on the computer' : errorText(r));
+    toast(r.queued ? 'Kept on this phone; it is sent when the computer is reachable' : r.ok ? 'Saved for review on the computer' : errorText(r));
     if (r.ok) $('corner-name').value = '';
   }
 
