@@ -1,4 +1,4 @@
-"""Field Remote record routes (design 1.6-1.9, ADR-082). No Qt, no plan access.
+"""Field Remote record routes (design 1.6-1.9, ADR-080 addendum). No Qt, no plan access.
 
 The phone never edits the plan. These routes read and write only the field-record sidecar
 (``services/field_records``), and writes need the phone-permission toggle. Nothing here calls

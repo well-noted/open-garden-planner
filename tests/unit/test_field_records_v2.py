@@ -1,4 +1,4 @@
-"""Schema v2 of the field-record sidecar (design 1.9, ADR-082): kind/status/geometry, migration
+"""Schema v2 of the field-record sidecar (design 1.9, ADR-080 addendum): kind/status/geometry, migration
 from v1, idempotency, groups, caps, and the P3 hardening that must survive the change."""
 
 from __future__ import annotations
@@ -325,7 +325,7 @@ def test_eight_threads_by_fifty_records_lose_none(plan: Path) -> None:
         try:
             for n in range(50):
                 fr.create_record(plan, {"notes": f"{t}-{n}", "kind": "note", "status": "approved"})
-        except BaseException as error:  # noqa: BLE001 - collected for the assertion
+        except BaseException as error:
             errors.append(error)
 
     threads = [threading.Thread(target=worker, args=(t,)) for t in range(8)]
