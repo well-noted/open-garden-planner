@@ -522,11 +522,12 @@ def build_server(
         Field records are plant observations (name, age, notes, photo, GPS fix,
         bearing) written from the phone UI or by ingest_site_photo into the
         plan's ``.fieldnotes.json`` sidecar. They are not part of the .ogp file.
-        Each carries ``placed_object_id`` once it was placed on the plan with
+        Each has a ``kind`` and a ``status`` (pending until approved or placed) and
+        carries ``placed_object_id`` once it was placed on the plan with
         place_geotagged_feature. Read-only; an unsaved plan has no records.
 
         Args:
-            only_unplaced: Only records not yet placed on the plan.
+            only_unplaced: Only records still waiting (pending or approved), not placed.
             limit: Maximum records returned (1-500).
         """
         if providers.list_field_records is None:

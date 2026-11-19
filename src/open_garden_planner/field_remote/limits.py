@@ -18,6 +18,9 @@ Clock = Callable[[], float]
 MAX_BODY_BYTES = 256 * 1024
 #: Photo upload cap; the route that needs it opts in (WP-D).
 MAX_PHOTO_BYTES = 12 * 1024 * 1024
+#: Body cap for the one route that carries a photo (multipart: the photo plus a small JSON part).
+MAX_UPLOAD_BODY_BYTES = MAX_PHOTO_BYTES + 256 * 1024
+UPLOAD_ROUTES = frozenset({("POST", "/api/records")})
 #: Reads per second and writes per second, per token (design 1.5, flooding).
 READ_RATE = 20.0
 WRITE_RATE = 5.0

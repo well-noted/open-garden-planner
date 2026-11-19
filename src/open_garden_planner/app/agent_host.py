@@ -3915,7 +3915,8 @@ class AgentHost:
             warnings.append("The position was at the canvas edge and was moved inside the canvas.")
         if record is not None:
             try:
-                fr.update_record(plan_path, record.id, placed_object_id=created["item_id"])
+                fr.update_record(plan_path, record.id, placed_object_id=created["item_id"], status="placed")
+                fr.supersede_siblings(plan_path, record.id)
             except (fr.FieldRecordError, OSError) as error:
                 # The plant is already on the undo stack: report a warning, never a failure.
                 warnings.append(f"The plant was placed but the record could not be linked: {error}")

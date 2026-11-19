@@ -102,7 +102,7 @@ def list_records(
     # characters (naive times are read as UTC) so mixed records sort consistently.
     recs = sorted(loaded.records, key=lambda r: r.timestamp[:19], reverse=True)
     if only_unplaced:
-        recs = [r for r in recs if not r.placed_object_id]
+        recs = [r for r in recs if not r.placed_object_id and r.status in ("pending", "approved")]
     return {
         "total": len(loaded.records),
         "returned": min(len(recs), limit),

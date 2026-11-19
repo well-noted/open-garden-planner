@@ -268,9 +268,14 @@ class GardenPlannerApp(QMainWindow):
         # Field Remote (ADR-081): off by default, a separate listener from the Agent API.
         from open_garden_planner.app.field_remote_host import FieldRemoteHost
 
-        self.field_remote_host = FieldRemoteHost(self)
+        self.field_remote_host = FieldRemoteHost(self, plan_path=self._saved_plan_path)
         self.field_remote_host.status_changed.connect(self._on_field_remote_status)
         QTimer.singleShot(1500, self.field_remote_host.maybe_start)
+
+    def _saved_plan_path(self) -> str | None:
+        """The open plan's saved path for the Field Remote's record routes (any thread)."""
+        current = self._project_manager.current_file
+        return str(current) if current is not None else None
 
     def _agent_snapshot(self) -> dict[str, Any]:
         return self._agent_host._agent_snapshot()

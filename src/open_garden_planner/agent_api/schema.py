@@ -1465,7 +1465,7 @@ class FieldRecordView(BaseModel):
     accuracy_m: float | None = None
     bearing_deg: float | None = Field(default=None, description="Camera direction, TRUE north.")
     fix_mode: str | None = Field(
-        default=None, description="'gps', 'exif', 'map_tap', 'manual' or 'remote_position'."
+        default=None, description="'gps', 'exif', 'map_tap', 'manual', 'remote_position' or a Field Remote fix mode."
     )
     timestamp: str
     placed_object_id: str | None = Field(
@@ -1475,6 +1475,21 @@ class FieldRecordView(BaseModel):
         default=None, description="The record's position on the canvas (needs a georeference)."
     )
     canvas_y_cm: float | None = None
+    kind: str = Field(
+        default="plant",
+        description="plant, irrigation_path, reference_point, note, measurement or placement_request.",
+    )
+    status: str = Field(
+        default="pending", description="pending, approved, rejected, placed or superseded."
+    )
+    geometry: dict[str, Any] | None = Field(
+        default=None, description="A point or polyline captured on the phone (lat/lon plus plan cm)."
+    )
+    group_id: str | None = Field(
+        default=None, description="Placement-request candidates share a group_id."
+    )
+    what: str | None = Field(default=None, description="Free text: what the requester wants here.")
+    source: str | None = None
 
 
 class FieldRecordList(BaseModel):

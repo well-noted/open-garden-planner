@@ -8,6 +8,7 @@ records until a second, separate toggle is on. The phone never edits the plan.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -46,9 +47,18 @@ class FieldRemoteHost(QObject):
 
     status_changed = pyqtSignal(object)  # FieldRemoteStatus
 
-    def __init__(self, parent: QObject | None = None, *, data_dir: Path | None = None) -> None:
+    def __init__(
+        self,
+        parent: QObject | None = None,
+        *,
+        data_dir: Path | None = None,
+        plan_path: Callable[[], str | None] | None = None,
+    ) -> None:
         super().__init__(parent)
         self._data_dir = data_dir
+        #: Saved path of the open plan (None while unsaved); read from the server thread, so it
+        #: must be a plain attribute read. The server learns nothing else about the plan.
+        self._plan_path = plan_path or (lambda: None)
         self._server: FieldRemoteServer | None = None
         self._state: ServerState | None = None
         self._fingerprint = ""
@@ -106,7 +116,11 @@ class FieldRemoteHost(QObject):
         try:
             material = tls.load_or_create(self._tls_dir(), [bind], force=force_new_certificate)
             state = ServerState(token=settings.field_remote_token, records_enabled=records)
-            server = FieldRemoteServer(state, material, bind=bind, port=port)
+            from open_garden_planner.field_remote.routes import records_routes
+
+            server = FieldRemoteServer(
+                state, material, bind=bind, port=port, extra_routes=records_routes(self._plan_path)
+            )
             server.start()
         except PortInUseError:
             self._fail(bind, port, records, self.tr("Port {port} is already in use").format(port=port))

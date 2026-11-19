@@ -42,33 +42,70 @@ from PIL import Image, UnidentifiedImageError
 from open_garden_planner.core.georef import GeorefError, validate_lat_lon
 
 #: Version of the sidecar JSON. Bump only with a migration in :func:`_migrate`.
-FIELD_RECORDS_VERSION = 1
+FIELD_RECORDS_VERSION = 2
 MAX_RECORDS = 5000
+#: Records waiting for a decision; a runaway phone cannot fill the review list (design 1.9).
+MAX_PENDING = 500
+MAX_POLYLINE_POINTS = 2000
+MAX_DISTANCES = 50
 MAX_PHOTO_BYTES = 25 * 1024 * 1024
 MAX_TEXT = 4000
 MAX_NAME = 200
 SIDECAR_SUFFIX = ".fieldnotes.json"
 PHOTO_DIR_SUFFIX = ".fieldnotes"
 #: How the position of a record was obtained.
-FIX_MODES = frozenset({"gps", "exif", "map_tap", "manual", "remote_position"})
+FIX_MODES = frozenset(
+    {
+        "gps", "exif", "map_tap", "manual", "remote_position",
+        "rtk_fixed", "rtk_float", "vio_fused", "anchor_calibrated", "standard",
+    }
+)
+KINDS = frozenset(
+    {"plant", "irrigation_path", "reference_point", "note", "measurement", "placement_request"}
+)
+STATUSES = frozenset({"pending", "approved", "rejected", "placed", "superseded"})
+SOURCES = frozenset({"field_remote", "agent", "desktop"})
+PRECISION_HINTS = frozenset({"gps", "survey_in", "plan_locked", "trilateration"})
+_COORD_LIMIT_CM = 1.0e8
 
 _PHOTO_FORMATS = {"JPEG": ".jpg", "PNG": ".png", "WEBP": ".webp", "TIFF": ".tif", "MPO": ".jpg"}
 _ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 _PHOTO_REL_RE = re.compile(r"^photos/[A-Za-z0-9_-]{1,64}\.(jpg|png|webp|tif)$")
+_KEY_RE = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
 _KNOWN_KEYS = frozenset(
     {
         "id", "plant_name", "species_key", "age", "notes", "photo", "lat", "lon",
         "accuracy_m", "bearing_deg", "fix_mode", "timestamp", "placed_object_id",
+        "kind", "status", "geometry", "sigma_m", "idempotency_key", "group_id", "what",
+        "requester", "precision_hint", "source", "name", "diameter_mm", "flow_lph",
+        "emitter_spacing_cm", "closes_on", "distances", "rms",
     }
 )
-# In-process only. Package 2 (the Field Remote) writes this file from another
-# thread or process: before it does, the sidecar needs a cross-process lock or a
-# single writer (ADR-080).
+#: The v2 keys written only when set, so a v1 record stays as small as it was.
+_OPTIONAL_V2 = (
+    "geometry", "sigma_m", "idempotency_key", "group_id", "what", "requester", "precision_hint",
+    "source", "name", "diameter_mm", "flow_lph", "emitter_spacing_cm", "closes_on", "distances", "rms",
+)
+# Single writer (ADR-080/081): the Field Remote server runs in the GUI process, so the phone
+# routes, the agent tools and the desktop panel are threads of one process under this one lock;
+# every read-modify-write below holds it from load to the atomic replace.
 _lock = threading.RLock()
 
 
 class FieldRecordError(ValueError):
     """A record, photo or path was refused (the message is safe to show an agent)."""
+
+
+class RecordNotFoundError(FieldRecordError):
+    """No record has the given id."""
+
+
+class RecordNotPendingError(FieldRecordError):
+    """The phone may only change or withdraw a record that is still pending."""
+
+
+class RecordCapError(FieldRecordError):
+    """The record cap or the pending cap is reached."""
 
 
 def sidecar_paths(plan_path: str | os.PathLike[str] | None) -> tuple[Path, Path]:
@@ -103,6 +140,71 @@ def _number(value: object, label: str, lo: float, hi: float) -> float | None:
     return float(value)
 
 
+def _vertex(value: object) -> list[float | None]:
+    """``[lat, lon, x_cm, y_cm]`` (x and y optional) from an untrusted vertex."""
+    if not isinstance(value, (list, tuple)) or len(value) not in (2, 4):
+        raise FieldRecordError("a geometry vertex must be [lat, lon] or [lat, lon, x_cm, y_cm]")
+    try:
+        lat, lon = validate_lat_lon(value[0], value[1])
+    except GeorefError as error:
+        raise FieldRecordError(str(error)) from error
+    x = y = None
+    if len(value) == 4:
+        x = _number(value[2], "x_cm", -_COORD_LIMIT_CM, _COORD_LIMIT_CM)
+        y = _number(value[3], "y_cm", -_COORD_LIMIT_CM, _COORD_LIMIT_CM)
+        if (x is None) != (y is None):
+            raise FieldRecordError("x_cm and y_cm must be given together")
+    return [lat, lon, x, y]
+
+
+def _geometry(value: object) -> dict[str, Any] | None:
+    """Validate a point or polyline; keys outside the fixed shape are dropped."""
+    if value is None:
+        return None
+    if not isinstance(value, Mapping):
+        raise FieldRecordError("geometry must be an object")
+    kind = value.get("type")
+    if kind == "point":
+        lat, lon, x, y = _vertex([value.get("lat"), value.get("lon"), value.get("x_cm"), value.get("y_cm")])
+        return {"type": "point", "lat": lat, "lon": lon, "x_cm": x, "y_cm": y}
+    if kind == "polyline":
+        points = value.get("points")
+        if not isinstance(points, (list, tuple)) or len(points) < 2:
+            raise FieldRecordError("a polyline needs at least 2 points")
+        if len(points) > MAX_POLYLINE_POINTS:
+            raise FieldRecordError(f"a polyline has at most {MAX_POLYLINE_POINTS} points")
+        return {"type": "polyline", "points": [_vertex(p) for p in points]}
+    raise FieldRecordError("geometry.type must be 'point' or 'polyline'")
+
+
+def _plain_value(value: object) -> bool:
+    if isinstance(value, float):
+        return math.isfinite(value)
+    return value is None or isinstance(value, (bool, int)) or (isinstance(value, str) and len(value) <= MAX_NAME)
+
+
+def _distances(value: object) -> list[Any] | None:
+    if value is None:
+        return None
+    if not isinstance(value, (list, tuple)) or len(value) > MAX_DISTANCES:
+        raise FieldRecordError(f"distances must be a list of at most {MAX_DISTANCES} entries")
+    out: list[Any] = []
+    for item in value:
+        if isinstance(item, Mapping):
+            if len(item) > 8 or not all(
+                isinstance(k, str) and len(k) <= 40 and _plain_value(v) for k, v in item.items()
+            ):
+                raise FieldRecordError("a distance entry must be a small object of plain values")
+            out.append(dict(item))
+        else:
+            out.append(_number(item, "distance", 0.0, 1.0e7))
+    return out
+
+
+def _derive_status(data: Mapping[str, Any]) -> str:
+    return "placed" if data.get("placed_object_id") else "pending"
+
+
 @dataclass
 class FieldRecord:
     """One field observation. ``photo`` is relative to the ``.fieldnotes`` folder."""
@@ -120,12 +222,35 @@ class FieldRecord:
     fix_mode: str | None = None
     timestamp: str = field(default_factory=lambda: datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"))
     placed_object_id: str | None = None
+    #: Schema v2 (design 1.9). ``kind`` plant = a v1 record; ``status`` is the reviewer's decision.
+    kind: str = "plant"
+    status: str = "pending"
+    #: ``{"type": "point", lat, lon, x_cm, y_cm}`` or ``{"type": "polyline", "points": [[lat, lon, x, y], ...]}``.
+    geometry: dict[str, Any] | None = None
+    sigma_m: float | None = None
+    idempotency_key: str | None = None
+    group_id: str | None = None
+    what: str | None = None
+    requester: str | None = None
+    precision_hint: str | None = None
+    source: str | None = None
+    name: str | None = None
+    diameter_mm: float | None = None
+    flow_lph: float | None = None
+    emitter_spacing_cm: float | None = None
+    closes_on: bool | None = None
+    distances: list[Any] | None = None
+    rms: float | None = None
     #: Keys this build does not know (a newer writer, the Field Remote); kept verbatim.
     extra: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        optional = {k: getattr(self, k) for k in _OPTIONAL_V2 if getattr(self, k) is not None}
         return {
             **self.extra,
+            **optional,
+            "kind": self.kind,
+            "status": self.status,
             "id": self.id,
             "plant_name": self.plant_name,
             "species_key": self.species_key,
@@ -173,6 +298,29 @@ class FieldRecord:
             raise FieldRecordError("timestamp must be an ISO date-time text")
         placed = _text(data.get("placed_object_id"), 64, "placed_object_id")
         extra = {k: v for k, v in data.items() if isinstance(k, str) and k not in _KNOWN_KEYS}
+        kind = data.get("kind", "plant")
+        if kind not in KINDS:
+            raise FieldRecordError("kind must be one of " + ", ".join(sorted(KINDS)))
+        status = data.get("status")
+        if status is None:
+            status = _derive_status(data)
+        if status not in STATUSES:
+            raise FieldRecordError("status must be one of " + ", ".join(sorted(STATUSES)))
+        geometry = _geometry(data.get("geometry"))
+        if geometry is not None and geometry["type"] == "point" and lat is None:
+            lat, lon = geometry["lat"], geometry["lon"]
+        key = data.get("idempotency_key")
+        if key is not None and (not isinstance(key, str) or not _KEY_RE.match(key)):
+            raise FieldRecordError("idempotency_key must be 8-64 letters, digits, '-' or '_'")
+        source = _text(data.get("source"), 40, "source")
+        if source is not None and source not in SOURCES:
+            raise FieldRecordError("source must be one of " + ", ".join(sorted(SOURCES)))
+        hint = _text(data.get("precision_hint"), 40, "precision_hint")
+        if hint is not None and hint not in PRECISION_HINTS:
+            raise FieldRecordError("precision_hint must be one of " + ", ".join(sorted(PRECISION_HINTS)))
+        closes = data.get("closes_on")
+        if closes is not None and not isinstance(closes, bool):
+            raise FieldRecordError("closes_on must be true or false")
         return cls(
             id=rid,
             plant_name=_text(data.get("plant_name"), MAX_NAME, "plant_name"),
@@ -187,6 +335,23 @@ class FieldRecord:
             fix_mode=fix_mode,
             timestamp=stamp,
             placed_object_id=placed,
+            kind=kind,
+            status=status,
+            geometry=geometry,
+            sigma_m=_number(data.get("sigma_m"), "sigma_m", 0.0, 100000.0),
+            idempotency_key=key,
+            group_id=_text(data.get("group_id"), 64, "group_id"),
+            what=_text(data.get("what"), MAX_TEXT, "what"),
+            requester=_text(data.get("requester"), MAX_NAME, "requester"),
+            precision_hint=hint,
+            source=source,
+            name=_text(data.get("name"), MAX_NAME, "name"),
+            diameter_mm=_number(data.get("diameter_mm"), "diameter_mm", 0.0, 10000.0),
+            flow_lph=_number(data.get("flow_lph"), "flow_lph", 0.0, 1.0e6),
+            emitter_spacing_cm=_number(data.get("emitter_spacing_cm"), "emitter_spacing_cm", 0.0, 100000.0),
+            closes_on=closes,
+            distances=_distances(data.get("distances")),
+            rms=_number(data.get("rms"), "rms", 0.0, 1.0e6),
             extra=extra,
         )
 
@@ -209,8 +374,22 @@ class LoadResult:
     rejected: list[Any] = field(default_factory=list)
 
 
-def _migrate(data: dict[str, Any], _version: int) -> dict[str, Any]:
-    """Bring an older sidecar up to :data:`FIELD_RECORDS_VERSION` (none older yet)."""
+def _migrate(data: dict[str, Any], version: int) -> dict[str, Any]:
+    """Bring an older sidecar up to :data:`FIELD_RECORDS_VERSION`.
+
+    1 -> 2: every record gains ``kind`` (plant) and ``status`` (placed when it has a
+    ``placed_object_id``, else pending); nothing else is touched and unknown keys stay.
+    Entries that are not objects are left for the loader to reject and keep.
+    """
+    if version < 2:
+        migrated: list[Any] = []
+        for entry in data.get("records", []):
+            if isinstance(entry, dict):
+                entry = {**entry}
+                entry.setdefault("kind", "plant")
+                entry.setdefault("status", _derive_status(entry))
+            migrated.append(entry)
+        data = {**data, "records": migrated}
     return data
 
 
@@ -240,6 +419,7 @@ def load_records(plan_path: str | os.PathLike[str] | None) -> LoadResult:
         result.warnings.append(f"the field notes file is corrupt and was ignored ({error})")
         result.damaged = True
         return result
+    original = list(data.get("records", []))  # entries a build rejects are kept as written, unmigrated
     if version > FIELD_RECORDS_VERSION:
         result.warnings.append(
             f"the field notes file is version {version}, newer than this build understands "
@@ -252,17 +432,17 @@ def load_records(plan_path: str | os.PathLike[str] | None) -> LoadResult:
     seen: set[str] = set()
     for index, entry in enumerate(data.get("records", [])):
         if len(result.records) >= MAX_RECORDS:
-            result.rejected.append(entry)
+            result.rejected.append(original[index])
             result.warnings.append(f"record {index + 1} kept unread: more than {MAX_RECORDS} records")
             continue
         try:
             rec = FieldRecord.from_dict(entry)
         except FieldRecordError as error:
-            result.rejected.append(entry)
+            result.rejected.append(original[index])
             result.warnings.append(f"record {index + 1} skipped (kept in the file): {error}")
             continue
         if rec.id in seen:
-            result.rejected.append(entry)
+            result.rejected.append(original[index])
             result.warnings.append(f"record {index + 1} skipped (kept in the file): duplicate id {rec.id}")
             continue
         seen.add(rec.id)
@@ -345,15 +525,35 @@ def sniff_photo(raw: bytes) -> str:
     return ext
 
 
-def add_record(
+def _load_for_write(plan_path: str | os.PathLike[str] | None) -> LoadResult:
+    """Load the sidecar for a read-modify-write; refuses a file whose content is unknown."""
+    loaded = load_records(plan_path)
+    if loaded.unreadable:
+        raise FieldRecordError(
+            "the field notes file could not be read, so nothing was changed (" + "; ".join(loaded.warnings) + ")"
+        )
+    if loaded.newer_version:
+        raise FieldRecordError(
+            "the field notes file was written by a newer version of the app; refusing to change it"
+        )
+    return loaded
+
+
+def _pending_count(records: list[FieldRecord]) -> int:
+    return sum(1 for r in records if r.status == "pending")
+
+
+def create_record(
     plan_path: str | os.PathLike[str] | None,
     data: Mapping[str, Any],
     photo_bytes: bytes | None = None,
-) -> FieldRecord:
-    """Validate and append one record, saving *photo_bytes* beside it first.
+) -> tuple[FieldRecord, bool]:
+    """Validate and append one record; ``(record, created)``.
 
-    The photo is written before the record; if the record write then fails the
-    photo is removed again, so a failure leaves nothing behind.
+    A record whose ``idempotency_key`` is already stored is NOT added again: the stored one is
+    returned with ``created=False`` (a phone's retry from its outbox). The check and the write
+    sit under one lock hold, so two racing retries create one record. The photo is written
+    before the record; if the record write then fails the photo is removed again.
     """
     _, photo_root = sidecar_paths(plan_path)
     with _lock:
@@ -364,11 +564,18 @@ def add_record(
                 + "; ".join(loaded.warnings)
                 + ")"
             )
+        key = data.get("idempotency_key")
+        if isinstance(key, str):
+            for existing in loaded.records:
+                if existing.idempotency_key == key:
+                    return existing, False
         if len(loaded.records) >= MAX_RECORDS:
-            raise FieldRecordError(f"at most {MAX_RECORDS} field records are kept per plan")
+            raise RecordCapError(f"at most {MAX_RECORDS} field records are kept per plan")
         record_id = uuid.uuid4().hex
         known = {k: v for k, v in dict(data).items() if k in _KNOWN_KEYS}
         record = FieldRecord.from_dict({**known, "photo": None}, record_id=record_id)
+        if record.status == "pending" and _pending_count(loaded.records) >= MAX_PENDING:
+            raise RecordCapError(f"at most {MAX_PENDING} records may wait for review; approve or reject some first")
         photo_file: Path | None = None
         if photo_bytes is not None:
             ext = sniff_photo(photo_bytes)
@@ -382,33 +589,150 @@ def add_record(
                 with contextlib.suppress(OSError):
                     photo_file.unlink()
             raise
-    return record
+    return record, True
+
+
+def add_record(
+    plan_path: str | os.PathLike[str] | None,
+    data: Mapping[str, Any],
+    photo_bytes: bytes | None = None,
+) -> FieldRecord:
+    """:func:`create_record` without the ``created`` flag."""
+    return create_record(plan_path, data, photo_bytes)[0]
 
 
 def get_record(plan_path: str | os.PathLike[str] | None, record_id: str) -> FieldRecord:
     for rec in load_records(plan_path).records:
         if rec.id == record_id:
             return rec
-    raise FieldRecordError(f"no field record {record_id!r}")
+    raise RecordNotFoundError(f"no field record {record_id!r}")
+
+
+def find_by_idempotency_key(plan_path: str | os.PathLike[str] | None, key: str) -> FieldRecord | None:
+    """The record stored under a client's ``idempotency_key``, if any."""
+    for rec in load_records(plan_path).records:
+        if rec.idempotency_key == key:
+            return rec
+    return None
+
+
+#: What the phone may change on its own pending record (no status, no placement link).
+PHONE_EDITABLE = frozenset(
+    {
+        "plant_name", "species_key", "age", "notes", "geometry", "lat", "lon", "accuracy_m", "sigma_m",
+        "bearing_deg", "fix_mode", "what", "requester", "name", "diameter_mm", "flow_lph",
+        "emitter_spacing_cm", "closes_on", "distances", "rms", "precision_hint",
+    }
+)
 
 
 def update_record(
     plan_path: str | os.PathLike[str] | None, record_id: str, **changes: Any
 ) -> FieldRecord:
-    """Change fields of one record (validated as a whole). ``id`` and ``photo`` are fixed."""
-    forbidden = {"id", "photo"} & set(changes)
+    """Change fields of one record (validated as a whole). ``id``, ``photo`` and the key are fixed."""
+    forbidden = {"id", "photo", "idempotency_key"} & set(changes)
     if forbidden:
-        raise FieldRecordError("id and photo cannot be changed")
+        raise FieldRecordError("id, photo and idempotency_key cannot be changed")
     with _lock:
-        loaded = load_records(plan_path)
+        loaded = _load_for_write(plan_path)
         for index, rec in enumerate(loaded.records):
             if rec.id == record_id:
                 merged = {**rec.to_dict(), **changes}  # to_dict carries unknown keys
                 updated = FieldRecord.from_dict(merged)
+                if (
+                    updated.status == "pending"
+                    and rec.status != "pending"
+                    and _pending_count(loaded.records) >= MAX_PENDING
+                ):
+                    raise RecordCapError(f"at most {MAX_PENDING} records may wait for review")
                 loaded.records[index] = updated
                 save_records(plan_path, loaded.records, loaded)
                 return updated
-    raise FieldRecordError(f"no field record {record_id!r}")
+    raise RecordNotFoundError(f"no field record {record_id!r}")
+
+
+def edit_pending_record(
+    plan_path: str | os.PathLike[str] | None, record_id: str, changes: Mapping[str, Any]
+) -> FieldRecord:
+    """The phone's PATCH: only whitelisted fields, only while the record is pending.
+
+    The status check and the write share one lock hold, so a desktop approval that lands first
+    wins and the edit is refused rather than applied to a placed record.
+    """
+    unknown = set(changes) - PHONE_EDITABLE
+    if unknown:
+        raise FieldRecordError("these fields cannot be changed from the phone: " + ", ".join(sorted(unknown)))
+    with _lock:
+        current = get_record(plan_path, record_id)
+        if current.status != "pending":
+            raise RecordNotPendingError("the record was already decided on the computer and can no longer be changed")
+        return update_record(plan_path, record_id, **dict(changes))
+
+
+def delete_pending_record(plan_path: str | os.PathLike[str] | None, record_id: str) -> FieldRecord:
+    """The phone's DELETE: withdraw a record (and its photo) while it is still pending."""
+    with _lock:
+        loaded = _load_for_write(plan_path)
+        for index, rec in enumerate(loaded.records):
+            if rec.id != record_id:
+                continue
+            if rec.status != "pending":
+                raise RecordNotPendingError("the record was already decided on the computer and cannot be withdrawn")
+            del loaded.records[index]
+            save_records(plan_path, loaded.records, loaded)
+            if rec.photo:
+                with contextlib.suppress(FieldRecordError, OSError):
+                    resolve_photo(plan_path, rec).unlink()
+            return rec
+    raise RecordNotFoundError(f"no field record {record_id!r}")
+
+
+def supersede_siblings(plan_path: str | os.PathLike[str] | None, record_id: str) -> list[FieldRecord]:
+    """Approve one candidate of a group: its still-open siblings become ``superseded``.
+
+    One load and one write, so a reader never sees half the group changed. The chosen record
+    itself is untouched (the caller sets ``placed``). Open means pending or approved; rejected
+    siblings stay rejected. A record without a ``group_id`` has no siblings.
+    """
+    with _lock:
+        loaded = _load_for_write(plan_path)
+        chosen = next((r for r in loaded.records if r.id == record_id), None)
+        if chosen is None:
+            raise RecordNotFoundError(f"no field record {record_id!r}")
+        if not chosen.group_id:
+            return []
+        changed = [
+            r for r in loaded.records
+            if r.group_id == chosen.group_id and r.id != chosen.id and r.status in ("pending", "approved")
+        ]
+        for rec in changed:
+            rec.status = "superseded"
+        if changed:
+            save_records(plan_path, loaded.records, loaded)
+        return changed
+
+
+def reopen_group(
+    plan_path: str | os.PathLike[str] | None, group_id: str, *, include_rejected: bool = False
+) -> list[FieldRecord]:
+    """Return a group to review: superseded and placed candidates become ``pending`` again.
+
+    A placed candidate loses its ``placed_object_id`` (its object was undone or removed). Rejected
+    candidates stay rejected unless *include_rejected*. Refused when the pending cap would be exceeded.
+    """
+    with _lock:
+        loaded = _load_for_write(plan_path)
+        states = {"superseded", "placed", "approved"} | ({"rejected"} if include_rejected else set())
+        changed = [r for r in loaded.records if r.group_id == group_id and r.status in states]
+        if not changed:
+            return []
+        if _pending_count(loaded.records) + len(changed) > MAX_PENDING:
+            raise RecordCapError(f"reopening would leave more than {MAX_PENDING} records waiting for review")
+        for rec in changed:
+            rec.status = "pending"
+            rec.placed_object_id = None
+        save_records(plan_path, loaded.records, loaded)
+        return changed
 
 
 def resolve_photo(plan_path: str | os.PathLike[str] | None, record: FieldRecord) -> Path:

@@ -157,11 +157,13 @@ class FieldRemoteGuard:
         failure_delay_s: float = FAILURE_DELAY_S,
         max_body: int = limits.MAX_BODY_BYTES,
         max_inflight: int = limits.MAX_INFLIGHT_PER_IP,
+        max_upload_body: int = limits.MAX_UPLOAD_BODY_BYTES,
     ) -> None:
         self._app = app
         self._state = state
         self._hosts = hosts
         self._max_body = max_body
+        self._max_upload_body = max_upload_body
         self._failure_delay = failure_delay_s
         self.lockout = limits.FailureLockout(clock=clock)
         self.rate = limits.RateLimiter(clock=clock)
@@ -197,7 +199,7 @@ class FieldRemoteGuard:
                 await rejection(scope, receive, guarded_send)
                 return
             try:
-                await self._app(scope, limits.limit_receive(receive, self._max_body), guarded_send)
+                await self._app(scope, limits.limit_receive(receive, self._body_cap(scope)), guarded_send)
             except limits.BodyTooLarge:
                 if not started:  # a streamed body that outgrew the cap; nothing was answered yet
                     await _reject(413, "body_too_large")(scope, receive, guarded_send)
@@ -207,6 +209,12 @@ class FieldRemoteGuard:
                 self._inflight[client] = remaining
             else:
                 del self._inflight[client]
+
+    def _body_cap(self, scope: dict[str, Any]) -> int:
+        """The small cap everywhere, except the one photo-upload route (design 1.5)."""
+        if (scope["method"], scope["path"]) in limits.UPLOAD_ROUTES:
+            return max(self._max_body, self._max_upload_body)
+        return self._max_body
 
     async def _check(self, scope: dict[str, Any], client: str) -> Any:
         headers: list[tuple[bytes, bytes]] = scope.get("headers") or []
@@ -221,7 +229,7 @@ class FieldRemoteGuard:
         if auth.query_carries_token(scope.get("query_string") or b""):
             return _reject(400, "token_in_url", "Send the token in the Authorization header.")
         length = limits.declared_length(headers)
-        if length is not None and (length < 0 or length > self._max_body):
+        if length is not None and (length < 0 or length > self._body_cap(scope)):
             return _reject(413, "body_too_large")
         if scope["path"] in PUBLIC_PATHS:
             # No token here, so bound it per address instead.
