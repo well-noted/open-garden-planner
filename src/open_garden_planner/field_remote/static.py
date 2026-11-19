@@ -13,6 +13,7 @@ from pathlib import Path
 
 _DIR = Path(__file__).with_name("static")
 _TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8"}
+FILES = ("index.html", "app.css", "app.js", "api.js", "geo.js", "map.js")
 #: Size budget for everything the phone downloads (design 4.1: 150 KB).
 BUDGET_BYTES = 150 * 1024
 
@@ -27,7 +28,8 @@ def _load() -> dict[str, Asset]:
     table: dict[str, Asset] = {}
     if not _DIR.is_dir():  # a broken bundle must not stop the desktop app
         return table
-    for path in sorted(_DIR.iterdir()):
+    for name in FILES:  # an explicit list: a stray file in the folder is never served
+        path = _DIR / name
         kind = _TYPES.get(path.suffix)
         if kind is None or not path.is_file():
             continue

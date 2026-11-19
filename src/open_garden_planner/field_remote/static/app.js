@@ -124,7 +124,7 @@ async function flushPositions() {
   map.setPuck(S.fix);
   const t = S.fix;
   const f = $('fixbadge');
-  f.textContent = t.fix_mode + ' ±' + t.sigma_m.toFixed(1) + ' m' + (t.heading_source === 'none' ? '' : ' · ' + t.heading_source);
+  f.textContent = t.fix_mode + ' ±' + Number(t.sigma_m).toFixed(1) + ' m' + (t.heading_source === 'none' ? '' : ' · ' + t.heading_source);
   f.className = 'overlay badge ' + (t.quality === 'poor' ? 'bad' : 'ok');
 }
 
@@ -388,9 +388,11 @@ $('btn-measure-use').addEventListener('click', () => {
 
 // ---- records list and status -----------------------------------------------------------------
 
+const photoUrls = [];
 async function loadRecords() {
   const r = await api('/api/field-records?limit=100');
   const st = $('status'), ul = $('records');
+  for (const u of photoUrls.splice(0)) URL.revokeObjectURL(u);
   clear(st); clear(ul);
   if (!r.ok) { st.appendChild(el('div', r.status === 409 ? 'Save the plan on the computer first.' : errorText(r), 'bad')); return; }
   S.planId = r.json.plan_id;
@@ -402,11 +404,11 @@ async function loadRecords() {
   for (const rec of r.json.records) {
     const title = rec.plant_name || rec.what || rec.name || rec.kind;
     const li = el('li', title);
-    li.appendChild(el('div', rec.kind + ' · ' + rec.status + ' · ' + rec.timestamp.slice(0, 16).replace('T', ' '), 'hint'));
+    li.appendChild(el('div', rec.kind + ' · ' + rec.status + ' · ' + String(rec.timestamp || '').slice(0, 16).replace('T', ' '), 'hint'));
     if (rec.photo_url) {
       const img = document.createElement('img');
       img.className = 'thumb'; img.alt = '';
-      fetchPhoto(rec.photo_url).then((u) => { if (u) img.src = u; });
+      fetchPhoto(rec.photo_url).then((u) => { if (u) { photoUrls.push(u); img.src = u; } });
       li.appendChild(img);
     }
     if (rec.status === 'pending' && S.state && S.state.records_enabled) {

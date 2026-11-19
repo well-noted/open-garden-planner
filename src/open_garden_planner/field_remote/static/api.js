@@ -34,7 +34,9 @@ export function errorText(r) {
 }
 
 async function blobOf(path) {
-  const r = await fetch(path, { headers: { Authorization: 'Bearer ' + token }, cache: 'no-store' });
+  // The bearer header only ever goes to a same-origin API path, never to a server-supplied host.
+  if (typeof path !== 'string' || !path.startsWith('/api/') || path.startsWith('//')) return null;
+  const r = await fetch(path, { headers: { Authorization: 'Bearer ' + token }, cache: 'no-store', referrerPolicy: 'no-referrer' });
   return r.ok ? r.blob() : null;
 }
 

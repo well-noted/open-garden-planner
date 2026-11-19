@@ -56,7 +56,7 @@ SECURITY_HEADERS: tuple[tuple[bytes, bytes], ...] = (
     (b"cache-control", b"no-store"),
     (
         b"content-security-policy",
-        b"default-src 'self'; img-src 'self' blob: data:; connect-src 'self'; frame-ancestors 'none'",
+        b"default-src 'self'; img-src 'self' blob: data:; connect-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'; frame-ancestors 'none'",
     ),
 )
 
