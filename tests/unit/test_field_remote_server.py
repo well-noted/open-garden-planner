@@ -170,7 +170,8 @@ def test_rotating_the_token_takes_effect_on_the_next_request() -> None:
 
 def test_no_record_or_plan_routes_exist_in_the_skeleton() -> None:
     names = {getattr(route, "path", "") for route in server.default_routes()}
-    assert names == {"/", "/api/status"}  # WP-A ships no record routes and no plan writes
+    # no record routes and no plan writes here; the rest are the phone page's read-only files
+    assert {n for n in names if not n.startswith("/static/")} == {"/", "/api/status"}
 
 
 def test_server_construction_refuses_a_wildcard_bind(tmp_path: Any) -> None:

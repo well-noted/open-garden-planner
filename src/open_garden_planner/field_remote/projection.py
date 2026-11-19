@@ -22,7 +22,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from open_garden_planner.core.georef import GeoReference, GeorefError, georef_from_plan
+from open_garden_planner.core.georef import _M_PER_DEG, GeoReference, GeorefError, georef_from_plan
 from open_garden_planner.core.plan_north import north_angle_from_plan
 
 MAX_SCENE_OBJECTS = 5000
@@ -92,6 +92,7 @@ def georef_summary(snapshot: Mapping[str, Any]) -> dict[str, Any]:
         "origin_lon": geo.origin_lon,
         "scale_meters_per_unit": geo.scale_meters_per_unit,
         "rotation_deg": geo.rotation_deg,
+        "m_per_deg": _M_PER_DEG,  # lets the phone invert a plan point to lat/lon
         "north_angle_deg": north,
         "reference_point_count": len(geo.reference_points),
         "fit_rms_m": geo.fit_rms_m,

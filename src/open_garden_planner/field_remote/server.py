@@ -22,7 +22,7 @@ from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from open_garden_planner.field_remote import auth, limits
+from open_garden_planner.field_remote import auth, limits, static
 
 if TYPE_CHECKING:
     from starlette.requests import Request
@@ -41,7 +41,7 @@ _STOP_TIMEOUT_S = 3.0
 FAILURE_DELAY_S = 0.25
 #: Paths served without a token. Only the page that has to load BEFORE it can read the token
 #: from the URL fragment belongs here; every /api/ route needs the header.
-PUBLIC_PATHS = frozenset({"/"})
+PUBLIC_PATHS = frozenset({"/"})  # the page itself; its scripts are static.ASSETS (also tokenless, no secrets)
 #: Write-method routes that stay allowed while "phone may save records" is off: they change
 #: nothing on disk (design 1.6, position intake). Every OTHER non-GET/HEAD /api/ request is
 #: refused by the guard itself when the toggle is off, so a later route cannot forget the check.
@@ -125,10 +125,14 @@ async def _status(request: Request) -> Response:
     )
 
 
-async def _index(_request: Request) -> Response:
-    from starlette.responses import PlainTextResponse
+async def _static(request: Request) -> Response:
+    """The phone page and its scripts, from memory (no path is ever joined to the disk)."""
+    from starlette.responses import Response as RawResponse
 
-    return PlainTextResponse("Open Garden Planner Field Remote. The phone page arrives in a later version.")
+    asset = static.ASSETS.get(request.url.path)
+    if asset is None:
+        return RawResponse(status_code=404)
+    return RawResponse(asset.body, media_type=asset.content_type)
 
 
 def default_routes() -> list[BaseRoute]:
@@ -136,7 +140,7 @@ def default_routes() -> list[BaseRoute]:
     from starlette.routing import Route
 
     return [
-        Route("/", _index, methods=["GET"]),
+        *(Route(path, _static, methods=["GET"]) for path in static.ASSETS),
         Route("/api/status", _status, methods=["GET"]),
     ]
 
@@ -235,7 +239,7 @@ class FieldRemoteGuard:
         length = limits.declared_length(headers)
         if length is not None and (length < 0 or length > self._body_cap(scope)):
             return _reject(413, "body_too_large")
-        if scope["path"] in PUBLIC_PATHS:
+        if scope["path"] in PUBLIC_PATHS or scope["path"] in static.ASSETS:
             # No token here, so bound it per address instead.
             if not self.public_rate.allow(client):
                 return _reject(429, "rate_limited", extra=[(b"retry-after", b"1")])
