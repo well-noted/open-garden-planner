@@ -4231,9 +4231,19 @@ Use 0.1 for DXF in mm, 100 for DXF in metres.</translation>
         <name>GalleryData</name>
         <message>
             <location filename="../../resources/data/plant_species.json" line="1" />
+            <source>Aloe Vera</source>
+            <translation>Aloe Vera</translation>
+        </message>
+        <message>
+            <location filename="../../resources/data/plant_species.json" line="1" />
             <location filename="../../ui/widgets/gallery_data.py" line="267" />
             <source>Apple Tree</source>
             <translation>Apple Tree</translation>
+        </message>
+        <message>
+            <location filename="../../resources/data/plant_species.json" line="1" />
+            <source>Apricot Tree</source>
+            <translation>Apricot Tree</translation>
         </message>
         <message>
             <location filename="../../ui/widgets/gallery_data.py" line="236" />
@@ -4327,6 +4337,11 @@ Use 0.1 for DXF in mm, 100 for DXF in metres.</translation>
         </message>
         <message>
             <location filename="../../resources/data/plant_species.json" line="1" />
+            <source>Blue Palo Verde</source>
+            <translation>Blue Palo Verde</translation>
+        </message>
+        <message>
+            <location filename="../../resources/data/plant_species.json" line="1" />
             <location filename="../../ui/widgets/gallery_data.py" line="298" />
             <source>Blueberry</source>
             <translation>Blueberry</translation>
@@ -4338,9 +4353,19 @@ Use 0.1 for DXF in mm, 100 for DXF in metres.</translation>
         </message>
         <message>
             <location filename="../../resources/data/plant_species.json" line="1" />
+            <source>Bougainvillea</source>
+            <translation>Bougainvillea</translation>
+        </message>
+        <message>
+            <location filename="../../resources/data/plant_species.json" line="1" />
             <location filename="../../ui/widgets/gallery_data.py" line="297" />
             <source>Boxwood</source>
             <translation>Boxwood</translation>
+        </message>
+        <message>
+            <location filename="../../resources/data/plant_species.json" line="1" />
+            <source>Brittlebush</source>
+            <translation>Brittlebush</translation>
         </message>
         <message>
             <location filename="../../resources/data/plant_species.json" line="1" />
@@ -4357,6 +4382,11 @@ Use 0.1 for DXF in mm, 100 for DXF in metres.</translation>
             <location filename="../../resources/data/plant_species.json" line="1" />
             <source>Brussels Sprouts</source>
             <translation>Brussels Sprouts</translation>
+        </message>
+        <message>
+            <location filename="../../resources/data/plant_species.json" line="1" />
+            <source>Butternut Squash</source>
+            <translation>Butternut Squash</translation>
         </message>
         <message>
             <location filename="../../resources/data/plant_species.json" line="1" />
@@ -4385,6 +4415,11 @@ Use 0.1 for DXF in mm, 100 for DXF in metres.</translation>
             <location filename="../../resources/data/plant_species.json" line="1" />
             <source>Celery</source>
             <translation>Celery</translation>
+        </message>
+        <message>
+            <location filename="../../resources/data/plant_species.json" line="1" />
+            <source>Century Plant</source>
+            <translation>Century Plant</translation>
         </message>
         <message>
             <location filename="../../ui/widgets/gallery_data.py" line="417" />
@@ -4498,6 +4533,16 @@ Use 0.1 for DXF in mm, 100 for DXF in metres.</translation>
         </message>
         <message>
             <location filename="../../resources/data/plant_species.json" line="1" />
+            <source>Cowpea</source>
+            <translation>Cowpea</translation>
+        </message>
+        <message>
+            <location filename="../../resources/data/plant_species.json" line="1" />
+            <source>Creosote Bush</source>
+            <translation>Creosote Bush</translation>
+        </message>
+        <message>
+            <location filename="../../resources/data/plant_species.json" line="1" />
             <location filename="../../ui/widgets/gallery_data.py" line="343" />
             <source>Crocus</source>
             <translation>Crocus</translation>
@@ -4525,6 +4570,21 @@ Use 0.1 for DXF in mm, 100 for DXF in metres.</translation>
             <location filename="../../ui/widgets/gallery_data.py" line="336" />
             <source>Dahlia</source>
             <translation>Dahlia</translation>
+        </message>
+        <message>
+            <location filename="../../resources/data/plant_species.json" line="1" />
+            <source>Date Palm</source>
+            <translation>Date Palm</translation>
+        </message>
+        <message>
+            <location filename="../../resources/data/plant_species.json" line="1" />
+            <source>Desert Ironwood</source>
+            <translation>Desert Ironwood</translation>
+        </message>
+        <message>
+            <location filename="../../resources/data/plant_species.json" line="1" />
+            <source>Desert Willow</source>
+            <translation>Desert Willow</translation>
         </message>
         <message>
             <location filename="../../resources/data/plant_species.json" line="1" />
@@ -4655,9 +4715,24 @@ Use 0.1 for DXF in mm, 100 for DXF in metres.</translation>
         </message>
         <message>
             <location filename="../../resources/data/plant_species.json" line="1" />
+            <source>Golden Barrel Cactus</source>
+            <translation>Golden Barrel Cactus</translation>
+        </message>
+        <message>
+            <location filename="../../resources/data/plant_species.json" line="1" />
             <location filename="../../ui/widgets/gallery_data.py" line="299" />
             <source>Gooseberry</source>
             <translation>Gooseberry</translation>
+        </message>
+        <message>
+            <location filename="../../resources/data/plant_species.json" line="1" />
+            <source>Grape Vine</source>
+            <translation>Grape Vine</translation>
+        </message>
+        <message>
+            <location filename="../../resources/data/plant_species.json" line="1" />
+            <source>Grapefruit Tree</source>
+            <translation>Grapefruit Tree</translation>
         </message>
         <message>
             <location filename="../../ui/widgets/gallery_data.py" line="391" />
@@ -4736,6 +4811,21 @@ Use 0.1 for DXF in mm, 100 for DXF in metres.</translation>
         </message>
         <message>
             <location filename="../../resources/data/plant_species.json" line="1" />
+            <source>Jicama</source>
+            <translation>Jicama</translation>
+        </message>
+        <message>
+            <location filename="../../resources/data/plant_species.json" line="1" />
+            <source>Jojoba</source>
+            <translation>Jojoba</translation>
+        </message>
+        <message>
+            <location filename="../../resources/data/plant_species.json" line="1" />
+            <source>Jujube</source>
+            <translation>Jujube</translation>
+        </message>
+        <message>
+            <location filename="../../resources/data/plant_species.json" line="1" />
             <location filename="../../ui/widgets/gallery_data.py" line="301" />
             <source>Juniper</source>
             <translation>Juniper</translation>
@@ -4750,6 +4840,11 @@ Use 0.1 for DXF in mm, 100 for DXF in metres.</translation>
             <location filename="../../resources/data/plant_species.json" line="1" />
             <source>Kohlrabi</source>
             <translation>Kohlrabi</translation>
+        </message>
+        <message>
+            <location filename="../../resources/data/plant_species.json" line="1" />
+            <source>Lantana</source>
+            <translation>Lantana</translation>
         </message>
         <message>
             <location filename="../../resources/data/plant_species.json" line="1" />
@@ -4797,6 +4892,16 @@ Use 0.1 for DXF in mm, 100 for DXF in metres.</translation>
             <translation>Lily</translation>
         </message>
         <message>
+            <location filename="../../resources/data/plant_species.json" line="1" />
+            <source>Lime Tree</source>
+            <translation>Lime Tree</translation>
+        </message>
+        <message>
+            <location filename="../../resources/data/plant_species.json" line="1" />
+            <source>Loquat</source>
+            <translation>Loquat</translation>
+        </message>
+        <message>
             <location filename="../../ui/widgets/gallery_data.py" line="420" />
             <source>Lounger</source>
             <translation>Lounger</translation>
@@ -4806,6 +4911,11 @@ Use 0.1 for DXF in mm, 100 for DXF in metres.</translation>
             <location filename="../../ui/widgets/gallery_data.py" line="273" />
             <source>Magnolia</source>
             <translation>Magnolia</translation>
+        </message>
+        <message>
+            <location filename="../../resources/data/plant_species.json" line="1" />
+            <source>Mandarin Tree</source>
+            <translation>Mandarin Tree</translation>
         </message>
         <message>
             <location filename="../../resources/data/plant_species.json" line="1" />
@@ -4825,9 +4935,24 @@ Use 0.1 for DXF in mm, 100 for DXF in metres.</translation>
             <translation>Melon</translation>
         </message>
         <message>
+            <location filename="../../resources/data/plant_species.json" line="1" />
+            <source>Mexican Fan Palm</source>
+            <translation>Mexican Fan Palm</translation>
+        </message>
+        <message>
             <location filename="../../ui/widgets/gallery_data.py" line="373" />
             <source>Mint</source>
             <translation>Mint</translation>
+        </message>
+        <message>
+            <location filename="../../resources/data/plant_species.json" line="1" />
+            <source>Moringa</source>
+            <translation>Moringa</translation>
+        </message>
+        <message>
+            <location filename="../../resources/data/plant_species.json" line="1" />
+            <source>Mustard Greens</source>
+            <translation>Mustard Greens</translation>
         </message>
         <message>
             <location filename="../../resources/data/plant_species.json" line="1" />
@@ -4839,6 +4964,16 @@ Use 0.1 for DXF in mm, 100 for DXF in metres.</translation>
             <location filename="../../ui/widgets/gallery_data.py" line="272" />
             <source>Oak</source>
             <translation>Oak</translation>
+        </message>
+        <message>
+            <location filename="../../resources/data/plant_species.json" line="1" />
+            <source>Okra</source>
+            <translation>Okra</translation>
+        </message>
+        <message>
+            <location filename="../../resources/data/plant_species.json" line="1" />
+            <source>Oleander</source>
+            <translation>Oleander</translation>
         </message>
         <message>
             <location filename="../../resources/data/plant_species.json" line="1" />
@@ -4857,6 +4992,11 @@ Use 0.1 for DXF in mm, 100 for DXF in metres.</translation>
             <location filename="../../ui/widgets/gallery_data.py" line="271" />
             <source>Orange Tree</source>
             <translation>Orange Tree</translation>
+        </message>
+        <message>
+            <location filename="../../resources/data/plant_species.json" line="1" />
+            <source>Orchid Tree</source>
+            <translation>Orchid Tree</translation>
         </message>
         <message>
             <location filename="../../resources/data/plant_species.json" line="1" />
@@ -4884,6 +5024,11 @@ Use 0.1 for DXF in mm, 100 for DXF in metres.</translation>
             <location filename="../../ui/widgets/gallery_data.py" line="419" />
             <source>Parasol</source>
             <translation>Parasol</translation>
+        </message>
+        <message>
+            <location filename="../../resources/data/plant_species.json" line="1" />
+            <source>Parry Agave</source>
+            <translation>Parry Agave</translation>
         </message>
         <message>
             <location filename="../../resources/data/plant_species.json" line="1" />
@@ -4968,6 +5113,11 @@ Use 0.1 for DXF in mm, 100 for DXF in metres.</translation>
             <translation>Polygon</translation>
         </message>
         <message>
+            <location filename="../../resources/data/plant_species.json" line="1" />
+            <source>Pomegranate</source>
+            <translation>Pomegranate</translation>
+        </message>
+        <message>
             <location filename="../../ui/widgets/gallery_data.py" line="453" />
             <source>Pond/Pool</source>
             <translation>Pond/Pool</translation>
@@ -4982,6 +5132,11 @@ Use 0.1 for DXF in mm, 100 for DXF in metres.</translation>
             <location filename="../../ui/widgets/gallery_data.py" line="369" />
             <source>Potato</source>
             <translation>Potato</translation>
+        </message>
+        <message>
+            <location filename="../../resources/data/plant_species.json" line="1" />
+            <source>Prickly Pear</source>
+            <translation>Prickly Pear</translation>
         </message>
         <message>
             <location filename="../../resources/data/plant_species.json" line="1" />
@@ -5023,6 +5178,16 @@ Use 0.1 for DXF in mm, 100 for DXF in metres.</translation>
         </message>
         <message>
             <location filename="../../resources/data/plant_species.json" line="1" />
+            <source>Red Bird of Paradise</source>
+            <translation>Red Bird of Paradise</translation>
+        </message>
+        <message>
+            <location filename="../../resources/data/plant_species.json" line="1" />
+            <source>Red Yucca</source>
+            <translation>Red Yucca</translation>
+        </message>
+        <message>
+            <location filename="../../resources/data/plant_species.json" line="1" />
             <location filename="../../ui/widgets/gallery_data.py" line="297" />
             <source>Rhododendron</source>
             <translation>Rhododendron</translation>
@@ -5042,6 +5207,11 @@ Use 0.1 for DXF in mm, 100 for DXF in metres.</translation>
             <location filename="../../ui/widgets/gallery_data.py" line="335" />
             <source>Rose</source>
             <translation>Rose</translation>
+        </message>
+        <message>
+            <location filename="../../resources/data/plant_species.json" line="1" />
+            <source>Roselle</source>
+            <translation>Roselle</translation>
         </message>
         <message>
             <location filename="../../resources/data/plant_species.json" line="1" />
@@ -5069,6 +5239,11 @@ Use 0.1 for DXF in mm, 100 for DXF in metres.</translation>
             <location filename="../../ui/widgets/gallery_data.py" line="373" />
             <source>Sage</source>
             <translation>Sage</translation>
+        </message>
+        <message>
+            <location filename="../../resources/data/plant_species.json" line="1" />
+            <source>Saguaro</source>
+            <translation>Saguaro</translation>
         </message>
         <message>
             <location filename="../../ui/widgets/gallery_data.py" line="427" />
@@ -5131,6 +5306,11 @@ Use 0.1 for DXF in mm, 100 for DXF in metres.</translation>
         </message>
         <message>
             <location filename="../../resources/data/plant_species.json" line="1" />
+            <source>Sweet Acacia</source>
+            <translation>Sweet Acacia</translation>
+        </message>
+        <message>
+            <location filename="../../resources/data/plant_species.json" line="1" />
             <source>Sweet Corn</source>
             <translation>Sweet Corn</translation>
         </message>
@@ -5165,15 +5345,30 @@ Use 0.1 for DXF in mm, 100 for DXF in metres.</translation>
             <translation>Table (Round)</translation>
         </message>
         <message>
+            <location filename="../../resources/data/plant_species.json" line="1" />
+            <source>Tepary Bean</source>
+            <translation>Tepary Bean</translation>
+        </message>
+        <message>
             <location filename="../../ui/widgets/gallery_data.py" line="451" />
             <source>Terrace/Patio</source>
             <translation>Terrace/Patio</translation>
         </message>
         <message>
             <location filename="../../resources/data/plant_species.json" line="1" />
+            <source>Texas Sage</source>
+            <translation>Texas Sage</translation>
+        </message>
+        <message>
+            <location filename="../../resources/data/plant_species.json" line="1" />
             <location filename="../../ui/widgets/gallery_data.py" line="373" />
             <source>Thyme</source>
             <translation>Thyme</translation>
+        </message>
+        <message>
+            <location filename="../../resources/data/plant_species.json" line="1" />
+            <source>Tipu Tree</source>
+            <translation>Tipu Tree</translation>
         </message>
         <message>
             <location filename="../../resources/data/plant_species.json" line="1" />
@@ -5221,6 +5416,11 @@ Use 0.1 for DXF in mm, 100 for DXF in metres.</translation>
             <location filename="../../ui/widgets/gallery_data.py" line="560" />
             <source>Vegetables &amp; Herbs</source>
             <translation>Vegetables &amp; Herbs</translation>
+        </message>
+        <message>
+            <location filename="../../resources/data/plant_species.json" line="1" />
+            <source>Velvet Mesquite</source>
+            <translation>Velvet Mesquite</translation>
         </message>
         <message>
             <location filename="../../ui/widgets/gallery_data.py" line="566" />
@@ -5285,6 +5485,11 @@ Use 0.1 for DXF in mm, 100 for DXF in metres.</translation>
             <location filename="../../ui/widgets/gallery_data.py" line="342" />
             <source>Wisteria</source>
             <translation>Wisteria</translation>
+        </message>
+        <message>
+            <location filename="../../resources/data/plant_species.json" line="1" />
+            <source>Yellow Bells</source>
+            <translation>Yellow Bells</translation>
         </message>
         <message>
             <location filename="../../resources/data/plant_species.json" line="1" />
@@ -7370,22 +7575,22 @@ Please save your project to a permanent location.</translation>
     <context>
         <name>GeoreferenceDialog</name>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="157" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="158" />
             <source>Add point</source>
             <translation>Add point</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="258" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="259" />
             <source>Cannot fit: {reason}</source>
             <translation>Cannot fit: {reason}</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="117" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="118" />
             <source>Canvas origin and orientation</source>
             <translation>Canvas origin and orientation</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="161" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="162" />
             <source>Fit from reference points</source>
             <translation>Fit from reference points</translation>
         </message>
@@ -7394,7 +7599,7 @@ Please save your project to a permanent location.</translation>
             <translation type="vanished">Fit of {n} point(s): RMS {rms:.3f} m</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="275" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="276" />
             <source>Fit of {n} point(s): RMS {rms}</source>
             <translation>Fit of {n} point(s): RMS {rms}</translation>
         </message>
@@ -7412,7 +7617,7 @@ Please save your project to a permanent location.</translation>
             <translation type="vanished">Last fit: RMS {rms:.3f} m</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="88" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="89" />
             <source>Last fit: RMS {rms}</source>
             <translation>Last fit: RMS {rms}</translation>
         </message>
@@ -7421,77 +7626,77 @@ Please save your project to a permanent location.</translation>
             <translation type="vanished">Last fit: RMS {rms} m</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="144" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="145" />
             <source>Latitude</source>
             <translation>Latitude</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="124" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="125" />
             <source>Latitude of the origin (0, 0):</source>
             <translation>Latitude of the origin (0, 0):</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="145" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="146" />
             <source>Longitude</source>
             <translation>Longitude</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="125" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="126" />
             <source>Longitude of the origin (0, 0):</source>
             <translation>Longitude of the origin (0, 0):</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="126" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="127" />
             <source>Metres per canvas unit:</source>
             <translation>Metres per canvas unit:</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="143" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="144" />
             <source>Name</source>
             <translation>Name</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="172" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="173" />
             <source>One point sets only the position; two or more also set scale and rotation. X and Y are canvas coordinates in cm (Y points up).</source>
             <translation>One point sets only the position; two or more also set scale and rotation. X and Y are canvas coordinates in cm (Y points up).</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="138" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="139" />
             <source>Reference points</source>
             <translation>Reference points</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="159" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="160" />
             <source>Remove selected</source>
             <translation>Remove selected</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="148" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="149" />
             <source>Residual (m)</source>
             <translation>Residual (m)</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="129" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="130" />
             <source>The rotation is the plan's north orientation: changing it here changes it everywhere (sun, shade, reports).</source>
             <translation>The rotation is the plan's north orientation: changing it here changes it everywhere (sun, shade, reports).</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="109" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="110" />
             <source>This plan is georeferenced</source>
             <translation>This plan is georeferenced</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="127" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="128" />
             <source>True north, clockwise from plan-up:</source>
             <translation>True north, clockwise from plan-up:</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="146" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="147" />
             <source>X (cm)</source>
             <translation>X (cm)</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/georeference_dialog.py" line="147" />
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="148" />
             <source>Y (cm)</source>
             <translation>Y (cm)</translation>
         </message>

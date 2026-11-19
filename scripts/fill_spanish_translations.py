@@ -32,6 +32,7 @@ from scripts.translations_examples import ES as T_EXAMPLES
 from scripts.translations_exports import ES as T_EXPORTS
 from scripts.translations_f4 import ES as T_F4
 from scripts.translations_georef import ES as T_GEOREF
+from scripts.translations_species_az import ES as T_SPECIES_AZ
 from scripts.translations_l2 import ES as T_L2
 from scripts.translations_l4 import ES as T_L4
 from scripts.translations_l5 import ES as T_L5
@@ -56,7 +57,7 @@ def get_spanish_translations() -> dict[str, dict[str, str]]:
     """Assemble modular Spanish translations into a unified dictionary."""
     assembled: dict[str, dict[str, str]] = {}
     for module_trans in (T_CS, T_OG, T_CT, T_PANELS, T_DIALOGS, T_APP, T_VIEW3D, T_F4, T_L2, T_L4, T_L5, T_L6, T_L7, T_EXPORTS, T_EXAMPLES,
-                         T_SUN_MAP, T_GEOREF):
+                         T_SUN_MAP, T_GEOREF, T_SPECIES_AZ):
         for ctx, mapping in module_trans.items():
             assembled.setdefault(ctx, {}).update(mapping)
     return assembled
