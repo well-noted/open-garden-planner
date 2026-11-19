@@ -1208,6 +1208,15 @@ class GardenPlannerApp(QMainWindow):
         self._set_action_icon(north_action, "sun_sim")
         menu.addAction(north_action)
 
+        # Georeference (ADR-079)
+        georef_action = QAction(self.tr("&Georeference..."), self)
+        georef_action.setStatusTip(
+            self.tr("Link the canvas to GPS coordinates: origin, scale, rotation, reference points")
+        )
+        georef_action.triggered.connect(self._on_set_georeference)
+        self._set_action_icon(georef_action, "location")
+        menu.addAction(georef_action)
+
         menu.addSeparator()
 
         # Export submenu
@@ -6144,6 +6153,7 @@ class GardenPlannerApp(QMainWindow):
         self.canvas_view.fit_in_view()
 
         self._project_manager.mark_dirty()
+        self._apply_satellite_georef(image_item, result.source)
         if result.source == "google_js_view_capture":
             self.statusBar().showMessage(
                 self.tr(
@@ -6168,6 +6178,77 @@ class GardenPlannerApp(QMainWindow):
                     h_m=length_text(canvas_h_cm),
                 )
             )
+
+    def _apply_satellite_georef(self, image_item: Any, source: str) -> bool:
+        """Derive the plan's georeference from a fresh satellite import (ADR-079).
+
+        One undoable ``SetGeoreferenceCommand``. A satellite image is north-up,
+        so the plan's north becomes 0 with it. A georeference the user set or
+        fitted (``manual`` / ``fit``), or a non-zero north, is replaced only
+        after the user confirms. Returns True when the georeference was set.
+        """
+        from open_garden_planner.core.commands import SetGeoreferenceCommand
+        from open_garden_planner.core.georef import GeorefError, from_geo_metadata
+
+        meta = image_item.geo_metadata
+        if not meta:
+            return False
+        rect = image_item.boundingRect()
+        pos = image_item.pos()
+        try:
+            geo = from_geo_metadata(
+                meta,
+                image_center=(pos.x() + rect.width() / 2.0, pos.y() + rect.height() / 2.0),
+                scale_factor=image_item.scale_factor,
+                source=source,
+            )
+        except GeorefError:
+            return False
+        pm = self._project_manager
+        existing = pm.georef
+        user_set = existing is not None and existing.source in ("manual", "fit")
+        if user_set or pm.north_angle_deg != 0.0:
+            answer = QMessageBox.question(
+                self,
+                self.tr("Replace georeference?"),
+                self.tr(
+                    "The satellite image is north-up. Replace this plan's "
+                    "georeference and set its north orientation to 0 degrees?"
+                ),
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            if answer != QMessageBox.StandardButton.Yes:
+                return False
+        self.canvas_view.command_manager.execute(
+            SetGeoreferenceCommand(pm, geo, 0.0)
+        )
+        return True
+
+    def _on_set_georeference(self) -> None:
+        """Open the georeference calibration dialog (ADR-079): one undo step."""
+        from PyQt6.QtWidgets import QDialog
+
+        from open_garden_planner.core.commands import SetGeoreferenceCommand
+        from open_garden_planner.ui.dialogs.georeference_dialog import GeoreferenceDialog
+
+        pm = self._project_manager
+        dialog = GeoreferenceDialog(
+            self, georef=pm.georef, north_angle_deg=pm.north_angle_deg, location=pm.location
+        )
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        new = dialog.georef
+        if new is None and pm.georef is None:
+            return
+        if new is not None and new == pm.georef:
+            return
+        self.canvas_view.command_manager.execute(
+            SetGeoreferenceCommand(
+                pm, new, dialog.north_angle_deg if new is not None else None
+            )
+        )
+        self.statusBar().showMessage(self.tr("Georeference updated"), 3000)
 
     def _on_set_location(self) -> None:
         """Handle Set Garden Location action."""

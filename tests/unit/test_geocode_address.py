@@ -112,14 +112,14 @@ def test_fetch_json_limits(monkeypatch):
         def iter_content(self, chunk_size):
             yield self._body
 
-    monkeypatch.setattr(idl.requests, "get", lambda *a, **k: Resp(200, b'{"a": 1}'))
+    monkeypatch.setattr(idl.requests, "get", lambda *_a, **_k: Resp(200, b'{"a": 1}'))
     assert idl.fetch_json("u", max_bytes=100, timeout=1) == {"a": 1}
     with pytest.raises(ValueError, match="limit"):
         idl.fetch_json("u", max_bytes=3, timeout=1)
-    monkeypatch.setattr(idl.requests, "get", lambda *a, **k: Resp(500, b"{}"))
+    monkeypatch.setattr(idl.requests, "get", lambda *_a, **_k: Resp(500, b"{}"))
     with pytest.raises(ValueError, match="HTTP 500"):
         idl.fetch_json("u", max_bytes=100, timeout=1)
-    monkeypatch.setattr(idl.requests, "get", lambda *a, **k: Resp(200, b"\xff\xfe"))
+    monkeypatch.setattr(idl.requests, "get", lambda *_a, **_k: Resp(200, b"\xff\xfe"))
     with pytest.raises(ValueError, match="JSON"):
         idl.fetch_json("u", max_bytes=100, timeout=1)
 

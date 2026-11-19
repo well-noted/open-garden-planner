@@ -22,6 +22,7 @@ from PyQt6.QtWidgets import QGraphicsItem, QGraphicsScene
 from open_garden_planner.config.settings import active_language, get_settings
 from open_garden_planner.core import camera_tours as plan_tours
 from open_garden_planner.core.fill_patterns import FillPattern
+from open_garden_planner.core.georef import GeoReference, georef_from_plan
 from open_garden_planner.core.item_look import (
     adopt_pen,
     fill_brush,
@@ -31,7 +32,6 @@ from open_garden_planner.core.item_look import (
     stroke_style_of,
 )
 from open_garden_planner.core.object_types import PathFenceStyle, StrokeStyle
-from open_garden_planner.core.georef import GeoReference, georef_from_plan
 from open_garden_planner.core.plan_io import (
     PlanValidationError,
     finite_number,
