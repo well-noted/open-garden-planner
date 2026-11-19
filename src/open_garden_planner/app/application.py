@@ -2,7 +2,7 @@
 
 import contextlib
 import logging
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, NoReturn
 from uuid import UUID
@@ -1228,6 +1228,14 @@ class GardenPlannerApp(QMainWindow):
         georef_action.triggered.connect(self._on_set_georeference)
         self._set_action_icon(georef_action, "location")
         menu.addAction(georef_action)
+
+        # Field records review (WP-R): approve what the phone or the agent recorded
+        field_records_action = QAction(self.tr("Field Records..."), self)
+        field_records_action.setStatusTip(
+            self.tr("Review field records and place them on the plan")
+        )
+        field_records_action.triggered.connect(self._on_show_field_records)
+        menu.addAction(field_records_action)
 
         menu.addSeparator()
 
@@ -6274,8 +6282,32 @@ class GardenPlannerApp(QMainWindow):
         )
         return True
 
-    def _on_set_georeference(self) -> None:
-        """Open the georeference calibration dialog (ADR-079): one undo step."""
+    def _field_record_approver(self) -> Any:
+        """The shared approver behind the review panel and the agent (one code path)."""
+        if getattr(self, "_field_approver", None) is None:
+            from open_garden_planner.app.field_record_approver import FieldRecordApprover
+
+            self._field_approver = FieldRecordApprover(self)
+        return self._field_approver
+
+    def _on_show_field_records(self) -> None:
+        """Open the non-modal Field records review window (WP-R)."""
+        from open_garden_planner.ui.panels.field_records_panel import FieldRecordsDialog
+
+        dialog = getattr(self, "_field_records_dialog", None)
+        if dialog is None:
+            dialog = FieldRecordsDialog(self._field_record_approver(), self)
+            self._field_records_dialog = dialog
+        dialog.show()
+        dialog.raise_()
+        dialog.panel.refresh()
+
+    def _on_set_georeference(self, extra_reference_points: Sequence[Any] = ()) -> None:
+        """Open the georeference calibration dialog (ADR-079): one undo step.
+
+        ``extra_reference_points`` (WP-R) are field-record points queued into the dialog,
+        which fits them and shows the RMS before the user confirms.
+        """
         from PyQt6.QtWidgets import QDialog
 
         from open_garden_planner.core.commands import SetGeoreferenceCommand
@@ -6283,7 +6315,11 @@ class GardenPlannerApp(QMainWindow):
 
         pm = self._project_manager
         dialog = GeoreferenceDialog(
-            self, georef=pm.georef, north_angle_deg=pm.north_angle_deg, location=pm.location
+            self,
+            georef=pm.georef,
+            north_angle_deg=pm.north_angle_deg,
+            location=pm.location,
+            extra_points=extra_reference_points,
         )
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return

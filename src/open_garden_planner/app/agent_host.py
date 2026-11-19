@@ -493,8 +493,9 @@ class AgentHost:
                 populate_item_species_metadata(item, species)
             # US-E8: every new plant is dated, species or not (see docstring).
             stamp_default_planting_date(cast(Any, item).metadata, self._agent_plan_date())
-            if extra_metadata:
-                cast(Any, item).metadata.update(extra_metadata)
+        if extra_metadata and hasattr(item, "metadata"):
+            # Plants and (WP-R) callouts: any type that carries a metadata dict.
+            cast(Any, item).metadata.update(extra_metadata)
 
         linked_items: list[Any] = []
         from open_garden_planner.core.roof_style import is_ridge_bearing_kind

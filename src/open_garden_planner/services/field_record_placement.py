@@ -71,7 +71,6 @@ class PolylineSpec:
     object_type: str = "PATH"
     layer_name: str = IRRIGATION_LAYER_NAME
     name: str | None = None
-    stroke_width_cm: float | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
@@ -395,13 +394,30 @@ def _plan_irrigation(record: fr.FieldRecord, geo: GeoReference | None, plan_path
         value = getattr(record, key)
         if value is not None:
             block[key] = value
-    width = None if record.diameter_mm is None else max(1.0, record.diameter_mm / 10.0)
     return Placement(
         record.id,
         PolylineSpec(
             tuple(points),
             name=record.name or record.plant_name or "Irrigation line",
-            stroke_width_cm=width,
             metadata={"field_record": block},
         ),
     )
+
+
+def preview_geometry(
+    record: fr.FieldRecord, geo: GeoReference | None
+) -> tuple[list[tuple[float, float]], bool] | None:
+    """Where a record sits on the plan, for the review preview: ``(points_cm, is_polyline)``.
+
+    Never raises: a record that cannot be located (no georeference and no captured position)
+    returns ``None`` so the panel shows "no position" instead of failing.
+    """
+    try:
+        if record.geometry and record.geometry.get("type") == "polyline":
+            return [_vertex_xy(list(v), geo) for v in record.geometry["points"]], True
+        if record.lat is None and not record.geometry:
+            return None
+        x, y, _bearing = _point_xy(record, geo)
+        return [(x, y)], False
+    except (PlacementError, KeyError, TypeError, ValueError):
+        return None

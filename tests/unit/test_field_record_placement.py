@@ -63,7 +63,6 @@ def test_irrigation_polyline_closes_and_keeps_vertices():
                diameter_mm=160, flow_lph=4)
     spec = frp.plan_record(rec, GEO).spec
     assert spec.layer_name == "Irrigation" and spec.points[0] == spec.points[-1] and len(spec.points) == 4
-    assert spec.stroke_width_cm == 16.0
     assert spec.metadata["field_record"]["flow_lph"] == 4
 
 

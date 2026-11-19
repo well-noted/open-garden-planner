@@ -3450,6 +3450,37 @@ class MoveToLayerCommand(Command):
         self._scene._update_items_z_order()  # type: ignore[attr-defined]
 
 
+class MacroCommand(Command):
+    """Several commands as ONE undo step (executed in order, undone in reverse).
+
+    If a later command raises while executing, the ones already run are undone and the
+    error propagates, so a failed macro leaves neither the scene nor the undo stack changed.
+    """
+
+    def __init__(self, commands: Sequence[Command], description: str) -> None:
+        self._commands = list(commands)
+        self._description = description
+
+    @property
+    def description(self) -> str:
+        return self._description
+
+    def execute(self) -> None:
+        done: list[Command] = []
+        try:
+            for command in self._commands:
+                command.execute()
+                done.append(command)
+        except Exception:
+            for command in reversed(done):
+                command.undo()
+            raise
+
+    def undo(self) -> None:
+        for command in reversed(self._commands):
+            command.undo()
+
+
 class AddLayerCommand(Command):
     """Add a new layer at the top of the layer order and activate it (undoable).
 
