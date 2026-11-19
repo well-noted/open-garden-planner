@@ -234,6 +234,9 @@ class AppSettings:
 
     # API key settings
     KEY_GOOGLE_MAPS_API_KEY = "api_keys/google_maps_key"
+    # ADR-079: opt-in to the Google Geocoding API (street-address lookup for the
+    # Agent API set_initial_map tool). Off by default: an address leaves the machine.
+    KEY_GOOGLE_GEOCODING_ENABLED = "api_keys/google_geocoding_enabled"
     KEY_TREFLE_API_TOKEN = "api_keys/trefle_token"
     KEY_PERENUAL_API_KEY = "api_keys/perenual_key"
     KEY_PERMAPEOPLE_KEY_ID = "api_keys/permapeople_key_id"
@@ -289,6 +292,7 @@ class AppSettings:
     DEFAULT_FROST_WARNING_RED_C = 2.0
     DEFAULT_NOTIFY_OVERDUE_TASKS = True
     DEFAULT_GOOGLE_MAPS_API_KEY = ""
+    DEFAULT_GOOGLE_GEOCODING_ENABLED = False
 
     # Agent API (US-D1.1): embedded MCP server. Default ON (read-only,
     # loopback-only) so AI assistants can connect without hunting through
@@ -660,6 +664,22 @@ class AppSettings:
     def google_maps_api_key(self, key: str) -> None:
         """Persist the Google Maps API key entered in Preferences."""
         self._settings.setValue(self.KEY_GOOGLE_MAPS_API_KEY, key)
+
+    @property
+    def google_geocoding_enabled(self) -> bool:
+        """Whether street addresses may be sent to the Google Geocoding API."""
+        return bool(
+            self._settings.value(
+                self.KEY_GOOGLE_GEOCODING_ENABLED,
+                self.DEFAULT_GOOGLE_GEOCODING_ENABLED,
+                type=bool,
+            )
+        )
+
+    @google_geocoding_enabled.setter
+    def google_geocoding_enabled(self, enabled: bool) -> None:
+        """Persist the Geocoding opt-in chosen in Preferences."""
+        self._settings.setValue(self.KEY_GOOGLE_GEOCODING_ENABLED, bool(enabled))
 
     @property
     def trefle_api_token(self) -> str:

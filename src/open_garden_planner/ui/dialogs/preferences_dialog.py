@@ -207,6 +207,20 @@ class PreferencesDialog(QDialog):
         google_maps_note.setWordWrap(True)
         google_maps_layout.addRow("", google_maps_note)
 
+        self._google_geocoding_check = QCheckBox(
+            self.tr("Allow street-address lookup (Google Geocoding API)")
+        )
+        google_maps_layout.addRow("", self._google_geocoding_check)
+        geocoding_note = QLabel(
+            self.tr(
+                "Lets an AI assistant set the initial map from a street address. "
+                "The address is sent to Google with your API key; the Geocoding "
+                "API must be enabled for that key. Off by default."
+            )
+        )
+        geocoding_note.setWordWrap(True)
+        google_maps_layout.addRow("", geocoding_note)
+
         layout.addWidget(google_maps_group)
 
         # --- Weather (US-12.2) ---
@@ -473,6 +487,7 @@ class PreferencesDialog(QDialog):
         self._permapeople_key_secret.setText(settings.permapeople_key_secret)
         google_maps_key = settings.google_maps_api_key
         self._google_maps_key.setText(google_maps_key)
+        self._google_geocoding_check.setChecked(settings.google_geocoding_enabled)
         if not google_maps_key and os.environ.get("OGP_GOOGLE_MAPS_KEY", "").strip():
             self._google_maps_key.setPlaceholderText(
                 self.tr("Using OGP_GOOGLE_MAPS_KEY from environment")
@@ -601,6 +616,7 @@ class PreferencesDialog(QDialog):
         settings.permapeople_key_id = self._permapeople_key_id.text().strip()
         settings.permapeople_key_secret = self._permapeople_key_secret.text().strip()
         settings.google_maps_api_key = self._google_maps_key.text().strip()
+        settings.google_geocoding_enabled = self._google_geocoding_check.isChecked()
         settings.frost_warning_orange_c = self._frost_orange_spin.value()
         settings.frost_warning_red_c = self._frost_red_spin.value()
         settings.notify_overdue_tasks_on_startup = self._notify_overdue_check.isChecked()

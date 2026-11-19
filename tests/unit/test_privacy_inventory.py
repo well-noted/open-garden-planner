@@ -42,7 +42,7 @@ DISCLOSED: dict[str, tuple[str, ...]] = {
     "main.py": ("127.0.0.1",),
     "services/weather_service.py": ("Weather forecast and frost alerts",),
     "services/climate_service.py": ("Frost dates and hardiness zone",),
-    "services/image_download.py": ("Satellite background", "Plant thumbnail download"),
+    "services/image_download.py": ("Satellite background", "Plant thumbnail download", "Address lookup"),
     "services/google_maps_js_capture.py": ("Satellite background",),
     "ui/dialogs/map_picker_dialog.py": ("Satellite background", "type into the map's search box"),
     "resources/web/map_picker.html": ("Satellite background", "type into the map's search box"),
