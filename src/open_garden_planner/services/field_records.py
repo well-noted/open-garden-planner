@@ -55,6 +55,15 @@ FIX_MODES = frozenset({"gps", "exif", "map_tap", "manual", "remote_position"})
 _PHOTO_FORMATS = {"JPEG": ".jpg", "PNG": ".png", "WEBP": ".webp", "TIFF": ".tif", "MPO": ".jpg"}
 _ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 _PHOTO_REL_RE = re.compile(r"^photos/[A-Za-z0-9_-]{1,64}\.(jpg|png|webp|tif)$")
+_KNOWN_KEYS = frozenset(
+    {
+        "id", "plant_name", "species_key", "age", "notes", "photo", "lat", "lon",
+        "accuracy_m", "bearing_deg", "fix_mode", "timestamp", "placed_object_id",
+    }
+)
+# In-process only. Package 2 (the Field Remote) writes this file from another
+# thread or process: before it does, the sidecar needs a cross-process lock or a
+# single writer (ADR-080).
 _lock = threading.RLock()
 
 
@@ -111,9 +120,12 @@ class FieldRecord:
     fix_mode: str | None = None
     timestamp: str = field(default_factory=lambda: datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"))
     placed_object_id: str | None = None
+    #: Keys this build does not know (a newer writer, the Field Remote); kept verbatim.
+    extra: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
+            **self.extra,
             "id": self.id,
             "plant_name": self.plant_name,
             "species_key": self.species_key,
@@ -160,6 +172,7 @@ class FieldRecord:
         if not isinstance(stamp, str) or not 10 <= len(stamp) <= 40:
             raise FieldRecordError("timestamp must be an ISO date-time text")
         placed = _text(data.get("placed_object_id"), 64, "placed_object_id")
+        extra = {k: v for k, v in data.items() if isinstance(k, str) and k not in _KNOWN_KEYS}
         return cls(
             id=rid,
             plant_name=_text(data.get("plant_name"), MAX_NAME, "plant_name"),
@@ -174,6 +187,7 @@ class FieldRecord:
             fix_mode=fix_mode,
             timestamp=stamp,
             placed_object_id=placed,
+            extra=extra,
         )
 
 
@@ -185,6 +199,14 @@ class LoadResult:
     damaged: bool = False
     #: True when the file was written by a newer build; never overwritten.
     newer_version: bool = False
+    #: True when the file exists but could not be READ (permissions, sharing
+    #: violation, I/O error): its content is unknown, so nothing may be written.
+    unreadable: bool = False
+    #: Top-level keys this build does not know; written back unchanged.
+    extra: dict[str, Any] = field(default_factory=dict)
+    #: Raw entries that failed validation, duplicated an id or lay beyond
+    #: ``MAX_RECORDS``; written back unchanged so a save loses nothing.
+    rejected: list[Any] = field(default_factory=list)
 
 
 def _migrate(data: dict[str, Any], _version: int) -> dict[str, Any]:
@@ -203,7 +225,7 @@ def load_records(plan_path: str | os.PathLike[str] | None) -> LoadResult:
             return result
         except OSError as error:
             result.warnings.append(f"cannot read the field notes file: {error.strerror or error}")
-            result.damaged = True
+            result.unreadable = True
             return result
     if not raw.strip():
         return result
@@ -226,15 +248,22 @@ def load_records(plan_path: str | os.PathLike[str] | None) -> LoadResult:
         result.damaged = result.newer_version = True
     else:
         data = _migrate(data, version)
+    result.extra = {k: v for k, v in data.items() if k not in ("version", "records")}
     seen: set[str] = set()
-    for index, entry in enumerate(data.get("records", [])[:MAX_RECORDS]):
+    for index, entry in enumerate(data.get("records", [])):
+        if len(result.records) >= MAX_RECORDS:
+            result.rejected.append(entry)
+            result.warnings.append(f"record {index + 1} kept unread: more than {MAX_RECORDS} records")
+            continue
         try:
             rec = FieldRecord.from_dict(entry)
         except FieldRecordError as error:
-            result.warnings.append(f"record {index + 1} skipped: {error}")
+            result.rejected.append(entry)
+            result.warnings.append(f"record {index + 1} skipped (kept in the file): {error}")
             continue
         if rec.id in seen:
-            result.warnings.append(f"record {index + 1} skipped: duplicate id {rec.id}")
+            result.rejected.append(entry)
+            result.warnings.append(f"record {index + 1} skipped (kept in the file): duplicate id {rec.id}")
             continue
         seen.add(rec.id)
         result.records.append(rec)
@@ -256,24 +285,42 @@ def _write_atomic(path: Path, payload: bytes) -> None:
         raise
 
 
-def save_records(plan_path: str | os.PathLike[str] | None, records: list[FieldRecord]) -> None:
-    """Atomically write *records*. A corrupt existing file is kept as ``.corrupt-<ts>``."""
+def save_records(
+    plan_path: str | os.PathLike[str] | None,
+    records: list[FieldRecord],
+    base: LoadResult | None = None,
+) -> None:
+    """Atomically write *records*; the one load -> merge -> write path.
+
+    *base* is the :class:`LoadResult` the caller built *records* from (so the
+    file is not re-read between merge and write); it is loaded here when
+    omitted. Refused when the file could not be read, or is newer than this
+    build. A corrupt file is kept as ``.corrupt-<time>-<id>``. Unknown keys and
+    entries this build rejected are written back unchanged.
+    """
     json_path, _ = sidecar_paths(plan_path)
     if len(records) > MAX_RECORDS:
         raise FieldRecordError(f"at most {MAX_RECORDS} field records are kept per plan")
-    payload = json.dumps(
-        {"version": FIELD_RECORDS_VERSION, "records": [r.to_dict() for r in records]},
-        indent=2,
-        ensure_ascii=False,
-    ).encode("utf-8")
     with _lock:
-        existing = load_records(plan_path)
+        existing = base if base is not None else load_records(plan_path)
+        if existing.unreadable:
+            raise FieldRecordError(
+                "the field notes file could not be read; refusing to write over it ("
+                + "; ".join(existing.warnings)
+                + ")"
+            )
         if existing.newer_version:
             raise FieldRecordError(
                 "the field notes file was written by a newer version of the app; refusing to overwrite it"
             )
+        document = {
+            **existing.extra,
+            "version": FIELD_RECORDS_VERSION,
+            "records": [r.to_dict() for r in records] + list(existing.rejected),
+        }
+        payload = json.dumps(document, indent=2, ensure_ascii=False).encode("utf-8")
         if existing.damaged and json_path.exists():
-            stamp = time.strftime("%Y%m%d-%H%M%S")
+            stamp = time.strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:8]
             try:
                 os.replace(json_path, json_path.with_name(json_path.name + f".corrupt-{stamp}"))
             except OSError as error:
@@ -311,10 +358,17 @@ def add_record(
     _, photo_root = sidecar_paths(plan_path)
     with _lock:
         loaded = load_records(plan_path)
+        if loaded.unreadable:
+            raise FieldRecordError(
+                "the field notes file could not be read, so nothing was added ("
+                + "; ".join(loaded.warnings)
+                + ")"
+            )
         if len(loaded.records) >= MAX_RECORDS:
             raise FieldRecordError(f"at most {MAX_RECORDS} field records are kept per plan")
         record_id = uuid.uuid4().hex
-        record = FieldRecord.from_dict({**dict(data), "photo": None}, record_id=record_id)
+        known = {k: v for k, v in dict(data).items() if k in _KNOWN_KEYS}
+        record = FieldRecord.from_dict({**known, "photo": None}, record_id=record_id)
         photo_file: Path | None = None
         if photo_bytes is not None:
             ext = sniff_photo(photo_bytes)
@@ -322,7 +376,7 @@ def add_record(
             photo_file = photo_root / record.photo
             _write_atomic(photo_file, photo_bytes)
         try:
-            save_records(plan_path, [*loaded.records, record])
+            save_records(plan_path, [*loaded.records, record], loaded)
         except BaseException:
             if photo_file is not None:
                 with contextlib.suppress(OSError):
@@ -349,10 +403,10 @@ def update_record(
         loaded = load_records(plan_path)
         for index, rec in enumerate(loaded.records):
             if rec.id == record_id:
-                merged = {**rec.to_dict(), **changes}
+                merged = {**rec.to_dict(), **changes}  # to_dict carries unknown keys
                 updated = FieldRecord.from_dict(merged)
                 loaded.records[index] = updated
-                save_records(plan_path, loaded.records)
+                save_records(plan_path, loaded.records, loaded)
                 return updated
     raise FieldRecordError(f"no field record {record_id!r}")
 

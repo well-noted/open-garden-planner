@@ -221,3 +221,67 @@ def test_record_cap(plan, monkeypatch) -> None:
     fr.add_record(plan, {})
     with pytest.raises(fr.FieldRecordError, match="at most"):
         fr.add_record(plan, {})
+
+
+class TestDataPreservation:
+    def test_unreadable_file_is_not_treated_as_empty_or_overwritten(self, plan, monkeypatch) -> None:
+        side = plan.with_name("garden.fieldnotes.json")
+        good = json.dumps({"version": 1, "records": [{"id": "a", "plant_name": "Pear"}]})
+        side.write_text(good, "utf-8")
+        real = type(side).read_bytes
+
+        def deny(self):
+            if self.name.endswith(".fieldnotes.json"):
+                raise PermissionError(13, "Permission denied")
+            return real(self)
+
+        monkeypatch.setattr(type(side), "read_bytes", deny)
+        res = fr.load_records(plan)
+        assert res.unreadable and not res.damaged and res.records == []
+        with pytest.raises(fr.FieldRecordError, match="could not be read"):
+            fr.add_record(plan, {"plant_name": "x"})
+        with pytest.raises(fr.FieldRecordError, match="could not be read"):
+            fr.save_records(plan, [])
+        monkeypatch.undo()
+        assert side.read_text("utf-8") == good  # untouched, no .corrupt file
+        assert not list(plan.parent.glob("*.corrupt-*"))
+
+    def test_rejected_entries_unknown_keys_and_overflow_survive_a_write(self, plan, monkeypatch) -> None:
+        monkeypatch.setattr(fr, "MAX_RECORDS", 2)
+        side = plan.with_name("garden.fieldnotes.json")
+        bad = {"id": "../evil", "keep": "me"}
+        side.write_text(
+            json.dumps({
+                "version": 1,
+                "remote": {"device": "phone-1"},
+                "records": [
+                    {"id": "a", "plant_name": "Pear", "future_field": [1, 2]},
+                    bad,
+                    {"id": "a"},
+                    {"id": "b"},
+                    {"id": "c", "lat": 1},
+                ],
+            }),
+            "utf-8",
+        )
+        fr.update_record(plan, "a", notes="changed")
+        data = json.loads(side.read_text("utf-8"))
+        assert data["remote"] == {"device": "phone-1"}
+        by_id = [r.get("id") for r in data["records"]]
+        assert by_id[:2] == ["a", "b"] and "../evil" in by_id and by_id.count("a") == 2 and "c" in by_id
+        a = data["records"][0]
+        assert a["future_field"] == [1, 2] and a["notes"] == "changed"
+        assert bad in data["records"]
+        assert len(data["records"]) == 5
+
+    def test_aside_name_is_unique_within_a_second(self, plan) -> None:
+        side = plan.with_name("garden.fieldnotes.json")
+        for _ in range(3):
+            side.write_text("{ broken", "utf-8")
+            fr.add_record(plan, {})
+        assert len(list(plan.parent.glob("garden.fieldnotes.json.corrupt-*"))) == 3
+
+    def test_agent_data_cannot_smuggle_unknown_keys(self, plan) -> None:
+        rec = fr.add_record(plan, {"plant_name": "x", "evil": "y"})
+        assert rec.extra == {}
+        assert "evil" not in plan.with_name("garden.fieldnotes.json").read_text("utf-8")
