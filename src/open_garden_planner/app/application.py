@@ -6193,12 +6193,12 @@ class GardenPlannerApp(QMainWindow):
         meta = image_item.geo_metadata
         if not meta:
             return False
-        rect = image_item.boundingRect()
+        pixmap = image_item.pixmap()  # not boundingRect(): Qt pads it by half a pixel
         pos = image_item.pos()
         try:
             geo = from_geo_metadata(
                 meta,
-                image_center=(pos.x() + rect.width() / 2.0, pos.y() + rect.height() / 2.0),
+                image_center=(pos.x() + pixmap.width() / 2.0, pos.y() + pixmap.height() / 2.0),
                 scale_factor=image_item.scale_factor,
                 source=source,
             )

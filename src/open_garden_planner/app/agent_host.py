@@ -4038,11 +4038,13 @@ class AgentHost:
             attribution=result.attribution,
             fetched_at=datetime.now(UTC).isoformat(timespec="seconds"),
         )
-        rect = item.boundingRect()
-        width_cm = rect.width() / item.scale_factor
-        height_cm = rect.height() / item.scale_factor
+        # The PIXMAP's size, not boundingRect(): Qt pads that by half a pixel a side,
+        # which would put the canvas (and the georeference) 0.5 px off the image.
+        pix_w, pix_h = float(item.pixmap().width()), float(item.pixmap().height())
+        width_cm = pix_w / item.scale_factor
+        height_cm = pix_h / item.scale_factor
         center = (width_cm / 2.0, height_cm / 2.0)
-        item.setPos(center[0] - rect.width() / 2.0, center[1] - rect.height() / 2.0)
+        item.setPos(center[0] - pix_w / 2.0, center[1] - pix_h / 2.0)
         geo = from_geo_metadata(
             item.geo_metadata or {},
             image_center=center,
