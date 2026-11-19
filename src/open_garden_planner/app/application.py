@@ -6070,8 +6070,6 @@ class GardenPlannerApp(QMainWindow):
 
     def _on_load_satellite_background(self) -> None:
         """Open the embedded Google Maps picker and import the chosen area."""
-        import io
-        from datetime import UTC, datetime
 
         from open_garden_planner.ui.canvas.items import BackgroundImageItem
         from open_garden_planner.ui.dialogs.map_picker_dialog import (
@@ -6105,49 +6103,18 @@ class GardenPlannerApp(QMainWindow):
             if self._app_close_pending:
                 QTimer.singleShot(0, self.close)
 
-        # PIL image → PNG bytes.
-        buf = io.BytesIO()
-        result.image.save(buf, format="PNG")
-        png_bytes = buf.getvalue()
-
+        # ONE builder shared with the Agent API's set_initial_map (ADR-079), so the
+        # two entry points cannot diverge: PNG encoding, scale from the geo
+        # metadata, the canvas size and the image position.
+        image_item, canvas_w_cm, canvas_h_cm = self._build_satellite_item(result)
+        scene = self.canvas_scene
         # Replace any existing background image (a project has at most one
         # logical 'satellite layer'; stacking would only confuse the user).
-        scene = self.canvas_scene
         for item in list(scene.items()):
             if isinstance(item, BackgroundImageItem):
                 scene.removeItem(item)
-
-        image_item = BackgroundImageItem.from_fetch_result(
-            image_path=f"google_satellite_z{result.zoom}.png",
-            png_bytes=png_bytes,
-            meters_per_pixel=result.meters_per_pixel,
-            bbox_nw=(result.bbox.nw_lat, result.bbox.nw_lng),
-            bbox_se=(result.bbox.se_lat, result.bbox.se_lng),
-            zoom=result.zoom,
-            source=result.source,
-            attribution=result.attribution,
-            fetched_at=datetime.now(UTC).isoformat(timespec="seconds"),
-        )
         scene.addItem(image_item)
-
-        # Resize the canvas to match the selected area so the satellite image
-        # IS the canvas. Image scene-size in cm = image_local_size_px / scale_factor
-        # (px/cm). Using the item's own dimensions keeps us in sync with the
-        # cropped image, no matter what the service returned.
-        image_rect = image_item.boundingRect()
-        canvas_w_cm = image_rect.width() / image_item.scale_factor
-        canvas_h_cm = image_rect.height() / image_item.scale_factor
         scene.resize_canvas(canvas_w_cm, canvas_h_cm)
-
-        # Centre on the new canvas. ``boundingRect()`` is in local (pre-scale)
-        # coords; because ``transformOriginPoint`` is at the local centre, the
-        # scene centre after ``setPos(pos)`` is ``pos + (w/2, h/2)`` regardless
-        # of the scale factor — so we must NOT multiply by ``scale`` here.
-        canvas_center = scene.canvas_rect.center()
-        image_item.setPos(
-            canvas_center.x() - image_rect.width() / 2,
-            canvas_center.y() - image_rect.height() / 2,
-        )
 
         # Zoom the view to the new canvas so the user sees the whole import.
         self.canvas_view.fit_in_view()
@@ -6179,6 +6146,65 @@ class GardenPlannerApp(QMainWindow):
                 )
             )
 
+    def _build_satellite_item(self, result: Any) -> tuple[Any, float, float]:
+        """Build the positioned satellite background for a fetch *result*.
+
+        The ONE place a satellite import becomes a ``BackgroundImageItem``: the
+        satellite picker (``_on_load_satellite_background``) and the Agent API's
+        ``set_initial_map`` both call it, then add the item to the scene (the
+        picker directly, the agent inside ``SetInitialMapCommand``). Returns
+        ``(item, canvas_width_cm, canvas_height_cm)``: the canvas IS the image,
+        sized from its PIXMAP (``boundingRect()`` is padded by half a pixel a
+        side), and the item is centred on that canvas. Touches no scene.
+        """
+        import io
+        from datetime import UTC, datetime
+
+        from open_garden_planner.ui.canvas.items import BackgroundImageItem
+
+        buf = io.BytesIO()
+        result.image.save(buf, format="PNG")
+        item = BackgroundImageItem.from_fetch_result(
+            image_path=f"google_satellite_z{result.zoom}.png",
+            png_bytes=buf.getvalue(),
+            meters_per_pixel=result.meters_per_pixel,
+            bbox_nw=(result.bbox.nw_lat, result.bbox.nw_lng),
+            bbox_se=(result.bbox.se_lat, result.bbox.se_lng),
+            zoom=result.zoom,
+            source=result.source,
+            attribution=result.attribution,
+            fetched_at=datetime.now(UTC).isoformat(timespec="seconds"),
+        )
+        pix_w, pix_h = float(item.pixmap().width()), float(item.pixmap().height())
+        width_cm = pix_w / item.scale_factor
+        height_cm = pix_h / item.scale_factor
+        # transformOriginPoint is the local centre, so the scene centre after
+        # setPos(pos) is pos + (w/2, h/2) whatever the scale factor.
+        item.setPos(width_cm / 2.0 - pix_w / 2.0, height_cm / 2.0 - pix_h / 2.0)
+        return item, width_cm, height_cm
+
+    def _satellite_georef(self, image_item: Any, source: str) -> Any:
+        """The georeference of a placed satellite background, or ``None``.
+
+        Shared by the picker's auto-populate and ``set_initial_map``.
+        """
+        from open_garden_planner.core.georef import GeorefError, from_geo_metadata
+
+        meta = image_item.geo_metadata
+        if not meta:
+            return None
+        pixmap = image_item.pixmap()  # not boundingRect(): Qt pads it by half a pixel
+        pos = image_item.pos()
+        try:
+            return from_geo_metadata(
+                meta,
+                image_center=(pos.x() + pixmap.width() / 2.0, pos.y() + pixmap.height() / 2.0),
+                scale_factor=image_item.scale_factor,
+                source=source,
+            )
+        except GeorefError:
+            return None
+
     def _apply_satellite_georef(self, image_item: Any, source: str) -> bool:
         """Derive the plan's georeference from a fresh satellite import (ADR-079).
 
@@ -6188,21 +6214,9 @@ class GardenPlannerApp(QMainWindow):
         after the user confirms. Returns True when the georeference was set.
         """
         from open_garden_planner.core.commands import SetGeoreferenceCommand
-        from open_garden_planner.core.georef import GeorefError, from_geo_metadata
 
-        meta = image_item.geo_metadata
-        if not meta:
-            return False
-        pixmap = image_item.pixmap()  # not boundingRect(): Qt pads it by half a pixel
-        pos = image_item.pos()
-        try:
-            geo = from_geo_metadata(
-                meta,
-                image_center=(pos.x() + pixmap.width() / 2.0, pos.y() + pixmap.height() / 2.0),
-                scale_factor=image_item.scale_factor,
-                source=source,
-            )
-        except GeorefError:
+        geo = self._satellite_georef(image_item, source)
+        if geo is None:
             return False
         pm = self._project_manager
         existing = pm.georef

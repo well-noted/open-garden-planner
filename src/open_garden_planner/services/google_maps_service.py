@@ -299,7 +299,7 @@ def geocode_address(
         raise GoogleMapsFetchError("Geocoding reply was malformed") from None
     if not (math.isfinite(lat) and math.isfinite(lng)) or abs(lat) > 90 or abs(lng) > 180:
         raise GoogleMapsFetchError("Geocoding reply was out of range")
-    return GeocodeResult(lat, lng, formatted if isinstance(formatted, str) else "")
+    return GeocodeResult(lat, lng, formatted[:300] if isinstance(formatted, str) else "")
 
 
 def crop_image_to_bbox(

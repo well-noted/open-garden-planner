@@ -434,6 +434,8 @@ class ProjectManager(QObject):
             return
         self._north_angle_deg = angle
         self.north_angle_changed.emit(angle)
+        if self._georef is not None:  # its rotation IS the north (ADR-079)
+            self.georef_changed.emit(self.georef)
         self.mark_dirty()
 
     @property

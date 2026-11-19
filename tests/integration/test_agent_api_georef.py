@@ -364,7 +364,7 @@ class TestSetInitialMap:
 
     def test_locked_background_is_refused(self, app, qtbot, monkeypatch):
         monkeypatch.setattr(app, "_resolved_google_maps_api_key", lambda: "k")
-        monkeypatch.setattr(gms, "fetch_bbox", _fake_fetch([]))
+        monkeypatch.setattr(gms, "fetch_bbox", lambda *_a, **_k: pytest.fail("download before the lock check"))
         png = _png_bytes()
         old = BackgroundImageItem.from_fetch_result(
             "old.png", png, meters_per_pixel=0.25, bbox_nw=(1.0, 1.0), bbox_se=(0.9, 1.1), zoom=19

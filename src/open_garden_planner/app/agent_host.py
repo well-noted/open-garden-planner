@@ -3954,7 +3954,6 @@ class AgentHost:
         main-thread hop, so a failed call changes nothing.
         """
         host = self._host
-        import io
 
         from open_garden_planner.agent_api import georef_tools
         from open_garden_planner.app.settings import get_settings
@@ -3977,6 +3976,8 @@ class AgentHost:
                 "No Google Maps API key is configured. Set one in Preferences > "
                 "Google Maps (or the OGP_GOOGLE_MAPS_KEY environment variable) and retry."
             )
+        # Refuse a locked background BEFORE the paid downloads, not after them.
+        host._agent_bridge.run_on_main(self._agent_require_unlocked_background)
         formatted: str | None = None
         if address is not None:
             if not get_settings().google_geocoding_enabled:
@@ -3996,16 +3997,25 @@ class AgentHost:
             result = gms.fetch_bbox(gms.BoundingBox(nw[0], nw[1], se[0], se[1]), api_key=key)
         except gms.GoogleMapsFetchError as exc:
             raise ValueError(f"Satellite download failed: {exc}") from exc
-        buf = io.BytesIO()
-        result.image.save(buf, format="PNG")
-        png = buf.getvalue()
         return host._agent_bridge.run_on_main(
-            lambda: self._do_agent_set_initial_map(result, png, formatted)
+            lambda: self._do_agent_set_initial_map(result, formatted)
         )
 
 
+    def _agent_require_unlocked_background(self) -> None:
+        """Raise when the current satellite background is locked (main thread)."""
+        from open_garden_planner.ui.canvas.items import BackgroundImageItem
+
+        for old in self._host.canvas_scene.items():
+            if isinstance(old, BackgroundImageItem) and old.locked:
+                raise ValueError(
+                    "The current background image is locked; unlock it (right-click "
+                    "the image > Unlock Image) before replacing the map."
+                )
+
+
     def _do_agent_set_initial_map(
-        self, result: Any, png: bytes, formatted_address: str | None
+        self, result: Any, formatted_address: str | None
     ) -> dict[str, Any]:
         """Main-thread body of ``set_initial_map``: ONE ``SetInitialMapCommand``.
 
@@ -4014,10 +4024,7 @@ class AgentHost:
         previous background, canvas, location, georeference and north.
         """
         host = self._host
-        from datetime import UTC, datetime
-
         from open_garden_planner.core.commands import SetInitialMapCommand
-        from open_garden_planner.core.georef import from_geo_metadata
         from open_garden_planner.ui.canvas.items import BackgroundImageItem
 
         scene = host.canvas_scene
@@ -4027,30 +4034,12 @@ class AgentHost:
                     "The current background image is locked; unlock it (right-click "
                     "the image > Unlock Image) before replacing the map."
                 )
-        item = BackgroundImageItem.from_fetch_result(
-            image_path=f"google_satellite_z{result.zoom}.png",
-            png_bytes=png,
-            meters_per_pixel=result.meters_per_pixel,
-            bbox_nw=(result.bbox.nw_lat, result.bbox.nw_lng),
-            bbox_se=(result.bbox.se_lat, result.bbox.se_lng),
-            zoom=result.zoom,
-            source=result.source,
-            attribution=result.attribution,
-            fetched_at=datetime.now(UTC).isoformat(timespec="seconds"),
-        )
-        # The PIXMAP's size, not boundingRect(): Qt pads that by half a pixel a side,
-        # which would put the canvas (and the georeference) 0.5 px off the image.
-        pix_w, pix_h = float(item.pixmap().width()), float(item.pixmap().height())
-        width_cm = pix_w / item.scale_factor
-        height_cm = pix_h / item.scale_factor
-        center = (width_cm / 2.0, height_cm / 2.0)
-        item.setPos(center[0] - pix_w / 2.0, center[1] - pix_h / 2.0)
-        geo = from_geo_metadata(
-            item.geo_metadata or {},
-            image_center=center,
-            scale_factor=item.scale_factor,
-            source=result.source,
-        )
+        # The SAME builder and georeference derivation the satellite picker uses
+        # (application.py), so the two entry points cannot diverge.
+        item, width_cm, height_cm = host._build_satellite_item(result)
+        geo = host._satellite_georef(item, result.source)
+        if geo is None:
+            raise ValueError("The downloaded map carries no usable geo-metadata.")
         lat, lon = result.bbox.center
         cmd = SetInitialMapCommand(
             scene,

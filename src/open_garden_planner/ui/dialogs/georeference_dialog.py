@@ -69,6 +69,10 @@ class GeoreferenceDialog(QDialog):
         self._parcel = georef.parcel_boundary if georef else None
         self._source = georef.source if georef else "manual"
         self._fit: FitResult | None = None
+        self._fit_rms: float | None = None
+        self._original = georef
+        self._ready = False
+        self._touched = False
         self._setup_ui()
         lat = lon = 0.0
         if georef is not None:
@@ -91,6 +95,10 @@ class GeoreferenceDialog(QDialog):
         self._rotation.setValue(north_angle_deg)
         self._enabled.setChecked(georef is not None)
         self._on_enabled(georef is not None)
+        for spin in (self._lat, self._lon, self._scale, self._rotation):
+            spin.valueChanged.connect(self._on_hand_edit)
+        self._enabled.toggled.connect(self._mark_touched)
+        self._ready = True
 
     # -- UI ----------------------------------------------------------------
 
@@ -179,10 +187,26 @@ class GeoreferenceDialog(QDialog):
     def _on_enabled(self, on: bool) -> None:
         self._body.setEnabled(on)
 
+    def _mark_touched(self, *_args: object) -> None:
+        if self._ready:
+            self._touched = True
+
+    def _on_hand_edit(self, *_args: object) -> None:
+        """A typed origin/scale/rotation is a manual georeference, not the old fit."""
+        if not self._ready:
+            return
+        self._touched = True
+        self._source = "manual"
+        self._fit = None
+        self._fit_rms = None
+
     def _add_row(self, name: str, lat: float, lon: float, x: float, y: float) -> None:
         row = self._table.rowCount()
         self._table.insertRow(row)
-        self._table.setCellWidget(row, _COL_NAME, QLineEdit(name))
+        name_edit = QLineEdit(name)
+        name_edit.textChanged.connect(self._mark_touched)
+        self._table.setCellWidget(row, _COL_NAME, name_edit)
+        self._mark_touched()
         for col, (lo, hi, dec, value) in {
             _COL_LAT: (-90.0, 90.0, 7, lat),
             _COL_LON: (-180.0, 180.0, 7, lon),
@@ -191,6 +215,7 @@ class GeoreferenceDialog(QDialog):
         }.items():
             spin = _spin(lo, hi, dec)
             spin.setValue(value)
+            spin.valueChanged.connect(self._mark_touched)
             self._table.setCellWidget(row, col, spin)
         item = QTableWidgetItem("")
         item.setFlags(Qt.ItemFlag.ItemIsEnabled)
@@ -230,13 +255,16 @@ class GeoreferenceDialog(QDialog):
         except GeorefError as error:
             self._status.setText(self.tr("Cannot fit: {reason}").format(reason=str(error)))
             return
-        self._fit = fit
         geo = fit.georef
         self._lat.setValue(geo.origin_lat)
         self._lon.setValue(geo.origin_lon)
         self._scale.setValue(geo.scale_meters_per_unit)
         self._rotation.setValue(geo.rotation_deg)
+        # After the setValue calls: each of them reads as a hand edit.
+        self._fit = fit
+        self._fit_rms = fit.rms_m
         self._source = "fit"
+        self._touched = True
         for row, residual in enumerate(fit.residuals_m):
             cell = self._table.item(row, _COL_RES)
             if cell is not None:
@@ -259,6 +287,10 @@ class GeoreferenceDialog(QDialog):
         """The edited georeference (rotation = the north angle shown), or None."""
         if not self._enabled.isChecked():
             return None
+        if self._original is not None and not self._touched:
+            # Nothing was edited: hand back the stored value, not the spin boxes'
+            # rounded copy of it (7 decimals of origin, 3 of rotation).
+            return self._original.with_rotation(self._rotation.value())
         return GeoReference(
             origin_lat=self._lat.value(),
             origin_lon=self._lon.value(),
@@ -266,6 +298,6 @@ class GeoreferenceDialog(QDialog):
             rotation_deg=self._rotation.value(),
             parcel_boundary=self._parcel,
             reference_points=tuple(self._points()),
-            fit_rms_m=self._fit.rms_m if self._fit is not None else getattr(self, "_fit_rms", None),
+            fit_rms_m=self._fit_rms,
             source=self._source,
         )

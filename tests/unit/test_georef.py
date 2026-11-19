@@ -307,3 +307,19 @@ class TestFromGeoMetadata:
     def test_bad_metadata(self, meta):
         with pytest.raises(GeorefError):
             from_geo_metadata(meta, image_center=(0, 0), scale_factor=1)
+
+
+class TestBounds:
+    @pytest.mark.parametrize("scale", [1e-300, 1e-7, 1e4, 1e300])
+    def test_absurd_scales_are_refused(self, scale):
+        with pytest.raises(GeorefError):
+            GeoReference(10.0, 10.0, scale_meters_per_unit=scale)
+
+    def test_a_point_too_far_for_the_origin_is_refused_not_emitted(self):
+        g = GeoReference(10.0, 10.0, scale_meters_per_unit=1.0)
+        with pytest.raises(GeorefError, match="too far"):
+            g.canvas_to_gps(0.0, 2e7)  # 20,000 km north
+        assert g.canvas_to_gps(0.0, 1000.0)[0] > 10.0
+
+    def test_hostile_scale_in_a_file_reads_as_not_georeferenced(self):
+        assert georef_from_plan({"origin_lat": 1, "origin_lon": 1, "scale_meters_per_unit": 1e300}, 0.0) is None

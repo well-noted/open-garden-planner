@@ -212,3 +212,109 @@ class TestSatelliteAutoPopulate:
         plain = BackgroundImageItem("x.png", _pixmap_data=_png())
         assert window._apply_satellite_georef(plain, "x") is False
         assert window._project_manager.georef is None
+
+
+class TestEntryPointsAgree:
+    """The satellite picker and the agent's set_initial_map share one builder (ADR-079)."""
+
+    @staticmethod
+    def _result() -> Any:
+        from open_garden_planner.services import google_maps_service as gms
+
+        ground = GeoReference(48.1374, 11.5755)
+        nw = ground.enu_to_gps(-50.0, 37.5)
+        se = ground.enu_to_gps(50.0, -37.5)
+        return gms.FetchResult(
+            image=Image.new("RGB", (400, 300), (20, 90, 30)),
+            meters_per_pixel=0.25,
+            zoom=19,
+            bbox=gms.BoundingBox(nw[0], nw[1], se[0], se[1]),
+            tile_grid=(1, 1),
+        )
+
+    @staticmethod
+    def _state(win: GardenPlannerApp) -> dict[str, Any]:
+        scene, pm = win.canvas_scene, win._project_manager
+        (item,) = [i for i in scene.items() if isinstance(i, BackgroundImageItem)]
+        meta = dict(item.geo_metadata or {})
+        meta.pop("fetched_at")
+        return {
+            "canvas": (scene.width_cm, scene.height_cm),
+            "pos": (item.pos().x(), item.pos().y()),
+            "scale": item.scale_factor,
+            "pixmap": (item.pixmap().width(), item.pixmap().height()),
+            "meta": meta,
+            "georef": pm.georef,
+            "north": pm.north_angle_deg,
+        }
+
+    def test_picker_and_agent_produce_identical_plan_state(self, window, monkeypatch, qtbot):
+        result = self._result()
+
+        class FakePicker:
+            DialogCode = QDialog.DialogCode
+            fetch_result = result
+
+            def __init__(self, *_a: Any, **_k: Any) -> None:
+                pass
+
+            @staticmethod
+            def is_available(_key: str) -> bool:
+                return True
+
+            def exec(self) -> int:
+                return int(QDialog.DialogCode.Accepted)
+
+        import sys
+        import types
+
+        fake_module = types.ModuleType("open_garden_planner.ui.dialogs.map_picker_dialog")
+        fake_module.MapPickerDialog = FakePicker  # type: ignore[attr-defined]
+        monkeypatch.setitem(
+            sys.modules, "open_garden_planner.ui.dialogs.map_picker_dialog", fake_module
+        )
+        monkeypatch.setattr(window, "_resolved_google_maps_api_key", lambda: "k")
+        window._on_load_satellite_background()
+        via_picker = self._state(window)
+
+        # A second, fresh app takes the agent route with the very same fetch result.
+        other = GardenPlannerApp()
+        monkeypatch.setattr(other, "_confirm_discard_changes", lambda: True)
+        qtbot.addWidget(other)
+        other._agent_host._do_agent_set_initial_map(result, None)
+        via_agent = self._state(other)
+
+        assert via_picker == via_agent
+        assert via_agent["georef"].source == "google_static_maps"
+        assert via_agent["canvas"] == pytest.approx((10000.0, 7500.0))
+        # The agent additionally sets the garden location; the picker never did.
+        assert other._project_manager.location["latitude"] == pytest.approx(48.1374)
+
+
+class TestDialogProvenance:
+    def test_a_hand_edit_makes_a_satellite_georef_manual_and_drops_the_stale_rms(self, qtbot):
+        geo = GeoReference(48.123456789, 11.987654321, source="google_static_maps", fit_rms_m=0.2)
+        dialog = GeoreferenceDialog(None, georef=geo)
+        qtbot.addWidget(dialog)
+        dialog._lat.setValue(48.2)
+        out = dialog.georef
+        assert out.source == "manual" and out.fit_rms_m is None
+
+    def test_an_untouched_ok_returns_the_stored_georef_unrounded(self, qtbot):
+        geo = GeoReference(48.123456789, 11.987654321, 0.0123456789, source="google_static_maps")
+        dialog = GeoreferenceDialog(None, georef=geo, north_angle_deg=12.3456)
+        qtbot.addWidget(dialog)
+        assert dialog.georef.origin_lat == 48.123456789
+        assert dialog.georef.scale_meters_per_unit == 0.0123456789
+        assert dialog.georef.source == "google_static_maps"
+
+    def test_a_fit_keeps_its_own_source_and_rms(self, qtbot):
+        truth = GeoReference(48.0, 11.0, 0.01, 25.0)
+        dialog = GeoreferenceDialog(None, georef=GeoReference(1.0, 1.0, source="google_static_maps"))
+        qtbot.addWidget(dialog)
+        for i, (x, y) in enumerate([(0, 0), (4000, 0), (4000, 3000)]):
+            lat, lon = truth.canvas_to_gps(x, y)
+            dialog._add_row(f"P{i}", lat, lon, x, y)
+        dialog._on_fit()
+        out = dialog.georef
+        assert out.source == "fit" and out.fit_rms_m is not None and out.fit_rms_m < 0.01

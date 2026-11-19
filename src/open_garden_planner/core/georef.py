@@ -57,6 +57,9 @@ MAX_ABS_LATITUDE = 89.0
 MIN_SPREAD_M = 1e-3
 #: A set is collinear when the minor/major principal std-dev ratio is below this.
 COLLINEAR_RATIO = 1e-3
+#: Metres per scene unit: a micron to a kilometre. Wider is a corrupt file, not a plan.
+MIN_SCALE_M_PER_UNIT = 1e-6
+MAX_SCALE_M_PER_UNIT = 1e3
 MAX_REFERENCE_POINTS = 1000
 MAX_PARCEL_VERTICES = 10000
 
@@ -161,8 +164,10 @@ class GeoReference:
         if abs(la) > MAX_ABS_LATITUDE:
             raise GeorefError(f"origin latitude must be within +-{MAX_ABS_LATITUDE} degrees")
         scale = _finite(self.scale_meters_per_unit, "scale")
-        if scale <= 0.0:
-            raise GeorefError("scale must be positive")
+        if not MIN_SCALE_M_PER_UNIT <= scale <= MAX_SCALE_M_PER_UNIT:
+            raise GeorefError(
+                f"scale must be between {MIN_SCALE_M_PER_UNIT:g} and {MAX_SCALE_M_PER_UNIT:g} metres per unit"
+            )
         rot = _finite(self.rotation_deg, "rotation") % 360.0
         object.__setattr__(self, "origin_lat", la)
         object.__setattr__(self, "origin_lon", lo)
@@ -201,6 +206,8 @@ class GeoReference:
         """Inverse of :meth:`gps_to_enu`."""
         lat = self.origin_lat + _finite(north, "north") / _M_PER_DEG
         lon = self.origin_lon + _finite(east, "east") / self._m_per_deg_lon
+        if not math.isfinite(lat) or not math.isfinite(lon) or abs(lat) > 90.0:
+            raise GeorefError("the point is too far from the origin for this georeference")
         return lat, wrap_lon(lon)
 
     def gps_to_canvas(self, lat: float, lon: float) -> tuple[float, float]:
