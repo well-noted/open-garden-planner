@@ -22,6 +22,7 @@ from scripts.translation_gate_translations import TRANSLATIONS as _GATE_TRANSLAT
 from scripts.translations_examples import DE as _EXAMPLES_TRANSLATIONS
 from scripts.translations_exports import DE as _EXPORTS_TRANSLATIONS
 from scripts.translations_f4 import DE as _F4_TRANSLATIONS
+from scripts.translations_georef import DE as _GEOREF_TRANSLATIONS
 from scripts.translations_l2 import DE as _L2_TRANSLATIONS
 from scripts.translations_l4 import DE as _L4_TRANSLATIONS
 from scripts.translations_l5 import DE as _L5_TRANSLATIONS
@@ -3570,6 +3571,10 @@ for _ctx, _strings in _L6_TRANSLATIONS.items():
 
 # ── Phase 17 L7: the atmosphere sky (#391) ──
 for _ctx, _strings in _L7_TRANSLATIONS.items():
+    TRANSLATIONS.setdefault(_ctx, {}).update(_strings)
+
+# ── Plan georeferencing and the address-lookup opt-in (ADR-079) ──
+for _ctx, _strings in _GEOREF_TRANSLATIONS.items():
     TRANSLATIONS.setdefault(_ctx, {}).update(_strings)
 
 # ── Export fixes: PDF report pages and legend (#787, #788, #789) ──
