@@ -24,16 +24,16 @@ ADR-080 (field records sidecar). Becomes ADR-081 plus FR-GEO entries when the fi
 Field Remote (new, off by default)             Agent API (unchanged)
  https://<bind>:<port>/  (phone)                http://127.0.0.1:8765/mcp (agent)
         +-----------> FieldRemoteHost (QObject, GUI process) <---+
-                       - reuses AgentBridge.run_on_main and the write providers / command stack
-                       - is the ONLY writer of the fieldnotes sidecar
+                       - the phone only WRITES RECORDS (sidecar); it never edits the plan
+                       - is the ONLY writer of the fieldnotes sidecar; desktop/agent approve later
 ```
 
 - New package `field_remote/` (`server.py`, `auth.py`, `tls.py`, `limits.py`, `routes.py`, `static/`),
   started by `app/field_remote_host.py` beside `app/agent_host.py`. Own port (default 8766), own token, own
   daemon thread, same start/stop/port-fallback pattern. Never mounted on the Agent API app, whose loopback
   threat model stays unchanged.
-- Preferences "Field Remote": enable (default off), bind, port, "allow the phone to edit the plan" (default
-  off, separate from the agent-edit toggle), pairing QR, regenerate token/certificate. A running server
+- Preferences "Field Remote": enable (default off), bind, port, "allow the phone to save records" (default
+  off; separate from the agent-edit toggle), pairing QR, regenerate token/certificate. A running server
   shows a status-bar badge (bind address, connected phones).
 
 ### 1.2 Bind
@@ -53,7 +53,7 @@ Chrome exposes Geolocation, DeviceMotion/Orientation and WebXR only in secure co
   secure-context APIs. The pairing dialog asks the user to compare the fingerprint once.
 - **What a self-signed cert cannot do (corrected).** Chrome refuses service-worker registration on an
   untrusted-certificate origin (`SecurityError`), so **no offline page reload and no PWA install** on the
-  default path. IndexedDB, Geolocation, motion sensors, Wake Lock and a kept-open tab still work (§4.4).
+  default path. IndexedDB, Geolocation, motion sensors, Wake Lock and a kept-open tab still work (§4.3).
   Offline reload needs a trusted cert: Tailscale `*.ts.net` (the user runs `tailscale cert` and points
   Preferences at the files; we never run `tailscale`) or a user-installed CA. A user CA is a larger trust
   grant than needed and Android needs a screen lock for it; offered only as an explicit opt-in with that
@@ -71,8 +71,7 @@ Chrome exposes Geolocation, DeviceMotion/Orientation and WebXR only in secure co
   `history.replaceState`, keeps the token in memory and `sessionStorage` (not `localStorage`), and sends
   `Authorization: Bearer`. Header only: no `?token=` form here. Compare with `secrets.compare_digest` plus
   an ASCII guard.
-- Streams: prefer fetch-streaming (can set headers) over `EventSource`; decide in WP-C on the phone.
-- QR drawing: small vendored MIT encoder or `qrcode` (BSD); decide in WP-A.
+- Streams use fetch-streaming (can set headers); QR via a vendored MIT encoder or `qrcode` (BSD): decide in WP-A/C.
 
 ### 1.5 Threat model
 
@@ -86,7 +85,7 @@ Chrome exposes Geolocation, DeviceMotion/Orientation and WebXR only in secure co
 | XSS in served page | Same-origin only; CSP `default-src 'self'; img-src 'self' blob: data:; connect-src 'self'`; no inline script; user text via `textContent` | none expected |
 | Hostile uploads | Body caps 12 MB photo / 256 KB other (Content-Length and while streaming); `field_records.sniff_photo` (Pillow decode, rename by store); allowed types jpeg/png/webp; Pillow default pixel limit | CPU within limits |
 | Flooding | Token bucket per token (reads 20/s, writes 5/s), one photo upload and one position stream at a time, max 4 phones | paired phone wastes some CPU |
-| Writes without consent | Writes need the phone-edit toggle AND the token; toggle off gives 403 and a view-only UI | none |
+| Writes without consent | Record writes need the phone-save toggle AND the token; off gives 403 and a view-only UI. The phone can never change the plan: a hostile or buggy phone can at worst add pending records the user rejects | spam of pending records (capped, 1.9) |
 | Path traversal | No route takes a path; photos by record id `^[A-Za-z0-9_-]{1,64}$`; static files from an in-memory dict | none |
 | Plan leakage | Phone JSON is a projection (objects, layers, species, georef); no file paths or tokens | phone sees the plan (intended) |
 
@@ -94,7 +93,7 @@ Per-phone tokens, fingerprint pinning and mTLS are out of scope for v1 (open que
 
 ### 1.6 Endpoints (`/api`, JSON, all need the header)
 
-Reads: `GET /state` (plan name, georef summary, layers with locked/visible, `writes_enabled`, capabilities,
+Reads: `GET /state` (plan name, georef summary, layers with locked/visible, `records_enabled`, capabilities,
 server time; ETag, polled every 5 s); `GET /scene?bbox=&layers=` (simplified geometry, max 5000 objects);
 `GET /basemap` (background downscaled to 2048 px JPEG plus its canvas rectangle, ETag); `GET /species?q=`
 (bundled plus custom, 25 rows); `GET /field-records`, `GET /field-records/{id}/photo`; `GET /stream`
@@ -105,36 +104,64 @@ most 50: `t, lat, lon, accuracy_m, alt, heading_deg, speed_mps, vio?, imu?`, plu
 `fix_quality` (`none|gps|dgps|rtk_float|rtk_fixed`, NMEA GGA meaning), `hdop`, `sigma_m`, `source`
 (`browser|nmea_usb|nmea_ble|native_fused`); a browser client omits them) returns telemetry (§2.9).
 
-Writes (need `writes_enabled`): `POST /field-records` (multipart `meta` + `photo`; sidecar only, no undo step,
-like `ingest_site_photo`); `POST /place` (`species_key|object_type, x,y | lat,lon, field_record_id?`);
-`POST /irrigation-path` (`points`, `diameter_mm?, flow_lph?, emitter_spacing_cm?, name?`);
-`POST /georef/reference-points` (same code as `set_georeference_from_reference_points`); `POST /undo`.
+Writes (need `records_enabled`; **sidecar only, no plan change, no undo step**): `POST /records` (JSON, or
+multipart with `meta` + `photo`) creates a pending record of any `kind` (§1.9); `PATCH /records/{id}` edits
+the phone's own pending record (text, geometry nudge) and `DELETE /records/{id}` withdraws it, both only
+while `status == pending`. There is **no** place, layer, georeference or undo endpoint: the plan changes only
+through desktop approval or the agent (§1.7).
 
-Every write carries a client `request_id`; the server keeps the last 200 results and replays one for a retry.
-This is what makes the outbox (§4.4) safe.
+Every write carries a client `idempotency_key` (UUID) stored in the record; a retry returns the existing
+record. This is what makes the outbox (§4.3) safe.
 
-### 1.7 Phone writes on the Qt thread
+### 1.7 Approval path: the plan changes only on the desktop or by the agent
 
-The server thread validates (pure checks), then `bridge.run_on_main(fn)` calls a provider that builds the same
-`Command` the GUI would:
-- Place: reuse `_do_agent_create_object` (the chokepoint `place_geotagged_feature` uses). Locked/unknown layer
-  gives 409 with the message.
-- Irrigation: a new `EnsureLayerProvider` (find "Irrigation" case-insensitively, else create it) so layer
-  creation plus polyline is **one macro, one undo**. An existing locked layer is refused, never unlocked.
-- Georef: the Package 1 undoable command.
-- Commands carry `origin="field_remote"`; the status bar says "Phone: added X". `/undo` pops only a phone
-  command that is still on top, else 409.
-- Modal dialog open: `run_on_main` times out, route returns 503 `busy`, phone retries with the same
-  `request_id`. Sidecar writes need a saved plan: unsaved gives 409 `plan_not_saved`.
+The phone has no Qt-thread command-stack writes, so no phone write needs `bridge.run_on_main`. Pending
+records become plan objects in exactly two ways, both on existing paths:
+- **Desktop "Field records" panel** (new, WP-R): list with filters (kind, status), map preview of the
+  geometry and accuracy, photo, notes. **Approve** places on the plan through the existing undoable commands
+  and rules: a plant/note/measurement point through the command behind `_do_agent_create_object` (species
+  match, locked-layer refusal); an `irrigation_path` as one polyline macro that creates the "Irrigation"
+  layer if absent and is **one undo step** (an existing locked Irrigation layer is refused, never unlocked);
+  a `reference_point` is queued into the georeference calibration dialog (Package 1's fit, one undo) with
+  the fit rms shown before the user confirms. **Reject** sets `status=rejected` (kept, hideable). Approving
+  writes `status=placed` and `placed_object_id`. This panel is the only place the "Irrigation" layer is created.
+- **Agent:** `list_field_records` (reads, now includes `status`) and `place_geotagged_feature` (existing,
+  behind the agent-edit toggle + token) extended to polylines and reference points (`place_field_record` on a
+  record id, same code as the panel), then marking the record `placed`. Rejecting is a gated agent write too.
+Undoing a placement leaves `placed_object_id` dangling (ADR-080 consequence, unchanged).
+
+**Unsaved plan.** The sidecar path derives from the plan's file path, so an unsaved plan has nowhere to hold
+records. Recommendation: the server answers `409 plan_not_saved` and the phone shows "Save the plan on the
+computer first". Considered and rejected: a temporary store migrated on first save adds a second sidecar
+location, a window where phone data is lost on a crash, and a migration path to test; one Save click before
+leaving the desk is cheap and the failure is visible at once.
 
 ### 1.8 Single writer for the sidecar (recommendation)
 
-Run Field Remote **in the GUI process** (option c of ADR-080). The Agent API's `ingest_site_photo` and the
+Run Field Remote **in the GUI process** (option c of ADR-080); with no plan writes from the phone it is simply the sole sidecar writer (the desktop panel and agent set `status` through the same store). The Agent API's `ingest_site_photo` and the
 phone routes are then two threads of one process under one `RLock` with atomic replace; a cross-process lock
 or second process buys nothing. Rules: only `field_records` opens the sidecar; the server is never started
 from a second process (integration test asserts `os.getpid()` equality); two app instances on one plan are
 out of scope (atomic replace avoids corruption, last writer wins); a test adds 8 threads x 50 records and
 loses none.
+
+### 1.9 Field-record schema extension (sidecar version 2, migration in `_migrate`)
+
+New fields, all optional on read, so version 1 files load unchanged and unknown keys are kept (ADR-080):
+
+| Field | Values |
+|---|---|
+| `kind` | `plant` (default, = version 1 records), `irrigation_path`, `reference_point`, `note`, `measurement` |
+| `status` | `pending` (default for phone writes), `approved`, `rejected`, `placed` |
+| `geometry` | `{"type":"point","lat","lon","x_cm","y_cm"}` or `{"type":"polyline","points":[[lat,lon,x_cm,y_cm],...]}`; plan x,y **at capture** (current georef) kept beside lat/lon so a later georef change does not silently move it |
+| `accuracy_m`, `fix_mode`, `sigma_m` | telemetry at capture (`fix_mode` gains the §2.9 values; the existing `gps/exif/map_tap/manual/remote_position` stays valid) |
+| `idempotency_key` | client UUID, unique per record |
+| per kind | irrigation: `diameter_mm`, `flow_lph`, `emitter_spacing_cm`, `closes_on`; reference point: `name` + the plan x,y the user says it is; measurement: `distances` and trilateration `rms` |
+| `source` | `field_remote`, `agent`, `desktop` |
+
+Limits: polyline <= 2000 vertices; the 5000-record and 25 MB-photo caps stay; **pending** records capped at
+500 so a runaway phone cannot fill the review list. Rejected records are kept until the user purges them.
+Every status change goes through `update_record`.
 
 ## 2. Positioning core: `core/positioning/` (pure Python, numpy allowed)
 
@@ -171,17 +198,11 @@ matters; absolute WGS84 matters little.
 ### 2.2 Types
 
 ```python
-class FixMode(StrEnum):
-    STANDARD="standard"; ANCHOR_CALIBRATED="anchor_calibrated"; VIO_FUSED="vio_fused"
-    RTK_FLOAT="rtk_float"; RTK_FIXED="rtk_fixed"
-# fix_mode is the public enum; "plan_locked" VIO reports vio_fused with anchor_source="plan_points".
-
-@dataclass(frozen=True) class GnssSample: t, lat, lon, accuracy_m, alt|None, heading_deg|None, speed_mps|None
-@dataclass(frozen=True) class VioSample:  t, x, y, z, qx, qy, qz, qw, tracking: "tracking"|"limited"|"lost"
-@dataclass(frozen=True) class ImuSample:  t, ax, ay, az, alpha, beta, gamma, heading_deg|None, absolute: bool
-@dataclass(frozen=True) class PositionEstimate:
-    t, e_m, n_m, x_cm, y_cm, lat, lon, sigma_m, heading_deg|None, speed_mps,
-    fix_mode, stationary, quality, gated
+class FixMode(StrEnum): STANDARD, ANCHOR_CALIBRATED, VIO_FUSED, RTK_FLOAT, RTK_FIXED  # values = lowercase names
+# GnssSample(t, lat, lon, accuracy_m, alt, heading_deg, speed_mps); VioSample(t, x, y, z, quat, tracking)
+# ImuSample(t, accel, alpha, beta, gamma, heading_deg, absolute); PositionEstimate(t, e_m, n_m, x_cm, y_cm,
+#   lat, lon, sigma_m, heading_deg, speed_mps, fix_mode, stationary, quality, gated)  -- all frozen dataclasses
+# plan-locked VIO reports fix_mode vio_fused with anchor_source "plan_points".
 ```
 
 **Heading (corrected).** `webkitCompassHeading` is iOS-only; it does not exist on Android. On Android Chrome
@@ -202,7 +223,7 @@ longer gap re-seeds velocity, keeps position.
 - Measurement `[e, n]`, `R = r^2 I`, `r = max(accuracy_m, r_min)`, `r_min = 1.5 m` (reported accuracy is
   optimistic under correlated error); inflate `r` x2 when the reported accuracy rose more than 3x in 1 s.
 - `P0 = diag(r0^2, r0^2, 2^2, 2^2)`; Joseph-form update; `sigma_m = sqrt(trace(P[:2,:2])/2)`.
-- Forward filter live; an RTS smoother over a finished recording only.
+- Forward filter live; RTS smoother only over a finished recording.
 
 ### 2.4 Gating, ZUPT, breadcrumbs
 
@@ -251,9 +272,8 @@ Chain: GNSS lat/lon, then ENU (georef), then **anchor transform**, then plan ENU
   residuals per point, rms, and the covariance `(J^T W J)^-1` (so the sigma shown is computed, and a small
   geometric dilution of precision warns when the circles are nearly collinear). Refuse when residual rms >
   `3 x sigma_d` or the geometry is degenerate (angle between bearings < 20 degrees).
-- **Control network (only if it stays small).** `closure.py` may offer `solve_network(points, distances)` for a
-  few known plan points with extra tape distances between them (least squares for adjusting plan points, with
-  fixed-point and free-network modes). If it passes ~150 lines, defer to v2.
+- **Control network:** a small least-squares adjustment of a few plan points from extra tape distances may be
+  added in `closure.py` if it stays under ~150 lines; otherwise v2.
 
 ### 2.7 Bowditch loop closure (`closure.py`)
 
@@ -284,9 +304,9 @@ is used only as a gross-error check (alert if the locked frame and filtered GNSS
 Fused `sigma_m` reports the anchor/GNSS sigma as the absolute number plus `relative_sigma_m_per_10m` only
 after WP-M supplies a measured value (null before).
 
-**PDR fallback (no WebXR):** step detection on low-passed |a| (refractory 0.3 s), step length 0.7 m (learned
-from GNSS on straight stretches), heading from §2.2. It only replaces the constant-velocity prediction
-(`sigma_a = 1.5`) and never overrides GNSS; labelled "motion-smoothed", not `vio_fused`.
+**PDR fallback (no WebXR):** step detection on low-passed |a| (refractory 0.3 s), step length 0.7 m, heading
+from §2.2; it only replaces the constant-velocity prediction (`sigma_a = 1.5`), never overrides GNSS, and is
+labelled "motion-smoothed", not `vio_fused`.
 
 WebXR support is probed on the device (`navigator.xr.isSessionSupported('immersive-ar')`) and needs a tap;
 the AR session takes over the screen, the map is a small inset.
@@ -299,65 +319,58 @@ A client-reported `fix_quality` (real NMEA) overrides inference and is shown as 
 `anchor_calibrated` (anchor < 10 min or georef fit rms < 2 m today) > `standard`. Telemetry from
 `POST /position` and `/stream`, also feeding the desktop puck:
 
-```json
-{"t": 1767000000.0, "lat": 33.43, "lon": -111.74, "x_cm": 1234.5, "y_cm": -230.1, "sigma_m": 2.1,
- "horizontal_accuracy_m": 3.4, "heading_deg": 87.0, "heading_source": "gnss|compass|vio|none",
- "speed_mps": 0.9, "fix_mode": "anchor_calibrated", "anchor_source": "gnss_point|plan_points|none",
- "anchor_age_s": 144, "stationary": false, "gated": false, "quality": "fair", "samples_used": 5}
-```
+Telemetry JSON: `t, lat, lon, x_cm, y_cm, sigma_m, horizontal_accuracy_m, heading_deg, heading_source
+(gnss|compass|vio|none), speed_mps, fix_mode, anchor_source (gnss_point|plan_points|none), anchor_age_s,
+stationary, gated, quality, samples_used`.
 
 `horizontal_accuracy_m` is the raw reported value; `sigma_m` the filtered, calibrated estimate. The desktop
 puck is a non-saved overlay item outside the undo stack, toggled in the View menu.
 
 ## 3. NTRIP
 
-A desktop NTRIP client cannot correct the phone's internal GNSS (corrections must reach the chip, which only
-the phone's own software can do).
+A desktop NTRIP client cannot correct the phone's internal GNSS: corrections must reach the chip, which only
+the phone's own software can do. **Decided: deferred to v2.**
 - **Real RTK path (documented, no code):** SW Maps or RTKGPS+ connects to the caster (RTK2go, AZCORS) and
   feeds Android Mock Location; Chrome then reports better accuracy and Field Remote labels the mode as
-  inferred. The wiki gets a short how-to with the caveat that a phone antenna limits results.
-- **RTCM relay/diagnostic: defer to v2.** Its legitimate uses (caster reachability and source-table check;
-  forwarding RTCM to an app that accepts it, which common apps do not) are thin, while it adds a credentialed
-  outbound connection and a privacy surface.
-- **If built (v2):** off by default; `services/ntrip_client.py` (stdlib `socket` + `ssl`, NTRIP v1/v2,
-  source table, RTCM3 frame detection, 1 MB/min cap); host/port/mountpoint/username in Preferences, password
-  in the secret store, never to the phone; UI text "Diagnostic only: this does not correct your phone's
-  built-in GPS"; `PRIVACY.md` section plus a `DISCLOSED` row in `tests/unit/test_privacy_inventory.py`.
-  Independent of v2: WP-A must already add a `DISCLOSED["field_remote/server.py"]` row and a "Field Remote"
-  PRIVACY section (listens only when enabled, on the chosen interface, sends nothing to the internet), since
-  the test's loopback-only allowance does not cover a non-loopback bind.
+  inferred. A wiki how-to carries the caveat that a phone antenna limits results.
+- **v2 relay/diagnostic (if built):** off by default; `services/ntrip_client.py` (stdlib `socket` + `ssl`,
+  NTRIP v1/v2, source table, RTCM3 detection, 1 MB/min cap); password in the secret store, never to the
+  phone; UI text "Diagnostic only: this does not correct your phone's built-in GPS"; `PRIVACY.md` section and
+  a `DISCLOSED` row in `tests/unit/test_privacy_inventory.py`.
+- **Needed now regardless:** WP-A adds `DISCLOSED["field_remote/server.py"]` and a "Field Remote" PRIVACY
+  section (listens only when enabled, on the chosen interface, sends nothing to the internet), because the
+  test's loopback-only allowance does not cover a non-loopback bind.
 
 ## 4. Mobile UI
 
 ### 4.1 Constraints
 
-Served from memory from `field_remote/static/` (`index.html`, `app.css`, ES modules `app.js`, `map.js`,
-`api.js`, `position.js`, `capture.js`, `store.js`). No CDN, framework or build step; Android Chrome 100+;
-150 KB budget; Canvas 2D map with pointer events and pinch; targets >= 48 px, high contrast, one-handed
-controls, Wake Lock while recording; strings from `/strings` so the translation gate covers them.
+Served from memory from `field_remote/static/` (ES modules `app.js`, `map.js`, `api.js`, `position.js`,
+`capture.js`, `store.js`); no CDN, framework or build step; Android Chrome 100+; 150 KB budget; Canvas 2D map;
+targets >= 48 px, one-handed, Wake Lock while recording; strings from `/strings` (covered by the translation gate).
 
 ### 4.2 Screens
 
 1. **Map:** puck, accuracy halo (`sigma_m`, grey when poor), compass cone (heading + source; hidden if no
    heading, §2.2), fix badge (mode, sigma, anchor age), follow button, layer toggles, view-only banner.
-2. **Tap-to-place:** tap puck (optional Survey-In first) or any map point; crosshair with a **D-pad nudge**
-   (5 / 25 cm); species search (debounced 200 ms, or "marker only"); confirm sends `/place`; toast with Undo.
+2. **Mark a plant/point:** tap the puck (optional Survey-In first) or any map point; crosshair with a
+   **D-pad nudge** (5 / 25 cm); species search (debounced 200 ms, or "note only"); **Save as pending**
+   (`POST /records`). Toast: "Saved for review on the computer"; no place or undo on the phone.
 3. **Survey-In:** 5 s ring, n and sigma, discard count, result card with the honest note; "Use" / "Calibrate here".
-4. **Calibration:** up to 4 points with rms/residuals; "fix my position today" (session) vs "fix the map"
-   (plan georef).
-5. **Measure from 2-3 points (new, no GPS or camera):** pick known plan points on the map, enter the tape or
-   laser distance for each, pick the side if ambiguous; shows the computed spot, per-point residuals, rms
-   and DOP warning; "Place here" uses the same `/place`. Works with the screen off the sky.
-6. **Irrigation:** toggle-lock (or hold) record button; live preview on phone and desktop; at release a
-   simplified preview, optional "closes on start / ends at plan point" (Bowditch), pipe diameter, flow,
-   emitter fields; Commit sends `/irrigation-path`; under 3 m or 3 points is refused. With a plan-locked AR
-   session the track comes from VIO, else from the Kalman track.
-7. **AR lock (WebXR, when supported):** guided lock of two plan points with the reticle, shows scale-check
-   result, then the recorded path uses plan-locked VIO.
+4. **Calibration:** up to 4 points with rms/residuals; "fix my position today" (session) vs "send corner
+   recordings for review" (saved as `reference_point` records; the georeference changes only when approved).
+5. **Measure from 2-3 points (no GPS or camera):** pick known plan points, enter tape/laser distances, pick
+   the side if ambiguous; shows the computed spot, residuals, rms and DOP warning; "Save" stores a
+   `measurement` or `plant` record there.
+6. **Irrigation:** toggle-lock (or hold) record; live preview on phone and desktop; at release a simplified
+   preview, optional Bowditch closure, diameter/flow/emitter fields; Save stores a pending `irrigation_path`
+   record (under 3 m or 3 points refused). Source is VIO when plan-locked, else the Kalman track.
+7. **AR lock (WebXR, experimental, when supported):** guided lock of two plan points with the reticle, scale
+   check shown, then the recorded path uses plan-locked VIO.
 8. **Capture:** OS camera via `<input type="file" accept="image/*" capture="environment">` (keeps EXIF
-   GPS/bearing; **never re-encode**), plant name + species search, age, notes, current position with
-   `fix_mode`, optional compass bearing at capture; `POST /field-records`. Records list; tapping shows the
-   photo; the agent or the user can place a record later.
+   GPS/bearing; **never re-encode**), plant name + species search, age, notes, position with `fix_mode`,
+   optional compass bearing; Save a pending `plant` record. A list shows each record's status (pending,
+   placed, rejected).
 9. **Status:** connection, clock skew, fingerprint, outbox count, storage use.
 
 Permissions are explained before each prompt (geolocation, device orientation, camera for WebXR); a denial
@@ -365,7 +378,7 @@ degrades gracefully (map only; tap placement and tape measurement still work).
 
 ### 4.3 Offline and spotty signal (corrected)
 
-- **Outbox (works on a self-signed cert):** every write goes first into IndexedDB (`request_id`, photos as
+- **Outbox (works on a self-signed cert):** every write goes first into IndexedDB (`idempotency_key`, photos as
   Blob), is sent with exponential backoff (2..60 s) and on `online`/focus; "N waiting to sync"; entries over
   14 days or rejected with 4xx are shown, not retried forever. Server idempotency (§1.6) makes this safe.
 - **Kept-open tab:** the page, scene and basemap are already in memory; losing Wi-Fi does not blank them. A
@@ -385,12 +398,13 @@ when UI strings change. Default test command: `venv/Scripts/python.exe -m pytest
 | # | Package | Files and interfaces | Tests | Review |
 |---|---|---|---|---|
 | **WP-0 (gate)** | **Frozen-exe `ssl` loader failure.** Reproduce `--selftest` exit 0xc0000139 and find the cause. Likely: a `libssl-3-x64.dll` / `libcrypto-3-x64.dll` pair mismatch between the copies the bundle ships (`dist/OpenGardenPlanner/_internal`) and ones found first on `PATH` or the app directory (Git, Python, Anaconda, other OpenSSL installs). Check which copies exist and their versions, run with a stripped `PATH`, compare against a clean `venv`. Fix in `installer/ogp.spec` (bundle the matching pair) and add a check to `installer.build_environment --strict` that `ssl` imports in the frozen exe | `--selftest` exit 0 on the dev box; TLS start-up covered in `tests/integration/test_field_remote_lifecycle.py` | **Blocks WP-A.** Opus for the diagnosis if not found in one pass |
-| WP-A | Server skeleton, TLS, auth, prefs, privacy | `field_remote/{server,auth,tls,limits}.py`; `app/field_remote_host.py` (`start/stop/status`, signal `status_changed`); prefs `field_remote/{enabled,bind,port,writes,token_ref}`; `ui/dialogs/field_remote_dialog.py` (QR); `PRIVACY.md` + `DISCLOSED`; pin `cryptography`; ADR-081 | `tests/unit/test_field_remote_{auth,limits,tls}.py`; `tests/integration/test_field_remote_lifecycle.py` (off by default, 403 without token, binds only the chosen address); `tests/unit/test_privacy_inventory.py` | **[Opus]** security |
+| WP-A | Server skeleton, TLS, auth, prefs, privacy | `field_remote/{server,auth,tls,limits}.py`; `app/field_remote_host.py` (`start/stop/status`, signal `status_changed`); prefs `field_remote/{enabled,bind,port,records,token_ref}`; `ui/dialogs/field_remote_dialog.py` (QR with `fp`); `PRIVACY.md` + `DISCLOSED`; pin `cryptography`; ADR-081 | `tests/unit/test_field_remote_{auth,limits,tls}.py`; `tests/integration/test_field_remote_lifecycle.py` (off by default, 403 without token, binds only the chosen address); `tests/unit/test_privacy_inventory.py` | **[Opus]** security |
 | WP-B | Positioning core | `core/positioning/{types,kalman,gating,zupt,breadcrumbs,survey,calibration,trilateration,closure,engine}.py`; `PositioningEngine.add_gnss/add_vio/add_imu/set_anchor/survey_in/finish_track`; `trilateration.solve(points, distances, *, side_hint=None) -> TriResult(pos, residuals, rms, cov)` | `tests/unit/test_positioning_*.py`; replay harness `test_positioning_replay.py` with seeded synthetic walks (straight, L, stand-still, multipath spike, accuracy ramp), asserting filtered/raw error ratio, never absolute metres; trilateration cases (2 circles, 3+ over-determined, collinear refusal, noise); Bowditch loop golden | **[Opus]** kalman, gating, survey, trilateration math |
 | WP-C | Read API, telemetry, desktop puck | `field_remote/{routes,projection}.py`; `ui/canvas/items/position_puck.py` (not saved, not in undo) | `starlette.testclient` route tests; projection golden; integration: posted positions give a puck item | Sonnet |
-| WP-D | Write API | `EnsureLayerProvider`; `/place`, `/irrigation-path`, `/field-records`, `/georef/reference-points`, `/undo`; idempotency cache; `origin` tag | `tests/integration/test_field_remote_writes.py`: toggle off gives 403 per route; locked layer 409; Irrigation layer plus polyline in one macro, one undo; photo cap; 8x50 concurrent sidecar writes lose none; idempotent retry; unsaved plan 409; single-process `os.getpid()` assertion | **[Opus]** write path and locks |
+| WP-D | Records API + schema v2 | `field_records.py` v2 (`kind/status/geometry/idempotency_key`, `_migrate`, pending cap, find by key); `POST/PATCH/DELETE /records` in `field_remote/routes.py` (no plan writes, no `run_on_main`) | `tests/unit/test_field_records_v2.py` (v1 file loads, unknown keys kept, idempotent retry, caps, 8x50 concurrent writes lose none); `tests/integration/test_field_remote_records.py` (toggle off 403, unsaved plan 409, photo cap, single-process `os.getpid()`) | **[Opus]** sidecar writer and locks |
+| WP-R | Desktop **Field records review panel** + agent approver | `ui/panels/field_records_panel.py` (list, filters, map preview, photo, Approve/Reject); `services/field_record_placement.py` (Qt-free planner: record to create-spec / polyline / reference point); `EnsureLayerProvider` (Irrigation layer + polyline as one macro); extend `agent_api/field_tools.py` (`place_field_record`, polylines, reference points, `status` in `list_field_records`) | `tests/integration/test_field_records_panel.py` (approve plant = one undo; approve irrigation creates layer + polyline in one undo; locked layer refused; reject; reference point reaches the fit dialog); agent tool tests with toggle off/on | **[Opus]** placement and write path |
 | WP-E | Mobile UI: map, place, species, capture, measure-from-points | `field_remote/static/*` | `test_field_remote_static.py` (size budget, no external URLs, no `eval`, CSP header, no inline script); smoke in a desktop browser against 127.0.0.1 | **[Opus, short]** CSP/XSS |
-| WP-F | Survey-In, calibration, irrigation recording UI, Bowditch option | `static/{position,survey,calib,record}.js`; engine plumbing | integration: posted synthetic walk gives committed vertices (length within 5 % of truth, one undo) | Sonnet |
+| WP-F | Survey-In, calibration, irrigation recording UI, Bowditch option | `static/{position,survey,calib,record}.js`; engine plumbing | integration: a posted synthetic walk becomes a pending `irrigation_path` record (length within 5 % of truth, vertex cap) | Sonnet |
 | WP-G1 | Outbox (works on self-signed) | `static/store.js` (IndexedDB, backoff, idempotent replay) | static tests; manual airplane-mode check | Sonnet |
 | WP-G2 | Offline reload and PWA, **trusted cert only** | `static/sw.js`, cert-trust detection (register only if it succeeds), docs for `tailscale cert` | static tests; manual on a trusted cert | Sonnet |
 | WP-H | WebXR fusion: plan-locked VIO, GNSS fallback, PDR | `core/positioning/fusion.py` (`PlanLockedAligner.lock(a_vio, a_plan, b_vio, b_plan) -> Transform2D`, `scale_check`, `FusionAligner` fallback); `static/xr.js` (hit-test reticle) | synthetic VIO frames (rotation, drift, tracking loss, bad scale); **no accuracy claim** | **[Opus]** fusion |
@@ -398,74 +412,70 @@ when UI strings change. Default test command: `venv/Scripts/python.exe -m pytest
 | WP-I | Docs, wiki, FR-GEO, glossary, roadmap row | project docs table | `scripts/sync_wiki.py --check`, `check_agent_context.py` | Sonnet |
 | WP-J (v2) | NTRIP diagnostic/relay | `services/ntrip_client.py`, prefs, privacy rows | fake caster on a local socket | **[Opus]** |
 
-Order: WP-0, then A (with B in parallel; disjoint files), C, D, E, F, G1, H, M, I; G2 after a trusted cert
-exists. A and D are never merged without an Opus read of the final diff.
+Order: WP-0, then A (with B in parallel; disjoint files), C, D, R, E, F, G1, H, M, I; G2 after a trusted cert
+exists. A, D and R are never merged without an Opus read of the final diff. The phone UI (E, F) may ship before R only if the agent can already read records (`list_field_records`).
 
 ### 5.1 Measurement protocol (WP-M) gating accuracy claims
 
-On the owner's property, with a tape-measured baseline set (e.g. 5, 10, 20 m straight lines between marked
-points, one L-shaped and one closed loop, one over gravel and one over lawn, shade and full sun). For each
-mode (standard, anchor-calibrated, plan-locked VIO, GNSS-aligned VIO, trilateration) do N >= 10 runs per
-baseline, same walker, on different times of day. Record per run: reported sigma, endpoint error against the
-tape, length error, lateral deviation from the line, closure error for loops, tracking-loss count, battery
-drop. Report median, P90 and max, never only the mean. A mode may be described in the UI, README, PRIVACY or
-wiki with a number only if it is quoted as "median X, 90 % under Y, n runs, on this phone/Chrome version"
-by the measured result; otherwise the UI shows reported sigma only. The protocol is also what sets `r_min`,
-`sigma_a`, and the 1 % VIO drift assumption.
+On the owner's property with tape-measured baselines (5, 10, 20 m straight lines, one L, one closed loop; gravel
+and lawn; shade and sun). For each mode (standard, anchor-calibrated, plan-locked VIO, GNSS-aligned VIO,
+trilateration) do >= 10 runs per baseline, same walker, different times of day. Record reported sigma,
+endpoint, length and lateral error, loop closure, tracking losses, battery drop; report median, P90 and max.
+A number may appear in the UI, README, PRIVACY or wiki only as "median X, 90 % under Y, n runs, this
+phone/Chrome version"; otherwise the UI shows reported sigma only. WP-M also sets `r_min`, `sigma_a` and the 1 %
+VIO drift assumption.
 
 ### 5.2 Only the user can test on the phone (Android Chrome)
 
-Cert warning and fingerprint (LAN, Tailscale); real accuracy near the house, under trees, in open lawn;
-`deviceorientationabsolute` and screen-rotation compensation; wake lock; photo EXIF kept; Survey-In at a known
-corner; the 20 m tape walk; tape trilateration; WebXR availability, tracking on gravel/lawn, 5-minute battery;
-airplane mode mid-write and mid-recording; offline reload fails as documented; optional RTK app via Mock Location.
+Cert warning and fingerprint; accuracy near the house, under trees, in open lawn; `deviceorientationabsolute`
+and rotation compensation; wake lock; photo EXIF kept; Survey-In at a known corner; 20 m tape walk; tape
+trilateration; WebXR availability, tracking on gravel/lawn, 5-minute battery; airplane mode mid-write and
+mid-recording; offline reload fails as documented; optional RTK app via Mock Location.
 
 ### 5.3 Risks
 
-Chrome stops geolocation when the screen sleeps (wake lock, warnings, client buffer); self-signed friction
-and no service worker (pairing dialog quality, Tailscale path); reported accuracy is not truth (`r_min`,
-replay harness, WP-M); WebXR may be missing or unstable on the owner's phone (silent fallback, "when
-supported" wording); phone-page scope creep (hold §4.2); licensing (`cryptography` Apache/BSD, QR encoder
-licence, `ogp-external-positioning` check in WP-A); WP-0 may delay HTTPS in the exe.
+Chrome stops geolocation when the screen sleeps (wake lock, warnings, client buffer); self-signed friction and
+no service worker (pairing dialog, Tailscale path); reported accuracy is not truth (`r_min`, replay harness,
+WP-M); WebXR may be missing on the phone (silent fallback, "when supported"); phone-page scope creep; a long
+pending list if records are never reviewed (cap 500, panel badge, agent can approve); sidecar v2 must keep
+version 1 files and photos intact (migration test); licensing (`cryptography`, QR encoder,
+`ogp-external-positioning` check in WP-A); WP-0 may delay HTTPS in the exe.
 
-### 5.4 Deferred to v2 / open
+### 5.4 Deferred to v2
 
-BarcodeDetector QR fiducials (a planar pose from `cornerPoints` needs camera intrinsics the page cannot get,
-so 1-3 cm is unproven); Web Bluetooth NMEA from an external receiver (real fix quality, base for a real NTRIP
-relay; needs hardware, see §6); desktop photogrammetry orthomosaic; per-phone tokens and pinning.
+BarcodeDetector QR fiducials (planar pose from `cornerPoints` needs camera intrinsics the page cannot get; 1-3
+cm unproven); Web Bluetooth NMEA from an external receiver (see §6); desktop photogrammetry orthomosaic;
+per-phone tokens and pinning.
 
-### 5.5 Open questions for the owner
+### 5.5 Decided and open
 
-1. Separate "phone may edit the plan" toggle (recommended) or reuse the agent-edit toggle?
-2. Refuse phone writes on an unsaved plan (the sidecar needs a path)?
-3. One shared token for v1, or per-phone tokens?
-4. Android Chrome only?
-5. Is a full-screen AR session acceptable for irrigation walks and the two-point lock?
-6. Do you already use `tailscale cert`, and do you want offline reload (WP-G2) enough to set it up?
-7. Confirm NTRIP relay deferred to v2, with the SW Maps / RTKGPS+ how-to in the wiki.
-8. Photo caps (25 MB each, 5000 records): enough?
-9. Do you own a tape or laser measure for the trilateration mode and WP-M?
+Decided by the owner: separate phone-save toggle (off by default); one shared token; Android Chrome only;
+NTRIP deferred to v2 (SW Maps / RTKGPS+ how-to in the wiki); caps 25 MB and 5000 records; offline reload only
+with a trusted cert; the phone never edits the plan (records only, approved on the desktop or by the agent).
+
+Open:
+1. Unsaved plan: refuse with `plan_not_saved` (recommended, §1.7) or another policy?
+2. Is a full-screen AR session acceptable for irrigation walks and the two-point lock?
+3. Do you use `tailscale cert`, and is offline reload worth setting it up?
+4. Do you own a tape or laser measure (trilateration and WP-M)?
+5. Should approving an `irrigation_path` use a default pipe style, or always ask the diameter?
 
 ## 6. Native client (later)
 
-Decision: **web client first; a native Android client (Kotlin) only after WP-M.** The server contract in
-§1.6 is client-agnostic (HTTPS + JSON + header token), so nothing in the server changes for a second client.
-Two hooks exist now for it: the certificate fingerprint in the pairing QR (`fp`, §1.4) and the optional
-`fix_quality/hdop/sigma_m/source` fields on position posts (§1.6).
+Decision: **web client first; a native Android (Kotlin) client only after WP-M.** The §1.6 contract is
+client-agnostic (HTTPS + JSON + header token); two hooks exist now: the certificate fingerprint `fp` in the
+QR (§1.4) and the optional `fix_quality/hdop/sigma_m/source` on position posts (§1.6).
 
-**Triggers (any one, decided from WP-M data):** measured plan-locked WebXR error above the owner's target
-(owner sets the number before the runs); Chrome WebXR unavailable or unreliable on the owner's phone; an
-external RTK receiver wanted (Chrome cannot read it); the screen-sleep/background limit (§5.3) proves too
-disruptive in real irrigation walks.
+**Triggers (any one, from WP-M data):** measured plan-locked WebXR error above the owner's target (set before
+the runs); Chrome WebXR unavailable or unreliable on the phone; an external RTK receiver wanted; screen-sleep
+limits too disruptive on real irrigation walks.
 
-**What it would add:** foreground-service GNSS logging (survives screen off; raw `GnssMeasurement` access);
-certificate pinning from `fp` (no warning screen, and a real service-worker-free offline path); ARCore Depth
-for ground-point ranging; direct USB/Bluetooth NMEA ($GGA/$GST) from an external receiver with its own NTRIP
-client, reporting `fix_quality`/`hdop` honestly.
+**It would add:** foreground-service GNSS logging (raw `GnssMeasurement`), certificate pinning from `fp`,
+ARCore Depth ground ranging, direct USB/Bluetooth NMEA ($GGA/$GST) with its own NTRIP client reporting
+`fix_quality`/`hdop` honestly.
 
-**Unproven hypotheses, not promises:** 1-2 cm plan-local accuracy from ARCore Depth or AprilTag/fiducial
-poses, and decimeter-class accuracy from raw phone GNSS, are unmeasured; both need WP-M-style evidence before
-any claim.
+**Unproven:** 1-2 cm plan-local accuracy from ARCore Depth or AprilTags, and decimeter-class raw phone GNSS,
+are hypotheses needing WP-M-style evidence before any claim.
 
-**Costs:** a separate Kotlin/Gradle toolchain and CI; APK signing and update distribution; testable only on
-the device; ARCore Depth works on a limited device list; a second UI to keep in step with the web one.
+**Costs:** a Kotlin/Gradle toolchain and CI, APK signing and distribution, on-device-only testing, ARCore
+Depth device support, a second UI to keep in step.
