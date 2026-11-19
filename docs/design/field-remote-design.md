@@ -128,13 +128,17 @@ records become plan objects in exactly two ways, both on existing paths:
 - **Agent:** `list_field_records` (reads, now includes `status`) and `place_geotagged_feature` (existing,
   behind the agent-edit toggle + token) extended to polylines and reference points (`place_field_record` on a
   record id, same code as the panel), then marking the record `placed`. Rejecting is a gated agent write too.
+**Placement requests:** the panel groups records by `group_id` and shows candidates side by side (photo,
+  position on the plan with its accuracy halo, bearing, `fix_mode`, precision hint). **Approve one candidate**
+  places it as above and sets the siblings to `superseded` in the same store call; **Reject all** sets every
+  candidate `rejected`; "Reopen" (and undo of the placement) returns the siblings to `pending`. The agent
+  path is `list_field_records` (grouped by `group_id`) + `place_geotagged_feature`/`place_field_record` on the
+  chosen id, which supersedes the siblings identically.
 Undoing a placement leaves `placed_object_id` dangling (ADR-080 consequence, unchanged).
 
 **Unsaved plan.** The sidecar path derives from the plan's file path, so an unsaved plan has nowhere to hold
 records. Recommendation: the server answers `409 plan_not_saved` and the phone shows "Save the plan on the
-computer first". Considered and rejected: a temporary store migrated on first save adds a second sidecar
-location, a window where phone data is lost on a crash, and a migration path to test; one Save click before
-leaving the desk is cheap and the failure is visible at once.
+computer first". Rejected alternative: a temporary store migrated on first save (second location, crash window, migration to test).
 
 ### 1.8 Single writer for the sidecar (recommendation)
 
@@ -151,12 +155,13 @@ New fields, all optional on read, so version 1 files load unchanged and unknown 
 
 | Field | Values |
 |---|---|
-| `kind` | `plant` (default, = version 1 records), `irrigation_path`, `reference_point`, `note`, `measurement` |
-| `status` | `pending` (default for phone writes), `approved`, `rejected`, `placed` |
+| `kind` | `plant` (default, = version 1 records), `irrigation_path`, `reference_point`, `note`, `measurement`, `placement_request` (a client's "we want this here") |
+| `status` | `pending` (default for phone writes), `approved`, `rejected`, `placed`, `superseded` (a sibling candidate whose group had another one approved; reversible) |
 | `geometry` | `{"type":"point","lat","lon","x_cm","y_cm"}` or `{"type":"polyline","points":[[lat,lon,x_cm,y_cm],...]}`; plan x,y **at capture** (current georef) kept beside lat/lon so a later georef change does not silently move it |
 | `accuracy_m`, `fix_mode`, `sigma_m` | telemetry at capture (`fix_mode` gains the §2.9 values; the existing `gps/exif/map_tap/manual/remote_position` stays valid) |
 | `idempotency_key` | client UUID, unique per record |
 | per kind | irrigation: `diameter_mm`, `flow_lph`, `emitter_spacing_cm`, `closes_on`; reference point: `name` + the plan x,y the user says it is; measurement: `distances` and trilateration `rms` |
+| `group_id`, `what`, `requester` | placement requests: candidates are **separate records sharing a `group_id`** (simplest: each has its own photo, position, accuracy, bearing, `fix_mode`, status); `what` = free-text plant or feature (+ optional `species_key`); `requester` optional name; `precision_hint` = how the point was taken (`gps`, `survey_in`, `plan_locked`, `trilateration`) |
 | `source` | `field_remote`, `agent`, `desktop` |
 
 Limits: polyline <= 2000 vertices; the 5000-record and 25 MB-photo caps stay; **pending** records capped at
@@ -371,7 +376,12 @@ targets >= 48 px, one-handed, Wake Lock while recording; strings from `/strings`
    GPS/bearing; **never re-encode**), plant name + species search, age, notes, position with `fix_mode`,
    optional compass bearing; Save a pending `plant` record. A list shows each record's status (pending,
    placed, rejected).
-9. **Status:** connection, clock skew, fingerprint, outbox count, storage use.
+9. **Client wish ("place request"):** photograph the spot, type what the client wants (plant/feature, optional
+   species match, optional requester name), take the position (puck, with a **fine-nudge** of the captured
+   point before submit); a hint says "if the exact spot matters, use Survey-In, plan-lock or tape
+   measurement" and stores which was used (`precision_hint`). "Add another candidate" creates a sibling under
+   the same `group_id`; Save submits all as pending.
+10. **Status:** connection, clock skew, fingerprint, outbox count, storage use.
 
 Permissions are explained before each prompt (geolocation, device orientation, camera for WebXR); a denial
 degrades gracefully (map only; tap placement and tape measurement still work).
@@ -401,9 +411,9 @@ when UI strings change. Default test command: `venv/Scripts/python.exe -m pytest
 | WP-A | Server skeleton, TLS, auth, prefs, privacy | `field_remote/{server,auth,tls,limits}.py`; `app/field_remote_host.py` (`start/stop/status`, signal `status_changed`); prefs `field_remote/{enabled,bind,port,records,token_ref}`; `ui/dialogs/field_remote_dialog.py` (QR with `fp`); `PRIVACY.md` + `DISCLOSED`; pin `cryptography`; ADR-081 | `tests/unit/test_field_remote_{auth,limits,tls}.py`; `tests/integration/test_field_remote_lifecycle.py` (off by default, 403 without token, binds only the chosen address); `tests/unit/test_privacy_inventory.py` | **[Opus]** security |
 | WP-B | Positioning core | `core/positioning/{types,kalman,gating,zupt,breadcrumbs,survey,calibration,trilateration,closure,engine}.py`; `PositioningEngine.add_gnss/add_vio/add_imu/set_anchor/survey_in/finish_track`; `trilateration.solve(points, distances, *, side_hint=None) -> TriResult(pos, residuals, rms, cov)` | `tests/unit/test_positioning_*.py`; replay harness `test_positioning_replay.py` with seeded synthetic walks (straight, L, stand-still, multipath spike, accuracy ramp), asserting filtered/raw error ratio, never absolute metres; trilateration cases (2 circles, 3+ over-determined, collinear refusal, noise); Bowditch loop golden | **[Opus]** kalman, gating, survey, trilateration math |
 | WP-C | Read API, telemetry, desktop puck | `field_remote/{routes,projection}.py`; `ui/canvas/items/position_puck.py` (not saved, not in undo) | `starlette.testclient` route tests; projection golden; integration: posted positions give a puck item | Sonnet |
-| WP-D | Records API + schema v2 | `field_records.py` v2 (`kind/status/geometry/idempotency_key`, `_migrate`, pending cap, find by key); `POST/PATCH/DELETE /records` in `field_remote/routes.py` (no plan writes, no `run_on_main`) | `tests/unit/test_field_records_v2.py` (v1 file loads, unknown keys kept, idempotent retry, caps, 8x50 concurrent writes lose none); `tests/integration/test_field_remote_records.py` (toggle off 403, unsaved plan 409, photo cap, single-process `os.getpid()`) | **[Opus]** sidecar writer and locks |
-| WP-R | Desktop **Field records review panel** + agent approver | `ui/panels/field_records_panel.py` (list, filters, map preview, photo, Approve/Reject); `services/field_record_placement.py` (Qt-free planner: record to create-spec / polyline / reference point); `EnsureLayerProvider` (Irrigation layer + polyline as one macro); extend `agent_api/field_tools.py` (`place_field_record`, polylines, reference points, `status` in `list_field_records`) | `tests/integration/test_field_records_panel.py` (approve plant = one undo; approve irrigation creates layer + polyline in one undo; locked layer refused; reject; reference point reaches the fit dialog); agent tool tests with toggle off/on | **[Opus]** placement and write path |
-| WP-E | Mobile UI: map, place, species, capture, measure-from-points | `field_remote/static/*` | `test_field_remote_static.py` (size budget, no external URLs, no `eval`, CSP header, no inline script); smoke in a desktop browser against 127.0.0.1 | **[Opus, short]** CSP/XSS |
+| WP-D | Records API + schema v2 | `field_records.py` v2 (`kind/status/geometry/idempotency_key/group_id`, `supersede_siblings`/`reopen_group`, `_migrate`, pending cap, find by key); `POST/PATCH/DELETE /records` in `field_remote/routes.py` (no plan writes, no `run_on_main`) | `tests/unit/test_field_records_v2.py` (v1 file loads, unknown keys kept, idempotent retry, caps, 8x50 concurrent writes lose none); `tests/integration/test_field_remote_records.py` (toggle off 403, unsaved plan 409, photo cap, single-process `os.getpid()`) | **[Opus]** sidecar writer and locks |
+| WP-R | Desktop **Field records review panel** + agent approver | `ui/panels/field_records_panel.py` (list, filters, map preview, photo, Approve/Reject); `services/field_record_placement.py` (Qt-free planner: record to create-spec / polyline / reference point); `EnsureLayerProvider` (Irrigation layer + polyline as one macro); candidate comparison view for `placement_request` groups; extend `agent_api/field_tools.py` (`place_field_record`, polylines, reference points, `status` in `list_field_records`) | `tests/integration/test_field_records_panel.py` (approve plant = one undo; approve one of 3 candidates supersedes the others, undo/reopen restores them; reject all; approve irrigation creates layer + polyline in one undo; locked layer refused; reject; reference point reaches the fit dialog); agent tool tests with toggle off/on | **[Opus]** placement and write path |
+| WP-E | Mobile UI: map, mark, species, capture, client-wish candidates, measure-from-points | `field_remote/static/*` | `test_field_remote_static.py` (size budget, no external URLs, no `eval`, CSP header, no inline script); smoke in a desktop browser against 127.0.0.1 | **[Opus, short]** CSP/XSS |
 | WP-F | Survey-In, calibration, irrigation recording UI, Bowditch option | `static/{position,survey,calib,record}.js`; engine plumbing | integration: a posted synthetic walk becomes a pending `irrigation_path` record (length within 5 % of truth, vertex cap) | Sonnet |
 | WP-G1 | Outbox (works on self-signed) | `static/store.js` (IndexedDB, backoff, idempotent replay) | static tests; manual airplane-mode check | Sonnet |
 | WP-G2 | Offline reload and PWA, **trusted cert only** | `static/sw.js`, cert-trust detection (register only if it succeeds), docs for `tailscale cert` | static tests; manual on a trusted cert | Sonnet |
@@ -451,7 +461,7 @@ per-phone tokens and pinning.
 
 Decided by the owner: separate phone-save toggle (off by default); one shared token; Android Chrome only;
 NTRIP deferred to v2 (SW Maps / RTKGPS+ how-to in the wiki); caps 25 MB and 5000 records; offline reload only
-with a trusted cert; the phone never edits the plan (records only, approved on the desktop or by the agent).
+with a trusted cert; the phone never edits the plan (records only, approved on the desktop or by the agent; client wishes included).
 
 Open:
 1. Unsaved plan: refuse with `plan_not_saved` (recommended, §1.7) or another policy?
