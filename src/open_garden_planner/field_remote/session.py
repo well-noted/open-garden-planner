@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import threading
+import time
 from collections import OrderedDict
 from collections.abc import Sequence
 from typing import Any
@@ -19,6 +20,10 @@ from open_garden_planner.core.positioning import GnssSample, ImuSample, Position
 from open_garden_planner.core.positioning.fusion import FusionError
 from open_garden_planner.core.positioning.survey import SurveyResult
 from open_garden_planner.field_remote import projection
+
+#: With no pose heard for this long (server clock), the lock is reported stale: a phone that
+#: was backgrounded sends nothing, so the sample clock alone never ages the lock out.
+VIO_STREAM_STALE_S = 3.0
 
 MAX_SURVEYS = 8
 MIN_SURVEY_SAMPLES = 4  # core/positioning/survey.py MIN_SAMPLES
@@ -51,6 +56,8 @@ class RecordingSession:
         self._surveys: OrderedDict[str, SurveyResult] = OrderedDict()
         self._next = 0
         self.recording = False
+        self._vio_heard: float | None = None  # server monotonic time of the last pose batch
+        self._clock = time.monotonic
 
     def engine_for(self, geo: GeoReference) -> PositioningEngine:
         with self.lock:
@@ -73,8 +80,10 @@ class RecordingSession:
         """
         for v, reset in vios:
             if reset:
-                engine.ar_unlock("reference_space_reset")
+                engine.ar_frame_reset(v.t)
             engine.add_vio(v)
+        if vios:
+            self._vio_heard = self._clock()
         for m in imus:
             engine.add_imu(m)
 
@@ -112,9 +121,9 @@ class RecordingSession:
             if estimate is None and fused is None:  # every fix refused before any was accepted: say so, plainly
                 return {
                     **projection.telemetry(fixes, geo), "gated": True, "reject_reason": engine.last_reject_reason,
-                    "fused": engine.ar_status(),
+                    "fused": self._status(engine, ref_t),
                 }
-            return self._telemetry(engine, geo, fused or estimate, fixes[-1], len(fixes))
+            return self._telemetry(engine, geo, fused or estimate, fixes[-1], len(fixes), ref_t)
 
     def vio_only(
         self, vios: Sequence[tuple[VioSample, bool]], imus: Sequence[ImuSample], geo: GeoReference
@@ -128,16 +137,28 @@ class RecordingSession:
             if fused is None:
                 return {
                     "x_cm": None, "y_cm": None, "gated": False, "georeferenced": True,
-                    "recording": self.recording, "fused": engine.ar_status(), "track_source": "gnss",
+                    "recording": self.recording, "fused": self._status(engine, ref_t), "track_source": "gnss",
                     "samples_used": 0,
                 }
-            return self._telemetry(engine, geo, fused, None, 0)
+            return self._telemetry(engine, geo, fused, None, 0, ref_t)
+
+    def _status(self, engine: PositioningEngine, t: float | None) -> dict[str, Any]:
+        heard = self._vio_heard
+        stale = heard is None or self._clock() - heard > VIO_STREAM_STALE_S
+        return engine.ar_status(t, stream_stale=stale)
 
     def _telemetry(
-        self, engine: PositioningEngine, geo: GeoReference, estimate: Any, last: projection.Fix | None, used: int
+        self,
+        engine: PositioningEngine,
+        geo: GeoReference,
+        estimate: Any,
+        last: projection.Fix | None,
+        used: int,
+        ref_t: float | None,
     ) -> dict[str, Any]:
-        reported = last is not None and last.fix_quality in ("rtk_float", "rtk_fixed")
         vio_track = estimate.track_source == "vio"
+        # a receiver's RTK label describes the GNSS fix, never a VIO-sourced position
+        reported = not vio_track and last is not None and last.fix_quality in ("rtk_float", "rtk_fixed")
         heading_canvas = None
         if estimate.heading_deg is not None:
             heading_canvas = round(projection.canvas_heading_deg(estimate.heading_deg, geo.rotation_deg), 2)
@@ -169,7 +190,7 @@ class RecordingSession:
             "samples_used": used,
             "georeferenced": True,
             "recording": self.recording,
-            "fused": engine.ar_status(),
+            "fused": self._status(engine, ref_t),
         }
 
     # -- AR plan lock (WP-H) ------------------------------------------------------------------
@@ -183,23 +204,27 @@ class RecordingSession:
             raise SessionError(422, "invalid_plan_point", str(error)) from error
 
     def ar_lock(
-        self, which: str, geo: GeoReference, hit_xz: tuple[float, float], plan_cm: tuple[float, float], t: float
+        self, which: str, geo: GeoReference, hit_xz: tuple[float, float], plan_cm: tuple[float, float], vio_t: float
     ) -> dict[str, Any]:
-        """Capture lock point ``a`` or ``b`` (the reticle hit, not the phone), or ``c`` for the closure check."""
+        """Capture lock point ``a`` or ``b`` (the reticle hit, not the phone), or ``c`` for the closure check.
+
+        ``vio_t`` is the last pose the phone had sent when it took the hit. The lock time is the
+        server's last pose from the stream, never a client clock.
+        """
         with self.lock:
             engine = self.engine_for(geo)
             plan_en = self._plan_en(geo, plan_cm)
             try:
                 if which == "a":
-                    engine.ar_capture_a(hit_xz, plan_en)
+                    engine.ar_capture_a(hit_xz, plan_en, vio_t)
                 elif which == "b":
-                    engine.ar_capture_b(hit_xz, plan_en, t)
+                    engine.ar_capture_b(hit_xz, plan_en, vio_t)
                 else:
-                    closure = engine.ar_closure(hit_xz, plan_en)
-                    return {"closure_m": round(closure, 3), "label": "closure at C", **{"fused": engine.ar_status()}}
+                    closure = engine.ar_closure(hit_xz, plan_en, vio_t)
+                    return {"closure_m": round(closure, 3), "label": "closure at C", "fused": self._status(engine, None)}
             except FusionError as error:
                 raise SessionError(409, "ar_lock_refused", str(error)) from error
-            status = engine.ar_status()
+            status = self._status(engine, None)
             return {"state": status["state"], "scale": status["scale"], "fused": status}
 
     def ar_unlock(self, geo: GeoReference) -> dict[str, Any]:
@@ -210,7 +235,7 @@ class RecordingSession:
 
     def ar_status(self, geo: GeoReference) -> dict[str, Any]:
         with self.lock:
-            return self.engine_for(geo).ar_status()
+            return self._status(self.engine_for(geo), None)
 
     # -- survey-in and calibration -------------------------------------------------------------
 

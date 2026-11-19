@@ -25,7 +25,7 @@ def vio(t: float, x: float, z: float, tracking: str = "tracking", **extra: Any) 
 
 
 def lock_body(plan: tuple[float, float], hit: tuple[float, float], t: float) -> dict[str, Any]:
-    return {"plan": {"x_cm": plan[0], "y_cm": plan[1]}, "hit": {"x": hit[0], "y": 0.0, "z": hit[1]}, "t": t}
+    return {"plan": {"x_cm": plan[0], "y_cm": plan[1]}, "hit": {"x": hit[0], "y": 0.0, "z": hit[1]}, "vio_t": t}
 
 
 @pytest.fixture()
@@ -107,7 +107,7 @@ def test_a_failed_scale_check_locks_but_is_not_vio_fused(env: Env) -> None:
 def test_closure_at_c_and_unlock(env: Env) -> None:
     lock_both(env)
     post_vio(env, [vio(T0 + 10.4, 21.0, -1.0)])
-    res = env.post("/api/ar/check", lock_body((A_CM[0] + 1000.0 + 30.0, A_CM[1] + 500.0), (10.0, -5.0), T0 + 11.0))
+    res = env.post("/api/ar/check", lock_body((A_CM[0] + 1000.0 + 30.0, A_CM[1] + 500.0), (10.0, -5.0), T0 + 10.4))
     assert res.status_code == 200 and res.json()["label"] == "closure at C"
     assert res.json()["closure_m"] == pytest.approx(0.3, abs=0.01)
     assert env.post("/api/ar/unlock", {}).json()["state"] == "unlocked"
@@ -182,3 +182,95 @@ def test_the_page_carries_no_accuracy_claim_and_sends_no_image_data() -> None:
     for url, asset in static.ASSETS.items():
         body = asset.body.decode("utf-8")
         assert not re.search(r"centimet|sub-?(?:cm|decimeter)|survey[- ]grade|guaranteed", body, re.I), url
+
+
+# -- review fixes: hostile numbers, server lock time, frame changes, labels -----------------------
+
+
+def _raw_post(env: Env, path: str, text: str) -> Any:
+    return env.client.post(path, content=text, headers={**AUTH, "Content-Type": "application/json"})
+
+
+@pytest.mark.parametrize("bad", ["Infinity", "-Infinity", "NaN", "1e400", "4200000000", "-1"])
+def test_a_lock_time_that_is_not_a_finite_epoch_is_refused_and_position_keeps_working(env: Env, bad: str) -> None:
+    assert post_vio(env, [vio(T0, 0.0, 0.0)]).status_code == 200
+    text = '{"plan":{"x_cm":1000,"y_cm":500},"hit":{"x":0,"y":0,"z":0},"vio_t":' + bad + "}"
+    assert _raw_post(env, "/api/ar/lock/a", text).status_code == 422
+    assert env.get("/api/ar/status").status_code == 200
+    res = post_vio(env, [vio(T0 + 0.1, 0.0, 0.0)])
+    assert res.status_code == 200 and res.json()["telemetry"]["fused"]["lock_t"] is None
+
+
+def test_the_client_lock_time_field_is_gone(env: Env) -> None:
+    post_vio(env, [vio(T0, 0.0, 0.0)])
+    body = {**lock_body(A_CM, (0.0, 0.0), T0), "t": T0}
+    assert env.post("/api/ar/lock/a", body).status_code == 422
+
+
+@pytest.mark.parametrize(
+    ("path", "text"),
+    [
+        ("/api/position", '{"vio_batch":[{"t":1e400,"x":0,"y":0,"z":0,"qx":0,"qy":0,"qz":0,"qw":1,"tracking":"tracking"}]}'),
+        ("/api/position", '{"vio_batch":[{"t":1,"x":1e300,"y":0,"z":0,"qx":0,"qy":0,"qz":0,"qw":1,"tracking":"tracking"}]}'),
+        ("/api/position", '{"vio_batch":[{"t":1,"x":0,"y":0,"z":0,"qx":9,"qy":0,"qz":0,"qw":1,"tracking":"tracking"}]}'),
+        ("/api/position", '{"imu_batch":[{"t":1,"ax":1e300,"ay":0,"az":9.8}]}'),
+        ("/api/position", '{"imu_batch":[{"t":Infinity,"ax":0,"ay":0,"az":9.8}]}'),
+        ("/api/position", '{"imu_batch":[{"t":1,"ax":0,"ay":0,"az":9.8,"heading_deg":1e300}]}'),
+        ("/api/position", '{"t":1e400,"lat":48,"lon":11,"accuracy_m":3}'),
+        ("/api/ar/lock/a", '{"plan":{"x_cm":1e300,"y_cm":0},"hit":{"x":0,"y":0,"z":0},"vio_t":1}'),
+        ("/api/ar/lock/a", '{"plan":{"x_cm":0,"y_cm":0},"hit":{"x":1e300,"y":0,"z":0},"vio_t":1}'),
+    ],
+)
+def test_unbounded_ar_numbers_are_refused(env: Env, path: str, text: str) -> None:
+    assert _raw_post(env, path, text).status_code == 422
+
+
+def test_the_lock_time_comes_from_the_pose_stream(env: Env) -> None:
+    lock_both(env)
+    assert env.get("/api/ar/status").json()["lock_t"] == T0 + 10.0  # the last pose, not a phone clock
+
+
+def test_a_lock_the_pose_stream_has_not_reached_is_refused(env: Env) -> None:
+    post_vio(env, [vio(T0, 0.0, 0.0)])
+    res = env.post("/api/ar/lock/a", lock_body(A_CM, (0.0, 0.0), T0 + 0.5))  # poses still queued on the phone
+    assert res.status_code == 409 and res.json()["error"] == "ar_lock_refused"
+    assert env.get("/api/ar/status").json()["state"] == "unlocked"
+
+
+def test_a_lock_taken_before_a_queued_reset_is_refused(env: Env) -> None:
+    post_vio(env, [vio(T0, 0.0, 0.0)])
+    # the hit was taken at T0; the reset that followed it reaches the server first
+    post_vio(env, [vio(T0 + 0.3, 0.0, 0.0, "limited", reset=True), vio(T0 + 0.4, 0.0, 0.0)])
+    res = env.post("/api/ar/lock/a", lock_body(A_CM, (0.0, 0.0), T0))
+    assert res.status_code == 409 and "reset" in res.json()["detail"]
+
+
+def test_an_rtk_receiver_label_never_reaches_a_vio_sourced_position(env: Env) -> None:
+    lock_both(env)
+    fix = {"t": T0 + 10.4, "lat": ORIGIN_LAT, "lon": ORIGIN_LON, "accuracy_m": 0.02, "fix_quality": "rtk_fixed"}
+    tele = env.post("/api/position", {"positions": [fix], "vio_batch": [vio(T0 + 10.4, 21.0, -1.0)]}).json()["telemetry"]
+    assert tele["track_source"] == "vio" and tele["fix_mode"] == "vio_fused" and tele["fix_mode_reported"] is False
+    assert tele["quality"] == "unknown"
+
+
+@pytest.mark.parametrize("bad", ["Infinity", "1e400"])
+def test_a_hostile_lock_time_can_never_break_the_position_answers(env: Env, bad: str) -> None:
+    """The reviewer's probe: a lock B carrying ``t: Infinity`` used to be stored and 500 every answer."""
+    assert post_vio(env, [vio(T0, 0.0, 0.0)]).status_code == 200
+    for body in (lock_body(A_CM, (0.0, 0.0), T0), {**lock_body(A_CM, (0.0, 0.0), T0), "t": T0}):
+        env.post("/api/ar/lock/a", body)  # today's body, then the old client-time body
+        body.pop("vio_t")
+        env.post("/api/ar/lock/a", body)
+    post_vio(env, [vio(T0 + 0.5 * k, float(k), 0.0) for k in range(1, 21)])
+    for field in ("t", "vio_t"):
+        text = '{"plan":{"x_cm":3000,"y_cm":500},"hit":{"x":20,"y":0,"z":0},"' + field + '":' + bad + "}"
+        assert _raw_post(env, "/api/ar/lock/b", text).status_code == 422
+    res = post_vio(env, [vio(T0 + 10.4, 21.0, -1.0)])
+    assert res.status_code == 200
+    assert env.get("/api/ar/status").status_code == 200
+
+
+@pytest.mark.parametrize("bad", ["Infinity", "1e400"])
+def test_survey_samples_refuse_non_finite_times(env: Env, bad: str) -> None:
+    text = '{"samples":[{"t":' + bad + ',"lat":48,"lon":11,"accuracy_m":3}]}'
+    assert _raw_post(env, "/api/survey", text).status_code == 422

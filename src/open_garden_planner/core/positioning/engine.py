@@ -60,6 +60,7 @@ VIO_FRESH_S = 1.0  # a VIO fix older than this no longer drives the track
 PDR_VIO_QUIET_S = 2.0  # steps feed the prediction only when VIO has been silent this long
 COMPASS_FRESH_S = 2.0
 PDR_SIGMA_A = 1.5
+VIO_RECORD_MIN_DT_S = 0.5  # VIO steps enter a recording at most 2 per second (MAX_TRACK_STEPS lasts hours)
 
 
 @dataclass(frozen=True)
@@ -104,7 +105,11 @@ class PositioningEngine:
         self._fallback_fix: FusedFix | None = None
         self._pending_disp: tuple[float, float] | None = None
         self._motion_model: str | None = None
-        self._rec_last_vio = False  # the last recorded step came from VIO
+        self._rec_vio: list[bool] = []  # per recorded step: from VIO (True) or the GNSS filter
+        self._rec_seq: list[int] = []  # per GNSS step: its index in the filter sequence (-1 for VIO)
+        self._gnss_seq = 0
+        self._vio_spans: list[list[float]] = []  # [first t, last t] of each run of fresh VIO fixes
+        self._rec_last_vio_t: float | None = None
 
     # ---------------------------------------------------------------- inputs
 
@@ -199,9 +204,7 @@ class PositioningEngine:
             est = self._vio_estimate(fix, prev)
             self._vio_estimate_last = est
             if self._recording:
-                x = np.array([fix.e_m, fix.n_m, 0.0, 0.0])
-                p = np.eye(4) * (fix.sigma_m**2)
-                self._record(Step(fix.t, x, p, x.copy(), p.copy(), np.eye(4), True), vio=True)
+                self._record_vio(fix)
             return est
         self._vio_fix = None
         self._vio_estimate_last = None
@@ -227,26 +230,44 @@ class PositioningEngine:
 
     # ------------------------------------------------------------ AR (WP-H)
 
-    def ar_capture_a(self, hit_xz: tuple[float, float], plan_en: tuple[float, float]) -> None:
-        """Lock point A: the reticle hit (x, z) in the VIO frame and its plan ENU position."""
-        self._locked.capture_a(hit_xz, plan_en)
+    def ar_capture_a(
+        self, hit_xz: tuple[float, float], plan_en: tuple[float, float], vio_t: float | None = None
+    ) -> None:
+        """Lock point A: the reticle hit (x, z) in the VIO frame and its plan ENU position.
+
+        ``vio_t`` is the last pose the phone had sent when it took the hit: refused when the
+        pose stream has not reached it or the frame broke after it.
+        """
+        self._locked.capture_a(hit_xz, plan_en, vio_t)
         self._vio_fix = None
         self._vio_estimate_last = None
 
     def ar_capture_b(
-        self, hit_xz: tuple[float, float], plan_en: tuple[float, float], t: float | None = None
+        self, hit_xz: tuple[float, float], plan_en: tuple[float, float], vio_t: float | None = None
     ) -> Transform2D:
-        """Lock point B and fit the frame. ``FusionError`` when the points are unusable."""
-        return self._locked.capture_b(hit_xz, plan_en, t)
+        """Lock point B and fit the frame. ``FusionError`` when the points are unusable.
+
+        The lock time is the last VIO sample's time, from the stream, never a client clock."""
+        return self._locked.capture_b(hit_xz, plan_en, vio_t)
 
     def ar_unlock(self, reason: str = "user") -> None:
         self._locked.unlock(reason)
         self._vio_fix = None
         self._vio_estimate_last = None
 
-    def ar_closure(self, hit_xz: tuple[float, float], plan_en: tuple[float, float]) -> float:
+    def ar_frame_reset(self, t: float) -> None:
+        """The phone reset its reference space at ``t``: both aligners forget the old frame."""
+        self._locked.frame_reset(t)
+        self._fallback.reset()
+        self._fallback_fix = None
+        self._vio_fix = None
+        self._vio_estimate_last = None
+
+    def ar_closure(
+        self, hit_xz: tuple[float, float], plan_en: tuple[float, float], vio_t: float | None = None
+    ) -> float:
         """Free residual at a third known point, metres ("closure at C")."""
-        return self._locked.third_point_residual(hit_xz, plan_en)
+        return self._locked.third_point_residual(hit_xz, plan_en, vio_t)
 
     def fused_estimate(self, t: float) -> PositionEstimate | None:
         """The plan-locked VIO estimate when it is no older than ``VIO_FRESH_S`` at ``t``."""
@@ -255,13 +276,17 @@ class PositioningEngine:
             return est
         return None
 
-    def ar_status(self) -> dict[str, object]:
+    def ar_status(self, t: float | None = None, *, stream_stale: bool = False) -> dict[str, object]:
+        """The lock state for telemetry. ``t`` is the newest sample time of the request (the
+        latest VIO pose when omitted); ``stream_stale`` says the server has heard no pose for a
+        while (a backgrounded phone sends nothing, so the sample clock alone cannot tell)."""
         lk = self._locked
         sc = lk.scale
-        fresh = self._vio_fix is not None
+        ref_t = t if t is not None else self._last_vio_t
+        fresh = not stream_stale and ref_t is not None and self.fused_estimate(ref_t) is not None
         if fresh:
             source = "plan_locked"
-        elif self._fallback_fix is not None and self._fallback.transform is not None:
+        elif not stream_stale and self._fallback_fix is not None and self._fallback.transform is not None:
             source = "gnss_aligned"
         else:
             source = "gnss"
@@ -322,12 +347,17 @@ class PositioningEngine:
         self._recording = True
         self._steps = []
         self._rec_meta = []
+        self._rec_vio = []
+        self._rec_seq = []
+        self._vio_spans = []
+        self._rec_last_vio_t = None
         self._truncated = False
 
     def track_preview(self) -> list[Point]:
         """Unsimplified filtered breadcrumbs (live phone preview)."""
-        pts = [(float(s.x_post[0]), float(s.x_post[1])) for s in self._steps]
-        keep = select_breadcrumbs(pts, [m[0] for m in self._rec_meta], [m[1] for m in self._rec_meta])
+        steps, meta = self._segmented()
+        pts = [(float(s.x_post[0]), float(s.x_post[1])) for s in steps]
+        keep = select_breadcrumbs(pts, [m[0] for m in meta], [m[1] for m in meta])
         return [pts[i] for i in keep]
 
     def finish_track(
@@ -341,14 +371,14 @@ class PositioningEngine:
 
         Raises :class:`closure.ClosureError` when closure is requested but refused.
         """
-        steps = self._steps
+        steps, meta = self._segmented()
         self._recording = False
         if not steps:
             return TrackResult((), (), 0.0, 0.0, 0, smooth, None, self._truncated)
         states = rts_smooth(steps) if smooth else [s.x_post for s in steps]
         pts = [(float(x[0]), float(x[1])) for x in states]
-        sig = [m[0] for m in self._rec_meta]
-        keep = select_breadcrumbs(pts, sig, [m[1] for m in self._rec_meta])
+        sig = [m[0] for m in meta]
+        keep = select_breadcrumbs(pts, sig, [m[1] for m in meta])
         crumbs = [pts[i] for i in keep]
         crumb_sig = [sig[i] for i in keep]
         closure: ClosureResult | None = None
@@ -379,19 +409,65 @@ class PositioningEngine:
         x = self._kf.x.copy()
         self._record(Step(s.t, x, self._kf.p.copy(), x, self._kf.p.copy(), np.eye(4), True))
 
+    def _in_vio_span(self, t: float) -> bool:
+        return any(a <= t <= b + VIO_FRESH_S for a, b in self._vio_spans)
+
+    def _record_vio(self, fix: FusedFix) -> None:
+        """Note the VIO coverage on every fix; keep a step at most every ``VIO_RECORD_MIN_DT_S``."""
+        spans = self._vio_spans
+        new_span = not spans or fix.t - spans[-1][1] > VIO_FRESH_S or fix.t < spans[-1][0]
+        if new_span:
+            spans.append([fix.t, fix.t])
+        else:
+            spans[-1][1] = max(spans[-1][1], fix.t)
+        last = self._rec_last_vio_t
+        if not new_span and last is not None and 0.0 <= fix.t - last < VIO_RECORD_MIN_DT_S:
+            return
+        self._rec_last_vio_t = fix.t
+        x = np.array([fix.e_m, fix.n_m, 0.0, 0.0])
+        p = np.eye(4) * (fix.sigma_m**2)
+        self._record(Step(fix.t, x, p, x.copy(), p.copy(), np.eye(4), True), vio=True)
+
     def _record(self, step: Step, *, vio: bool = False) -> None:
         if not self._recording:
             return
-        if not vio and self._vio_fix is not None and abs(step.t - self._vio_fix.t) <= VIO_FRESH_S:
-            return  # the VIO track is the source while it is fresh: no mixed sources
-        if vio != self._rec_last_vio:
-            step.chain_start = True  # never smooth across a change of source
-        self._rec_last_vio = vio
+        seq = -1
+        if not vio:
+            seq = self._gnss_seq
+            self._gnss_seq += 1
+            if self._in_vio_span(step.t):
+                return  # the VIO track is the source there; finish re-checks late-arriving VIO
         if len(self._steps) >= MAX_TRACK_STEPS:
             self._truncated = True
             return
         self._steps.append(step)
+        self._rec_vio.append(vio)
+        self._rec_seq.append(seq)
         self._rec_meta.append((math.sqrt(float(step.p_post[0, 0] + step.p_post[1, 1]) / 2.0), self._zupt.stationary))
+
+    def _segmented(self) -> tuple[list[Step], list[tuple[float, bool]]]:
+        """The recording as one source at a time, whatever order the requests arrived in.
+
+        GNSS and VIO come in separate requests, so a VIO span can arrive after the GNSS steps
+        it covers: those GNSS steps are dropped here, the rest is ordered by time, and nothing
+        is smoothed across a change of source or across a dropped GNSS step.
+        """
+        rows = [
+            (s, m, v, q)
+            for s, m, v, q in zip(self._steps, self._rec_meta, self._rec_vio, self._rec_seq, strict=True)
+            if v or not self._in_vio_span(s.t)
+        ]
+        rows.sort(key=lambda r: r[0].t)
+        steps: list[Step] = []
+        prev_vio: bool | None = None
+        prev_seq: int | None = None
+        for s, _m, v, q in rows:
+            gap = not v and prev_seq is not None and q != prev_seq + 1
+            brk = prev_vio is None or v != prev_vio or gap
+            steps.append(replace(s, chain_start=True) if brk and not s.chain_start else s)
+            prev_vio = v
+            prev_seq = None if v else q
+        return steps, [r[1] for r in rows]
 
     def _to_cm(self, e: float, n: float) -> Point:
         return self.georef.gps_to_canvas(*self.georef.enu_to_gps(e, n))
@@ -420,9 +496,9 @@ class PositioningEngine:
             sigma_m=fix.sigma_m,
             heading_deg=None,
             speed_mps=speed,
-            fix_mode=self._fix_mode(fix.t),
+            fix_mode=FixMode.VIO_FUSED,  # never an RTK label: the position is not from GNSS
             stationary=speed < 0.1,
-            quality="good" if fix.sigma_m <= 2.0 else "fair" if fix.sigma_m <= 5.0 else "poor",
+            quality="unknown",  # the plan-lock sigma is a placeholder until WP-M: no quality is implied
             gated=False,
             heading_source="none",
             anchor_source="plan_points",
@@ -446,9 +522,6 @@ class PositioningEngine:
                 return FixMode.RTK_FIXED
             if max(acc) < RTK_FLOAT_ACC_M:
                 return FixMode.RTK_FLOAT
-        vf = self._vio_fix
-        if vf is not None and abs(t - vf.t) <= VIO_FRESH_S and vf.fix_mode is FixMode.VIO_FUSED:
-            return FixMode.VIO_FUSED
         a = self._anchor
         if a is not None and (
             t - a.t < ANCHOR_STALE_S or (a.fit_rms_m is not None and a.fit_rms_m < ANCHOR_FIT_OK_RMS_M)

@@ -193,3 +193,85 @@ def test_steps_are_ignored_while_vio_is_running() -> None:
         t += 0.02
     est = eng.add_gnss(gnss(T0 + 12.5, 18.7, 0.0))
     assert est is not None and est.motion_model is None
+
+
+# -- review fixes: arrival order, freshness, labels, thinning, reset -----------------------------
+
+
+def test_recording_drops_gnss_covered_by_a_vio_span_that_arrives_later() -> None:
+    eng = locked_engine()
+    eng.start_track()
+    walk = [(TL + 0.1 * (k + 1), 20.0 + 0.1 * (k + 1)) for k in range(60)]
+    for t, x in walk[::10]:  # the GNSS request lands first, 80 m off the locked track
+        e, n = TRUE.apply(x, 0.0)
+        eng.add_gnss(gnss(t + 0.01, e + 80.0, n))
+    for t, x in walk:  # then the VIO batch for the same seconds
+        eng.add_vio(vio(t, x, 0.0))
+    result = eng.finish_track(smooth=True)
+    e0, n0 = TRUE.apply(23.0, 0.0)
+    assert result.points_enu and all(math.dist(p, (e0, n0)) < 7.0 for p in result.points_enu)
+    assert all(math.dist(p, (e0, n0)) < 7.0 for p in eng.track_preview())
+
+
+def test_vio_steps_are_thinned_into_the_recording() -> None:
+    eng = locked_engine()
+    eng.start_track()
+    for k in range(100):  # 10 s at 10 Hz
+        eng.add_vio(vio(TL + 0.1 * (k + 1), 20.0 + 0.1 * (k + 1), 0.0))
+    n = len(eng._steps)
+    assert 15 <= n <= 25  # about 2 per second, not 10
+
+
+def test_ar_status_ages_out_without_new_poses() -> None:
+    eng = locked_engine()
+    eng.add_vio(vio(TL + 0.4, *P))
+    assert eng.ar_status(TL + 0.5)["source"] == "plan_locked"
+    late = eng.ar_status(TL + 5.0)  # e.g. a GNSS request seconds after the last pose
+    assert late["source"] != "plan_locked" and late["fix_mode"] is None and late["sigma_m"] is None
+    stale = eng.ar_status(stream_stale=True)  # the server has heard no pose for a while
+    assert stale["source"] != "plan_locked" and stale["fix_mode"] is None
+
+
+def test_a_vio_sourced_estimate_is_never_labelled_rtk_and_claims_no_quality() -> None:
+    eng = locked_engine()
+    e, n = TRUE.apply(20.0, 0.0)
+    for i in range(6):  # RTK-grade receiver accuracy sustained
+        eng.add_gnss(gnss(TL + 0.05 * (i + 1), e, n, acc=0.01))
+    est = eng.add_vio(vio(TL + 0.4, *P))
+    assert est is not None and est.fix_mode is FixMode.VIO_FUSED
+    assert est.quality == "unknown"
+
+
+def test_a_reference_space_reset_also_resets_the_fallback_aligner() -> None:
+    from open_garden_planner.field_remote.session import RecordingSession
+
+    session = RecordingSession()
+    eng = session.engine_for(G)
+    for k in range(120):
+        x, z = _circle(k)
+        eng.add_vio(vio(T0 + k, x, z))
+        eng.add_gnss(gnss(T0 + k, *TRUE.apply(x, z)))
+    assert eng.ar_status()["source"] == "gnss_aligned"
+    x, z = _circle(120)
+    session._feed_ar(eng, [(vio(T0 + 120, x + 0.5, z), True)], [])  # small reset: under the jump bound
+    assert eng._fallback.transform is None
+    assert eng.ar_status()["source"] == "gnss"
+
+
+def test_the_session_reports_a_lock_stale_when_no_pose_was_heard() -> None:
+    from open_garden_planner.field_remote.session import RecordingSession
+
+    session = RecordingSession()
+    now = [100.0]
+    session._clock = lambda: now[0]
+    eng = session.engine_for(G)
+    eng.add_vio(vio(T0, 0.0, 0.0))
+    a_xz, b_xz = (0.0, 0.0), (20.0, 0.0)
+    eng.ar_capture_a(a_xz, TRUE.apply(*a_xz))
+    vios = [(vio(T0 + 0.5 * k, float(k), 0.0), False) for k in range(1, 21)]
+    session._feed_ar(eng, vios, [])
+    eng.ar_capture_b(b_xz, TRUE.apply(*b_xz), TL)
+    session._feed_ar(eng, [(vio(TL + 0.4, *P), False)], [])
+    assert session.ar_status(G)["source"] == "plan_locked"
+    now[0] += 10.0  # the phone went to the background: nothing arrives
+    assert session.ar_status(G)["source"] != "plan_locked"

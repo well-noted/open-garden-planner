@@ -373,39 +373,45 @@ class PlanSource(Protocol):
 
 
 MAX_AR_BATCH = 50
+MAX_EPOCH_S = 4_102_444_800  # 2100-01-01: a sample time beyond this is not a phone clock
+EpochS = Annotated[Number, Field(ge=0, le=MAX_EPOCH_S)]
+XrM = Annotated[Number, Field(ge=-100_000, le=100_000)]  # WebXR local space, metres
+QuatC = Annotated[Number, Field(ge=-1.5, le=1.5)]  # a unit quaternion component, with slack
+Accel = Annotated[Number, Field(ge=-1000, le=1000)]  # m/s^2, far beyond any phone sensor
+Angle = Annotated[Number, Field(ge=-720, le=720)]
 
 
 class VioIn(_Strict):
     """One WebXR pose (design 2.8): ``t`` is epoch seconds on the same clock as the GNSS ``t``."""
 
-    t: Annotated[Number, Field(ge=0)]
-    x: Number
-    y: Number
-    z: Number
-    qx: Number
-    qy: Number
-    qz: Number
-    qw: Number
+    t: EpochS
+    x: XrM
+    y: XrM
+    z: XrM
+    qx: QuatC
+    qy: QuatC
+    qz: QuatC
+    qw: QuatC
     tracking: Literal["tracking", "limited", "lost"]
     reset: bool = False  # the reference space was reset: the plan lock is dropped
 
 
 class ImuIn(_Strict):
-    t: Annotated[Number, Field(ge=0)]
-    ax: Number
-    ay: Number
-    az: Number
-    alpha: Number = 0.0
-    beta: Number = 0.0
-    gamma: Number = 0.0
-    heading_deg: Number | None = None
+    t: EpochS
+    ax: Accel
+    ay: Accel
+    az: Accel
+    alpha: Angle = 0.0
+    beta: Angle = 0.0
+    gamma: Angle = 0.0
+    heading_deg: Annotated[Number, Field(ge=0, le=360)] | None = None
     absolute: bool = False
 
 
 class PositionIn(_Strict):
     """One position report (design 1.6); ``vio``/``imu`` are the optional AR and motion samples."""
 
-    t: Annotated[Number, Field(ge=0)]
+    t: EpochS
     lat: Annotated[Number, Field(ge=-90, le=90)]
     lon: Annotated[Number, Field(ge=-180, le=180)]
     accuracy_m: Annotated[Number, Field(ge=0, le=100_000)]

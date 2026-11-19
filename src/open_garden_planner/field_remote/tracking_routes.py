@@ -35,7 +35,16 @@ SESSION_PATHS = frozenset(
 
 
 class _Strict(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    # allow_inf_nan=False: an Infinity or 1e400 would be stored and then break every JSON answer
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+
+
+#: Bounds for the AR lock models. WebXR ``local`` space is metres around the session start;
+#: plan centimetres are bounded like any plan coordinate; times are epoch seconds before 2100.
+MAX_EPOCH_S = 4_102_444_800.0
+XR_M = Annotated[float, Field(ge=-100_000, le=100_000, allow_inf_nan=False)]
+PLAN_CM = Annotated[float, Field(ge=-1e9, le=1e9, allow_inf_nan=False)]
+EpochS = Annotated[float, Field(ge=0, le=MAX_EPOCH_S, allow_inf_nan=False)]
 
 
 class SurveySample(_Strict):
@@ -70,22 +79,25 @@ class FinishIn(_Strict):
 class PlanSpot(_Strict):
     """A known spot on the plan, in plan centimetres (the same frame as the map the phone shows)."""
 
-    x_cm: Number
-    y_cm: Number
+    x_cm: PLAN_CM
+    y_cm: PLAN_CM
 
 
 class ArHit(_Strict):
     """A reticle hit-test position in the WebXR ``local`` space (y up, -z forward). y is unused."""
 
-    x: Number
-    y: Number
-    z: Number
+    x: XR_M
+    y: XR_M
+    z: XR_M
 
 
 class ArLockIn(_Strict):
+    """``vio_t`` is the time of the last pose the phone had sent when it took the hit (the lock
+    is refused until the server's pose stream has reached it). The lock time is the server's."""
+
     plan: PlanSpot
     hit: ArHit
-    t: Annotated[float, Field(ge=0)] | None = None
+    vio_t: EpochS
 
 
 def tracking_routes(
@@ -202,9 +214,8 @@ def tracking_routes(
                 return bad or error(409, "not_georeferenced")
             hit = (float(parsed.hit.x), float(parsed.hit.z))
             plan = (float(parsed.plan.x_cm), float(parsed.plan.y_cm))
-            when = parsed.t if parsed.t is not None else time.time()
             try:
-                return ok(await run_in_threadpool(session.ar_lock, which, geo, hit, plan, when))
+                return ok(await run_in_threadpool(session.ar_lock, which, geo, hit, plan, float(parsed.vio_t)))
             except SessionError as exc:
                 return refuse(exc)
 
