@@ -134,11 +134,15 @@ class _TrackingWatch:
 
     def __init__(self) -> None:
         self._bad_since: float | None = None
+        self._bad_kind = "limited"
         self.last: VioSample | None = None
+        self.last_tracking: VioSample | None = None  # the last pose taken while tracking was good
+        self.break_t: float | None = None  # time of the last sample that broke the frame (any reason)
 
     def reset(self) -> None:
         self._bad_since = None
         self.last = None
+        self.last_tracking = None
 
     @property
     def good(self) -> bool:
@@ -146,6 +150,7 @@ class _TrackingWatch:
 
     def update(self, v: VioSample) -> str | None:
         if not _finite(v.t, v.x, v.z):
+            self.break_t = self.last.t if self.last is not None else None
             return "vio_non_finite"
         reason: str | None = None
         last = self.last
@@ -162,12 +167,28 @@ class _TrackingWatch:
                 and math.hypot(v.x - last.x, v.z - last.z) / dt > MAX_VIO_SPEED_MPS
             ):
                 reason = "vio_pose_jump"
+        ref = self.last_tracking
+        if reason is None and v.tracking == "tracking" and last is not None and last.tracking != "tracking":
+            # Recovery from limited/lost: the system may have relocalised the frame while it was
+            # not tracking. Judge the jump against the last *tracking* pose, never the limited ones.
+            if self._bad_since is not None and v.t - self._bad_since > TRACKING_LOSS_S:
+                reason = f"tracking_{self._bad_kind}"
+            elif ref is not None:
+                gap = v.t - ref.t
+                if gap > TRACKING_LOSS_S:
+                    reason = "vio_gap"
+                elif gap > 0.0 and math.hypot(v.x - ref.x, v.z - ref.z) / gap > MAX_VIO_SPEED_MPS:
+                    reason = "vio_pose_jump"
         if v.tracking == "tracking":
             self._bad_since = None
+            self.last_tracking = v
         elif self._bad_since is None:
             self._bad_since = v.t
+            self._bad_kind = v.tracking
         if reason is None and self._bad_since is not None and v.t - self._bad_since > TRACKING_LOSS_S:
             reason = f"tracking_{v.tracking}"
+        if reason is not None:
+            self.break_t = v.t
         self.last = v
         return reason
 
@@ -241,22 +262,49 @@ class PlanLockedAligner:
         self._pending_a = None
         return tr
 
-    def capture_a(self, hit_xz: Point2, plan_en: Point2) -> None:
+    def _check_stream(self, vio_t: float | None) -> None:
+        """Refuse a lock point the pose stream cannot vouch for.
+
+        ``vio_t`` is the time of the last pose the phone had sent when it took the reticle hit.
+        The hit is in the frame of that pose, so the watch must have reached it, and nothing may
+        have broken the frame (loss, jump, reset) after it.
+        """
         if not self._watch.good:
-            raise FusionError("tracking is not good: cannot capture A")
+            raise FusionError("tracking is not good: cannot capture a lock point")
+        if vio_t is None:
+            return
+        if not _finite(vio_t):
+            raise FusionError("lock point time must be finite")
+        last = self._watch.last
+        if last is None or last.t < vio_t - 1e-6:
+            raise FusionError("the pose stream has not reached this lock point yet: try again")
+        brk = self._watch.break_t
+        if brk is not None and brk > vio_t + 1e-6:
+            raise FusionError("tracking was lost or reset after this lock point was taken: lock again")
+
+    def capture_a(self, hit_xz: Point2, plan_en: Point2, vio_t: float | None = None) -> None:
+        self._check_stream(vio_t)
         if not _finite(*hit_xz, *plan_en):
             raise FusionError("lock points must be finite")
-        self.unlock("relock")
+        if self.transform is not None or self._pending_a is not None:
+            self.unlock("relock")  # an unlocked aligner keeps the reason it was unlocked for
         self._pending_a = (hit_xz, plan_en)
         self.state = FusionState.PENDING_B
 
-    def capture_b(self, hit_xz: Point2, plan_en: Point2, t: float | None = None) -> Transform2D:
+    def capture_b(self, hit_xz: Point2, plan_en: Point2, vio_t: float | None = None) -> Transform2D:
+        """Lock B. The lock time is the last pose the server holds, never a client clock."""
         if self._pending_a is None:
             raise FusionError("capture A first (A is dropped by any tracking loss)")
-        if not self._watch.good:
-            raise FusionError("tracking is not good: cannot capture B")
+        self._check_stream(vio_t)
         a_vio, a_plan = self._pending_a
-        return self.lock(a_vio, a_plan, hit_xz, plan_en, t)
+        last = self._watch.last
+        return self.lock(a_vio, a_plan, hit_xz, plan_en, None if last is None else last.t)
+
+    def frame_reset(self, t: float) -> None:
+        """The phone's reference space was reset: drop the lock and forget the old frame."""
+        self.unlock("reference_space_reset")
+        self._watch.reset()
+        self._watch.break_t = t
 
     def unlock(self, reason: str = "user") -> None:
         self.transform = None
@@ -296,10 +344,12 @@ class PlanLockedAligner:
         self.last_fix = fix
         return fix
 
-    def third_point_residual(self, c_vio: Point2, c_plan: Point2) -> float:
+    def third_point_residual(self, c_vio: Point2, c_plan: Point2, vio_t: float | None = None) -> float:
         """Free check at a third known point, reported as "closure at C" (metres)."""
         if self.transform is None:
             raise FusionError("not locked")
+        if vio_t is not None:
+            self._check_stream(vio_t)
         if not _finite(*c_vio, *c_plan):
             raise FusionError("closure point must be finite")
         self.closure_m = math.dist(self.transform.apply(*c_vio), c_plan)

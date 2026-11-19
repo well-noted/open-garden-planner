@@ -207,3 +207,81 @@ def test_pdr_refractory_limits_cadence() -> None:
     times = [s.t for m in _gait(5.0) if (s := pdr.update(m)) is not None]
     assert 0 < len(times) < 50
     assert all(b - a >= 0.3 - 1e-9 for a, b in zip(times, times[1:], strict=False))
+
+
+# -- review fixes: recovery jumps, stream checks, unlock reasons ---------------------------------
+
+
+def _ab_locked() -> PlanLockedAligner:
+    """Locked through capture A/B, tracking good at t = 0.1."""
+    al = PlanLockedAligner()
+    al.on_sample(_vio(0.0, 0.0, 0.0))
+    al.capture_a((0.0, 0.0), (0.0, 0.0))
+    al.capture_b((0.0, -10.0), (0.0, 10.0))
+    fix = al.on_sample(_vio(0.1, 0.0, 0.0))
+    assert fix is not None and fix.fix_mode is FixMode.VIO_FUSED
+    return al
+
+
+def test_a_relocalising_jump_on_recovery_from_limited_unlocks() -> None:
+    al = _ab_locked()
+    assert al.on_sample(_vio(0.2, 0.0, 0.0, "limited")) is not None  # short limited: still locked
+    assert al.on_sample(_vio(0.9, 30.0, 0.0)) is None  # back to tracking 30 m away: never spliced
+    assert al.state is FusionState.UNLOCKED and al.unlock_reason == "vio_pose_jump"
+
+
+def test_recovery_after_more_than_a_second_of_sparse_limited_samples_unlocks() -> None:
+    al = _ab_locked()
+    al.on_sample(_vio(0.2, 0.0, 0.0, "limited"))
+    al.on_sample(_vio(0.9, 0.0, 0.0, "limited"))  # 0.7 s limited: not yet a loss
+    assert al.on_sample(_vio(1.25, 0.1, 0.0)) is None  # limited from 0.2 to 1.25 s: a loss
+    assert al.unlock_reason == "tracking_limited"
+
+
+def test_a_walking_pace_recovery_from_limited_stays_locked() -> None:
+    al = _ab_locked()
+    al.on_sample(_vio(0.2, 0.1, 0.0, "limited"))
+    fix = al.on_sample(_vio(0.6, 0.7, 0.0))  # 0.7 m in 0.5 s since the last tracking pose
+    assert fix is not None and fix.fix_mode is FixMode.VIO_FUSED and al.state is FusionState.LOCKED
+
+
+def test_capture_a_after_a_loss_keeps_the_loss_as_the_unlock_reason() -> None:
+    al = _ab_locked()
+    al.on_sample(_vio(0.2, 30.0, 0.0))  # a jump unlocks
+    assert al.unlock_reason == "vio_pose_jump"
+    al.on_sample(_vio(0.3, 30.0, 0.0))
+    al.capture_a((30.0, 0.0), (0.0, 0.0))
+    assert al.unlock_reason == "vio_pose_jump"
+    al.capture_b((30.0, -10.0), (0.0, 10.0))
+    al.capture_a((30.0, 0.0), (0.0, 0.0))  # re-capturing A while locked is a relock
+    assert al.unlock_reason == "relock"
+
+
+def test_lock_time_is_the_last_pose_of_the_stream() -> None:
+    al = PlanLockedAligner()
+    al.on_sample(_vio(5.0, 0.0, 0.0))
+    al.capture_a((0.0, 0.0), (0.0, 0.0), vio_t=5.0)
+    for k in range(1, 6):
+        al.on_sample(_vio(5.0 + 0.5 * k, 0.0, -2.0 * k))
+    al.capture_b((0.0, -10.0), (0.0, 10.0), vio_t=7.5)
+    assert al.lock_t == 7.5
+
+
+def test_a_lock_point_the_stream_has_not_reached_is_refused() -> None:
+    al = PlanLockedAligner()
+    al.on_sample(_vio(5.0, 0.0, 0.0))
+    with pytest.raises(FusionError, match="not reached"):
+        al.capture_a((0.0, 0.0), (0.0, 0.0), vio_t=5.4)  # the phone holds poses the server lacks
+    assert al.state is FusionState.UNLOCKED
+
+
+def test_a_lock_point_taken_before_a_frame_break_is_refused() -> None:
+    al = PlanLockedAligner()
+    al.on_sample(_vio(5.0, 0.0, 0.0))
+    al.frame_reset(5.2)  # the reset sample arrived before the lock request
+    al.on_sample(_vio(5.2, 0.0, 0.0, "limited"))
+    al.on_sample(_vio(5.3, 0.0, 0.0))
+    with pytest.raises(FusionError, match="lost or reset"):
+        al.capture_a((0.0, 0.0), (0.0, 0.0), vio_t=5.0)  # the hit is in the old frame
+    al.capture_a((0.0, 0.0), (0.0, 0.0), vio_t=5.3)  # a hit after the reset is fine
+    assert al.state is FusionState.PENDING_B
