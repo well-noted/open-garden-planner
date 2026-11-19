@@ -46,11 +46,19 @@ def fingerprint_of_pem(pem: bytes) -> str:
     return hashlib.sha256(cert.public_bytes(serialization.Encoding.DER)).hexdigest()
 
 
+def _system_tool(name: str) -> str:
+    """The Windows system copy of *name*, never one found first on PATH (Git's ``whoami`` has a
+    different command line, and a PATH entry is not a place to trust with a key's ACL)."""
+    root = os.environ.get("SYSTEMROOT") or r"C:\Windows"
+    candidate = Path(root) / "System32" / f"{name}.exe"
+    return str(candidate) if candidate.is_file() else name
+
+
 def _current_user_sid() -> str | None:
     """The current user's SID (Windows), from ``whoami``; None if it cannot be read."""
     try:
         result = subprocess.run(  # nosec B603 B607 - fixed argv, no shell
-            ["whoami", "/user", "/fo", "csv", "/nh"], check=False, capture_output=True, text=True, timeout=10
+            [_system_tool("whoami"), "/user", "/fo", "csv", "/nh"], check=False, capture_output=True, text=True, timeout=10
         )
     except (OSError, subprocess.SubprocessError):
         return None
@@ -76,7 +84,7 @@ def _restrict_to_user(path: Path) -> bool:
         return False
     try:
         result = subprocess.run(  # nosec B603 B607 - fixed argv, no shell, SID read from whoami
-            ["icacls", str(path), "/inheritance:r", "/grant:r", f"*{sid}:F"],
+            [_system_tool("icacls"), str(path), "/inheritance:r", "/grant:r", f"*{sid}:F"],
             check=False,
             capture_output=True,
             timeout=10,
