@@ -4,7 +4,7 @@ import { api, errorText, fetchBasemap, fetchPhoto, initToken, uuid } from './api
 import { canvasToGps, trilaterate } from './geo.js';
 import { PlanMap } from './map.js';
 import { initRecord } from './record.js';
-import { initSurvey } from './survey.js';
+import { initSurvey, initXr } from './survey.js';
 
 const $ = (id) => document.getElementById(id);
 const S = {
@@ -114,6 +114,7 @@ function startGps() {
     toast(e.code === 1 ? 'Location is blocked. The map still works; tap it to choose a spot.' : 'No location yet.');
   }, { enableHighAccuracy: true, maximumAge: 1000, timeout: 20000 });
   $('btn-locate').textContent = 'stop';
+  xr.startMotion();
 }
 $('btn-locate').addEventListener('click', startGps);
 
@@ -124,11 +125,16 @@ async function flushPositions() {
   if (!r) return; // keep them; the next tick retries
   S.queue.splice(0, batch.length);
   if (!r.ok) { if (r.status !== 429) toast(errorText(r)); return; }
-  S.fix = r.json.telemetry;
-  map.setPuck(S.fix);
-  const t = S.fix;
+  showFix(r.json.telemetry);
+}
+
+function showFix(t) {
+  S.fix = t;
+  map.setPuck(t);
   const f = $('fixbadge');
-  f.textContent = t.fix_mode + ' ±' + Number(t.sigma_m).toFixed(1) + ' m' + (t.heading_source === 'none' ? '' : ' · ' + t.heading_source);
+  const spread = t.sigma_m == null ? '' : ' ±' + Number(t.sigma_m).toFixed(1) + ' m';
+  const mode = t.fix_mode === 'vio_fused' ? 'AR lock (experimental)' : t.fix_mode;
+  f.textContent = mode + spread + (t.motion_model ? ' · ' + t.motion_model : '') + (t.heading_source === 'none' ? '' : ' · ' + t.heading_source);
   f.className = 'overlay badge ' + (t.quality === 'poor' ? 'bad' : 'ok');
 }
 
@@ -431,7 +437,8 @@ $('btn-reload').addEventListener('click', loadRecords);
 // ---- start ------------------------------------------------------------------------------------
 
 setKind('plant');
-const ctx = { S, $, el, clear, toast, api, errorText, uuid, map, ensurePlanId, post };
+const ctx = { S, $, el, clear, toast, api, errorText, uuid, map, ensurePlanId, post, showFix };
+const xr = initXr(ctx);
 initSurvey(ctx);
 initRecord(ctx);
 if (!initToken()) {

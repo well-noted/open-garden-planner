@@ -134,3 +134,224 @@ export function initSurvey(ctx) {
   $('btn-corner').addEventListener('click', sendCorner);
   void map;
 }
+
+// ---- AR lock (experimental) and motion samples (design 2.8). WebXR is probed, never assumed: the
+// card stays hidden unless the browser says immersive-ar is supported, and nothing starts without
+// a tap. No frame, camera image or pixel is ever sent anywhere; only pose numbers are.
+// Unverified on a real phone: see docs/design/wph-fusion-notes.md (WebXR pitfalls).
+const SEND_EVERY_MS = 1000;
+const VIO_MIN_DT_S = 0.1; // at most 10 pose samples per second
+const MAX_QUEUE = 150;
+const UNLOCKED_TEXT = 'Unlocked: re-lock A and B';
+
+export function initXr(ctx) {
+  const { S, $, toast, api, errorText, map, showFix } = ctx;
+  const card = $('xr-card');
+  const overlay = $('xr-overlay');
+  const status = $('xr-status');
+  const banner = $('xr-banner');
+  let xr = null; // { session, local, hit, gl }
+  let tracking = 'lost';
+  let pose = null; // last viewer position {x, y, z}
+  let hit = null; // last reticle hit {x, y, z}
+  let lastSent = 0;
+  let lastT = 0;
+  let flushTimer = 0;
+  let locked = false;
+  let mapHome = null;
+  const vioQ = [];
+  const imuQ = [];
+
+  function say(text, cls) {
+    status.textContent = text;
+    status.className = 'hint ' + (cls || '');
+  }
+  function setBanner(text) {
+    banner.textContent = text || '';
+    banner.hidden = !text;
+  }
+  function ready() { return Boolean(hit) && tracking === 'tracking'; }
+  function refreshButtons() {
+    for (const id of ['xr-a', 'xr-b', 'xr-c']) $(id).disabled = !xr || !ready();
+    $('xr-unlock').disabled = !xr;
+  }
+
+  // ---- sending -----------------------------------------------------------------------------
+
+  async function flush() {
+    if (!vioQ.length && !imuQ.length) return;
+    const body = { vio_batch: vioQ.slice(0, 50), imu_batch: imuQ.slice(0, 50) };
+    const r = await api('/api/position', { method: 'POST', body }).catch(() => null);
+    if (!r) return; // keep them; the next tick retries
+    vioQ.splice(0, body.vio_batch.length);
+    imuQ.splice(0, body.imu_batch.length);
+    if (!r.ok) { if (r.status !== 429 && r.status !== 409) toast(errorText(r)); return; }
+    const t = r.json.telemetry;
+    if (t.x_cm != null) showFix(t);
+    const state = t.fused ? t.fused.state : 'unlocked';
+    if (locked && state === 'unlocked') {
+      locked = false;
+      setBanner(UNLOCKED_TEXT); // the server dropped the lock; never resumed, only re-locked
+      say(UNLOCKED_TEXT, 'warn');
+    }
+  }
+  function startFlush() { if (!flushTimer) flushTimer = setInterval(flush, SEND_EVERY_MS); }
+
+  // ---- motion (phone sensors, for the step counter when there is no AR) --------------------
+
+  let motionOn = false;
+  async function startMotion() {
+    if (motionOn || typeof window.DeviceMotionEvent === 'undefined') return;
+    try {
+      if (typeof DeviceMotionEvent.requestPermission === 'function' && (await DeviceMotionEvent.requestPermission()) !== 'granted') return;
+    } catch (e) { return; }
+    motionOn = true;
+    let heading = null;
+    window.addEventListener('deviceorientation', (e) => {
+      // Only iOS gives a compass heading the system has tilt-compensated; elsewhere none is sent.
+      heading = typeof e.webkitCompassHeading === 'number' && Number.isFinite(e.webkitCompassHeading) ? e.webkitCompassHeading : null;
+    });
+    let last = 0;
+    window.addEventListener('devicemotion', (e) => {
+      const a = e.accelerationIncludingGravity;
+      const now = Date.now() / 1000;
+      if (!a || now - last < 0.04) return; // about 25 per second
+      last = now;
+      const v = (n) => (typeof n === 'number' && Number.isFinite(n) ? n : 0);
+      const item = { t: now, ax: v(a.x), ay: v(a.y), az: v(a.z) };
+      if (heading !== null) { item.heading_deg = heading; item.absolute = true; }
+      imuQ.push(item);
+      if (imuQ.length > MAX_QUEUE) imuQ.splice(0, imuQ.length - MAX_QUEUE);
+    });
+    startFlush();
+  }
+
+  // ---- the AR session ----------------------------------------------------------------------
+
+  function onFrame(time, frame) {
+    if (!xr) return;
+    xr.session.requestAnimationFrame(onFrame);
+    const vp = frame.getViewerPose(xr.local);
+    const t = (performance.timeOrigin + time) / 1000; // the same clock as the GNSS timestamps
+    if (vp) {
+      const p = vp.transform.position, q = vp.transform.orientation;
+      pose = { x: p.x, y: p.y, z: p.z, qx: q.x, qy: q.y, qz: q.z, qw: q.w };
+      tracking = vp.emulatedPosition ? 'limited' : 'tracking';
+    } else {
+      tracking = 'lost'; // no pose: the last position is sent so the server sees the loss
+    }
+    const results = xr.hit ? frame.getHitTestResults(xr.hit) : [];
+    const hp = results.length ? results[0].getPose(xr.local) : null;
+    hit = hp ? { x: hp.transform.position.x, y: hp.transform.position.y, z: hp.transform.position.z } : null;
+    if (pose && t - lastT >= VIO_MIN_DT_S) {
+      lastT = t;
+      vioQ.push({ t, ...pose, tracking });
+      if (vioQ.length > MAX_QUEUE) vioQ.splice(0, vioQ.length - MAX_QUEUE);
+    }
+    if (t - lastSent > 0.25) {
+      lastSent = t;
+      refreshButtons();
+      if (!ready() && xr) say(tracking !== 'tracking' ? 'Tracking ' + tracking + ': hold still and look around' : 'Point at the ground to place the reticle');
+    }
+  }
+
+  function moveMap(into) {
+    const canvas = $('map');
+    if (into) {
+      mapHome = { parent: canvas.parentNode, next: canvas.nextSibling };
+      overlay.insertBefore(canvas, overlay.firstChild);
+    } else if (mapHome) {
+      mapHome.parent.insertBefore(canvas, mapHome.next);
+      mapHome = null;
+    }
+    setTimeout(() => map.resize(), 0);
+  }
+
+  function onEnd() {
+    const wasActive = Boolean(xr);
+    xr = null; hit = null; pose = null; tracking = 'lost';
+    overlay.hidden = true;
+    document.body.classList.remove('xr-on');
+    moveMap(false);
+    refreshButtons();
+    if (wasActive) {
+      locked = false;
+      setBanner(UNLOCKED_TEXT);
+      api('/api/ar/unlock', { method: 'POST', body: {} }).catch(() => null);
+      say(UNLOCKED_TEXT + ' (the AR session ended)', 'warn');
+    }
+  }
+
+  async function start() {
+    if (xr) return;
+    if (S.target == null) { toast('Tap the known spot on the map first, then start AR.'); return; }
+    let session = null;
+    try {
+      session = await navigator.xr.requestSession('immersive-ar', {
+        requiredFeatures: ['hit-test', 'local'],
+        optionalFeatures: ['dom-overlay'],
+        domOverlay: { root: overlay },
+      });
+      const gl = document.createElement('canvas').getContext('webgl', { xrCompatible: true, alpha: true });
+      if (!gl) { session.end().catch(() => null); toast('This browser cannot start AR here.'); return; }
+      await session.updateRenderState({ baseLayer: new XRWebGLLayer(session, gl) });
+      const local = await session.requestReferenceSpace('local');
+      const viewer = await session.requestReferenceSpace('viewer');
+      const src = await session.requestHitTestSource({ space: viewer });
+      xr = { session, local, hit: src, gl };
+      local.addEventListener('reset', () => {
+        vioQ.push({ t: Date.now() / 1000, ...(pose || { x: 0, y: 0, z: 0, qx: 0, qy: 0, qz: 0, qw: 1 }), tracking: 'limited', reset: true });
+        locked = false; setBanner(UNLOCKED_TEXT);
+      });
+      session.addEventListener('end', onEnd);
+      overlay.hidden = false;
+      document.body.classList.add('xr-on');
+      moveMap(true);
+      setBanner(locked ? '' : 'Stand on a known spot, then lock A. Walk to a second spot, lock B.');
+      startFlush();
+      session.requestAnimationFrame(onFrame);
+      refreshButtons();
+    } catch (e) {
+      if (e && e.name === 'NotAllowedError') toast('Camera denied: GNSS and step mode continue.');
+      else toast('AR could not start on this phone.');
+      xr = null;
+      if (session) session.end().catch(() => null);
+    }
+  }
+
+  async function lock(which) {
+    if (!xr || !ready()) { toast('Wait for a steady reticle on the ground.'); return; }
+    if (S.target == null) { toast('Tap the known spot on the map first.'); return; }
+    const body = { plan: { x_cm: S.target.x, y_cm: S.target.y }, hit: { x: hit.x, y: hit.y, z: hit.z }, t: Date.now() / 1000 };
+    const r = await api(which === 'c' ? '/api/ar/check' : '/api/ar/lock/' + which, { method: 'POST', body });
+    if (!r.ok) { say(errorText(r), 'bad'); return; }
+    if (which === 'a') { say('A captured. Walk to the second known spot, tap it on the map, then lock B.'); return; }
+    if (which === 'c') { say('closure at C: ' + Number(r.json.closure_m).toFixed(2) + ' m'); return; }
+    locked = true;
+    setBanner('');
+    const sc = r.json.scale;
+    say((sc && !sc.ok ? 'Locked, but ' : 'Locked. ') + (sc ? sc.message : ''), sc && !sc.ok ? 'warn' : '');
+  }
+
+  async function unlock() {
+    await api('/api/ar/unlock', { method: 'POST', body: {} }).catch(() => null);
+    locked = false;
+    setBanner(UNLOCKED_TEXT);
+    say(UNLOCKED_TEXT, 'warn');
+  }
+
+  document.addEventListener('visibilitychange', () => { if (document.hidden && locked) { locked = false; setBanner(UNLOCKED_TEXT); } });
+  $('xr-start').addEventListener('click', start);
+  $('xr-end').addEventListener('click', () => { if (xr) xr.session.end().catch(() => null); });
+  $('xr-a').addEventListener('click', () => lock('a'));
+  $('xr-b').addEventListener('click', () => lock('b'));
+  $('xr-c').addEventListener('click', () => lock('c'));
+  $('xr-unlock').addEventListener('click', unlock);
+
+  // Probe only: the card is shown when the browser reports immersive-ar support.
+  if (navigator.xr && typeof navigator.xr.isSessionSupported === 'function') {
+    navigator.xr.isSessionSupported('immersive-ar').then((ok) => { card.hidden = !ok; }).catch(() => { card.hidden = true; });
+  }
+  refreshButtons();
+  return { startMotion };
+}

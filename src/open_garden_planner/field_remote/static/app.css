@@ -50,3 +50,8 @@ h3{margin:2px 0 8px;font-size:16px}
 .card>h3+p{margin-top:0}
 .list li button{margin-left:8px;min-height:40px}
 .screen.scroll{padding-bottom:32px}
+#xr-overlay{position:fixed;inset:0;z-index:6;pointer-events:none;background:transparent}
+#xr-overlay>*{pointer-events:auto}
+#xr-overlay #map{position:absolute;right:8px;top:8px;width:34vw;height:34vw;max-width:220px;max-height:220px;border:2px solid var(--line);border-radius:10px;background:var(--bg)}
+#xr-overlay .banner{position:absolute;left:0;right:0;top:0;margin-right:calc(34vw + 16px)}
+#xr-overlay #xr-bar{position:absolute;left:8px;right:8px;bottom:12px;margin:0}

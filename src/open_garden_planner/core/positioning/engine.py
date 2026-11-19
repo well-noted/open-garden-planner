@@ -2,8 +2,10 @@
 
 Pipeline per GNSS fix: validate -> georef ENU -> anchor -> Kalman predict ->
 gate -> update (+ ZUPT) -> estimate. State is session-only; time comes from
-the samples. VIO fusion is WP-H: :meth:`add_vio` only records the latest pose,
-so ``fix_mode`` never reports ``vio_fused`` from this module.
+the samples. VIO fusion (WP-H, ``fusion.py``): :meth:`add_vio` feeds a plan-locked
+aligner whose positions replace the Kalman track only while locked, tracking and the
+scale check passed (``fix_mode`` ``vio_fused``). VIO never modifies the GNSS filter;
+without a lock a GNSS-aligned fallback is reported as telemetry only.
 """
 
 from __future__ import annotations
@@ -19,6 +21,14 @@ from ..georef import GeoReference, GeorefError
 from . import calibration as calib
 from .breadcrumbs import Point, select_breadcrumbs, simplify_track
 from .closure import ClosureResult, bowditch, path_length
+from .fusion import (
+    FusedFix,
+    FusionAligner,
+    FusionState,
+    PdrStepper,
+    PlanLockedAligner,
+    Transform2D,
+)
 from .gating import RejectTracker, gate_measurement, validate_gnss
 from .kalman import KalmanCV, Step, rts_smooth
 from .survey import SurveyResult, survey_in
@@ -46,6 +56,10 @@ from .zupt import StationaryDetector
 
 MAX_TRACK_STEPS = 20000
 MOVING_SPEED_MPS = 0.5
+VIO_FRESH_S = 1.0  # a VIO fix older than this no longer drives the track
+PDR_VIO_QUIET_S = 2.0  # steps feed the prediction only when VIO has been silent this long
+COMPASS_FRESH_S = 2.0
+PDR_SIGMA_A = 1.5
 
 
 @dataclass(frozen=True)
@@ -81,6 +95,16 @@ class PositioningEngine:
         self._steps: list[Step] = []
         self._rec_meta: list[tuple[float, bool]] = []  # (sigma, stationary) per step
         self._truncated = False
+        self._locked = PlanLockedAligner()
+        self._fallback = FusionAligner()
+        self._pdr = PdrStepper()
+        self._vio_fix: FusedFix | None = None
+        self._vio_estimate_last: PositionEstimate | None = None
+        self._last_vio_t: float | None = None
+        self._fallback_fix: FusedFix | None = None
+        self._pending_disp: tuple[float, float] | None = None
+        self._motion_model: str | None = None
+        self._rec_last_vio = False  # the last recorded step came from VIO
 
     # ---------------------------------------------------------------- inputs
 
@@ -126,7 +150,12 @@ class PositioningEngine:
             kf.release_velocity()
             self._zupt.exited = False  # once, even if this fix is then gated
         sigma_a = SIGMA_A_STILL if self._zupt.stationary else SIGMA_A_WALK
-        f, dt = kf.predict(s.t, sigma_a)
+        disp = self._take_pdr_displacement(s.t)
+        if disp is not None:
+            f, dt = kf.predict_displacement(s.t, disp[0], disp[1], PDR_SIGMA_A)
+        else:
+            f, dt = kf.predict(s.t, sigma_a)
+        self._motion_model = "motion-smoothed" if disp is not None else None
         gate_dt = dt
         still_t = self._zupt.last_still_t
         if still_t is not None and s.t - still_t <= ZUPT_WINDOW_S:
@@ -153,15 +182,109 @@ class PositioningEngine:
         self._record(Step(s.t, x_pred, p_pred, kf.x.copy(), kf.p.copy(), f, kf.chain_break))
         return self._estimate(s, gated=False)
 
-    def add_vio(self, v: VioSample) -> None:
-        """Hook for WP-H: remembers the latest pose only. No fusion happens here."""
+    def add_vio(self, v: VioSample) -> PositionEstimate | None:
+        """Feed one VIO pose to both aligners.
+
+        Returns the plan-locked estimate (``track_source="vio"``) while locked, tracking
+        and the scale check passed; ``None`` otherwise (the Kalman track then stays the
+        source). Nothing is ever spliced: after a loss the lock is gone until re-locked.
+        """
         self.latest_vio = v
+        self._last_vio_t = v.t
+        fix = self._locked.on_sample(v)
+        self._fallback.on_vio(v)
+        if fix is not None and fix.fix_mode is FixMode.VIO_FUSED:
+            prev = self._vio_estimate_last if self._vio_fix is not None else None
+            self._vio_fix = fix
+            est = self._vio_estimate(fix, prev)
+            self._vio_estimate_last = est
+            if self._recording:
+                x = np.array([fix.e_m, fix.n_m, 0.0, 0.0])
+                p = np.eye(4) * (fix.sigma_m**2)
+                self._record(Step(fix.t, x, p, x.copy(), p.copy(), np.eye(4), True), vio=True)
+            return est
+        self._vio_fix = None
+        self._vio_estimate_last = None
+        return None
 
     def add_imu(self, m: ImuSample) -> None:
-        """Feeds the ZUPT acceleration test and the compass heading (absolute sources only)."""
+        """Feeds the ZUPT acceleration test, the compass heading (absolute sources only)
+        and the step detector (a displacement prior only while VIO is silent)."""
         self._zupt.add_accel(m.t, m.ax, m.ay, m.az)
         if m.absolute and m.heading_deg is not None and math.isfinite(m.heading_deg):
             self._compass = (m.t, m.heading_deg % 360.0)
+        comp = self._compass
+        heading = comp[1] if comp is not None and m.t - comp[0] <= COMPASS_FRESH_S else None
+        step = self._pdr.update(m, heading)
+        if (
+            step is not None
+            and step.heading_deg is not None
+            and not self._zupt.stationary
+            and (self._last_vio_t is None or m.t - self._last_vio_t > PDR_VIO_QUIET_S)
+        ):
+            de, dn = self._pending_disp or (0.0, 0.0)
+            self._pending_disp = (de + step.de, dn + step.dn)
+
+    # ------------------------------------------------------------ AR (WP-H)
+
+    def ar_capture_a(self, hit_xz: tuple[float, float], plan_en: tuple[float, float]) -> None:
+        """Lock point A: the reticle hit (x, z) in the VIO frame and its plan ENU position."""
+        self._locked.capture_a(hit_xz, plan_en)
+        self._vio_fix = None
+        self._vio_estimate_last = None
+
+    def ar_capture_b(
+        self, hit_xz: tuple[float, float], plan_en: tuple[float, float], t: float | None = None
+    ) -> Transform2D:
+        """Lock point B and fit the frame. ``FusionError`` when the points are unusable."""
+        return self._locked.capture_b(hit_xz, plan_en, t)
+
+    def ar_unlock(self, reason: str = "user") -> None:
+        self._locked.unlock(reason)
+        self._vio_fix = None
+        self._vio_estimate_last = None
+
+    def ar_closure(self, hit_xz: tuple[float, float], plan_en: tuple[float, float]) -> float:
+        """Free residual at a third known point, metres ("closure at C")."""
+        return self._locked.third_point_residual(hit_xz, plan_en)
+
+    def fused_estimate(self, t: float) -> PositionEstimate | None:
+        """The plan-locked VIO estimate when it is no older than ``VIO_FRESH_S`` at ``t``."""
+        est, vf = self._vio_estimate_last, self._vio_fix
+        if vf is not None and est is not None and abs(t - vf.t) <= VIO_FRESH_S:
+            return est
+        return None
+
+    def ar_status(self) -> dict[str, object]:
+        lk = self._locked
+        sc = lk.scale
+        fresh = self._vio_fix is not None
+        if fresh:
+            source = "plan_locked"
+        elif self._fallback_fix is not None and self._fallback.transform is not None:
+            source = "gnss_aligned"
+        else:
+            source = "gnss"
+        return {
+            "state": str(lk.state),
+            "source": source,
+            "fix_mode": str(FixMode.VIO_FUSED) if fresh else None,
+            "reasons": list(lk.last_fix.reasons) if lk.last_fix is not None else [],
+            "scale": None
+            if sc is None
+            else {
+                "ratio": round(sc.ratio, 4) if math.isfinite(sc.ratio) else None,
+                "ok": sc.ok,
+                "message": sc.message,
+            },
+            "closure_m": None if lk.closure_m is None else round(lk.closure_m, 3),
+            "gnss_alert": lk.gnss_alert,
+            "unlock_reason": lk.unlock_reason,
+            "lock_t": lk.lock_t,
+            "sigma_m": lk.anchor_sigma_m if fresh else None,
+            "relative_sigma_m_per_10m": None,
+            "fallback_reasons": list(self._fallback.reasons),
+        }
 
     # ----------------------------------------------------- calibration/survey
 
@@ -256,9 +379,14 @@ class PositioningEngine:
         x = self._kf.x.copy()
         self._record(Step(s.t, x, self._kf.p.copy(), x, self._kf.p.copy(), np.eye(4), True))
 
-    def _record(self, step: Step) -> None:
+    def _record(self, step: Step, *, vio: bool = False) -> None:
         if not self._recording:
             return
+        if not vio and self._vio_fix is not None and abs(step.t - self._vio_fix.t) <= VIO_FRESH_S:
+            return  # the VIO track is the source while it is fresh: no mixed sources
+        if vio != self._rec_last_vio:
+            step.chain_start = True  # never smooth across a change of source
+        self._rec_last_vio = vio
         if len(self._steps) >= MAX_TRACK_STEPS:
             self._truncated = True
             return
@@ -268,6 +396,49 @@ class PositioningEngine:
     def _to_cm(self, e: float, n: float) -> Point:
         return self.georef.gps_to_canvas(*self.georef.enu_to_gps(e, n))
 
+    def _take_pdr_displacement(self, t: float) -> tuple[float, float] | None:
+        disp, self._pending_disp = self._pending_disp, None
+        if disp is None or (self._last_vio_t is not None and t - self._last_vio_t <= PDR_VIO_QUIET_S):
+            return None
+        return disp
+
+    def _vio_estimate(self, fix: FusedFix, prev: PositionEstimate | None) -> PositionEstimate:
+        e, n = fix.e_m, fix.n_m
+        x_cm, y_cm = self._to_cm(e, n)
+        lat, lon = self.georef.enu_to_gps(e, n)
+        speed = 0.0
+        if prev is not None and fix.t > prev.t:
+            speed = min(math.dist((e, n), (prev.e_m, prev.n_m)) / (fix.t - prev.t), 10.0)
+        return PositionEstimate(
+            t=fix.t,
+            e_m=e,
+            n_m=n,
+            x_cm=x_cm,
+            y_cm=y_cm,
+            lat=lat,
+            lon=lon,
+            sigma_m=fix.sigma_m,
+            heading_deg=None,
+            speed_mps=speed,
+            fix_mode=self._fix_mode(fix.t),
+            stationary=speed < 0.1,
+            quality="good" if fix.sigma_m <= 2.0 else "fair" if fix.sigma_m <= 5.0 else "poor",
+            gated=False,
+            heading_source="none",
+            anchor_source="plan_points",
+            anchor_age_s=None if fix.anchor_t is None else fix.t - fix.anchor_t,
+            track_source="vio",
+        )
+
+    def _on_filtered(self, s: GnssSample) -> None:
+        """After the filter accepted a fix: the gross-error check (locked) or the fallback fit."""
+        kf = self._kf
+        e, n = float(kf.x[0]), float(kf.x[1])
+        if self._locked.state in (FusionState.LOCKED, FusionState.LOCKED_LIMITED):
+            self._locked.gnss_disagreement((e, n), kf.sigma_m)
+        else:
+            self._fallback_fix = self._fallback.add_gnss(s.t, e, n, kf.sigma_m)
+
     def _fix_mode(self, t: float) -> FixMode:
         acc = self._recent_acc
         if len(acc) == RTK_SUSTAIN_SAMPLES:
@@ -275,6 +446,9 @@ class PositioningEngine:
                 return FixMode.RTK_FIXED
             if max(acc) < RTK_FLOAT_ACC_M:
                 return FixMode.RTK_FLOAT
+        vf = self._vio_fix
+        if vf is not None and abs(t - vf.t) <= VIO_FRESH_S and vf.fix_mode is FixMode.VIO_FUSED:
+            return FixMode.VIO_FUSED
         a = self._anchor
         if a is not None and (
             t - a.t < ANCHOR_STALE_S or (a.fit_rms_m is not None and a.fit_rms_m < ANCHOR_FIT_OK_RMS_M)
@@ -284,6 +458,8 @@ class PositioningEngine:
 
     def _estimate(self, s: GnssSample, *, gated: bool) -> PositionEstimate:
         kf = self._kf
+        if not gated:
+            self._on_filtered(s)
         e, n = float(kf.x[0]), float(kf.x[1])
         x_cm, y_cm = self._to_cm(e, n)
         lat, lon = self.georef.enu_to_gps(e, n)
@@ -320,6 +496,7 @@ class PositioningEngine:
             anchor_source=a.kind if a else "none",
             anchor_age_s=(s.t - a.t) if a else None,
             horizontal_accuracy_m=s.accuracy_m,
+            motion_model=self._motion_model,
         )
         self._last_estimate = est
         return est

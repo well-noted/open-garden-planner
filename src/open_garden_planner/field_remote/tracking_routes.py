@@ -27,7 +27,10 @@ Number = Annotated[float, Field(allow_inf_nan=False)]
 
 #: Paths the guard lets through with the records toggle off (they write nothing to disk).
 SESSION_PATHS = frozenset(
-    {"/api/survey", "/api/calibrate", "/api/track/start", "/api/track/finish", "/api/track/cancel"}
+    {
+        "/api/survey", "/api/calibrate", "/api/track/start", "/api/track/finish", "/api/track/cancel",
+        "/api/ar/lock/a", "/api/ar/lock/b", "/api/ar/check", "/api/ar/unlock",
+    }
 )
 
 
@@ -62,6 +65,27 @@ class FinishIn(_Strict):
     target_x_cm: Number | None = None
     target_y_cm: Number | None = None
     smooth: bool = True
+
+
+class PlanSpot(_Strict):
+    """A known spot on the plan, in plan centimetres (the same frame as the map the phone shows)."""
+
+    x_cm: Number
+    y_cm: Number
+
+
+class ArHit(_Strict):
+    """A reticle hit-test position in the WebXR ``local`` space (y up, -z forward). y is unused."""
+
+    x: Number
+    y: Number
+    z: Number
+
+
+class ArLockIn(_Strict):
+    plan: PlanSpot
+    hit: ArHit
+    t: Annotated[float, Field(ge=0)] | None = None
 
 
 def tracking_routes(
@@ -168,7 +192,42 @@ def tracking_routes(
         except SessionError as exc:
             return refuse(exc)
 
+    def ar_point(which: str) -> Callable[[Request], Any]:
+        async def handler(request: Request) -> Response:
+            parsed = await body(request, ArLockIn)
+            if not isinstance(parsed, ArLockIn):
+                return parsed
+            geo, bad = await geo_of()
+            if geo is None:
+                return bad or error(409, "not_georeferenced")
+            hit = (float(parsed.hit.x), float(parsed.hit.z))
+            plan = (float(parsed.plan.x_cm), float(parsed.plan.y_cm))
+            when = parsed.t if parsed.t is not None else time.time()
+            try:
+                return ok(await run_in_threadpool(session.ar_lock, which, geo, hit, plan, when))
+            except SessionError as exc:
+                return refuse(exc)
+
+        return handler
+
+    async def ar_unlock(_request: Request) -> Response:
+        geo, bad = await geo_of()
+        if geo is None:
+            return bad or error(409, "not_georeferenced")
+        return ok(await run_in_threadpool(session.ar_unlock, geo))
+
+    async def ar_status(_request: Request) -> Response:
+        geo, bad = await geo_of()
+        if geo is None:
+            return bad or error(409, "not_georeferenced")
+        return ok(await run_in_threadpool(session.ar_status, geo))
+
     return [
+        Route("/api/ar/lock/a", ar_point("a"), methods=["POST"]),
+        Route("/api/ar/lock/b", ar_point("b"), methods=["POST"]),
+        Route("/api/ar/check", ar_point("c"), methods=["POST"]),
+        Route("/api/ar/unlock", ar_unlock, methods=["POST"]),
+        Route("/api/ar/status", ar_status, methods=["GET"]),
         Route("/api/survey", survey, methods=["POST"]),
         Route("/api/calibrate", calibrate, methods=["POST", "DELETE"]),
         Route("/api/track/start", start, methods=["POST"]),

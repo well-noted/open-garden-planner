@@ -29,6 +29,7 @@ from pydantic import (
     ValidationError,
 )
 
+from open_garden_planner.core.positioning import ImuSample, VioSample
 from open_garden_planner.field_remote import limits, projection, server
 from open_garden_planner.field_remote.events import EventHub
 from open_garden_planner.field_remote.session import RecordingSession
@@ -371,8 +372,38 @@ class PlanSource(Protocol):
     def on_position(self, telemetry: dict[str, Any]) -> None: ...
 
 
+MAX_AR_BATCH = 50
+
+
+class VioIn(_Strict):
+    """One WebXR pose (design 2.8): ``t`` is epoch seconds on the same clock as the GNSS ``t``."""
+
+    t: Annotated[Number, Field(ge=0)]
+    x: Number
+    y: Number
+    z: Number
+    qx: Number
+    qy: Number
+    qz: Number
+    qw: Number
+    tracking: Literal["tracking", "limited", "lost"]
+    reset: bool = False  # the reference space was reset: the plan lock is dropped
+
+
+class ImuIn(_Strict):
+    t: Annotated[Number, Field(ge=0)]
+    ax: Number
+    ay: Number
+    az: Number
+    alpha: Number = 0.0
+    beta: Number = 0.0
+    gamma: Number = 0.0
+    heading_deg: Number | None = None
+    absolute: bool = False
+
+
 class PositionIn(_Strict):
-    """One position report (design 1.6). ``vio``/``imu`` are accepted for later packages and unused."""
+    """One position report (design 1.6); ``vio``/``imu`` are the optional AR and motion samples."""
 
     t: Annotated[Number, Field(ge=0)]
     lat: Annotated[Number, Field(ge=-90, le=90)]
@@ -385,12 +416,16 @@ class PositionIn(_Strict):
     hdop: Annotated[Number, Field(ge=0, le=1000)] | None = None
     sigma_m: Annotated[Number, Field(gt=0, le=100_000)] | None = None
     source: Literal["browser", "nmea_usb", "nmea_ble", "native_fused"] = "browser"
-    vio: dict[str, Any] | None = None
-    imu: dict[str, Any] | None = None
+    vio: VioIn | None = None
+    imu: ImuIn | None = None
 
 
 class PositionBatchIn(_Strict):
-    positions: Annotated[list[PositionIn], Field(min_length=1, max_length=projection.MAX_BATCH)]
+    """``vio_batch``/``imu_batch`` let AR samples travel at their own rate with no GNSS fix."""
+
+    positions: Annotated[list[PositionIn], Field(max_length=projection.MAX_BATCH)] = Field(default_factory=list)
+    vio_batch: Annotated[list[VioIn], Field(max_length=MAX_AR_BATCH)] = Field(default_factory=list)
+    imu_batch: Annotated[list[ImuIn], Field(max_length=MAX_AR_BATCH)] = Field(default_factory=list)
 
 
 def _cached(request: Request, body: dict[str, Any], etag: str) -> Response:
@@ -422,6 +457,21 @@ def _fix_from(p: PositionIn) -> projection.Fix:
         t=float(p.t), lat=float(p.lat), lon=float(p.lon), accuracy_m=float(p.accuracy_m), alt=opt(p.alt),
         heading_deg=opt(p.heading_deg), speed_mps=opt(p.speed_mps), fix_quality=p.fix_quality,
         hdop=opt(p.hdop), sigma_m=opt(p.sigma_m), source=p.source,
+    )
+
+
+def _vio_from(v: VioIn) -> VioSample:
+    return VioSample(
+        t=float(v.t), x=float(v.x), y=float(v.y), z=float(v.z),
+        qx=float(v.qx), qy=float(v.qy), qz=float(v.qz), qw=float(v.qw), tracking=v.tracking,
+    )
+
+
+def _imu_from(m: ImuIn) -> ImuSample:
+    return ImuSample(
+        t=float(m.t), ax=float(m.ax), ay=float(m.ay), az=float(m.az), alpha=float(m.alpha), beta=float(m.beta),
+        gamma=float(m.gamma), heading_deg=None if m.heading_deg is None else float(m.heading_deg),
+        absolute=m.absolute,
     )
 
 
@@ -513,20 +563,37 @@ def read_routes(
         raw = await request.body()
         try:
             stripped = raw.lstrip()
+            head = stripped[:96]
             if stripped.startswith(b"["):  # a bare array is a batch
-                items = PositionBatchIn.model_validate_json(b'{"positions":' + stripped + b"}").positions
-            elif stripped.startswith(b"{") and b'"positions"' in stripped[:64]:
-                items = PositionBatchIn.model_validate_json(raw).positions
+                batch = PositionBatchIn.model_validate_json(b'{"positions":' + stripped + b"}")
+            elif stripped.startswith(b"{") and any(k in head for k in (b'"positions"', b'"vio_batch"', b'"imu_batch"')):
+                batch = PositionBatchIn.model_validate_json(raw)
             else:
-                items = [PositionIn.model_validate_json(raw)]
+                batch = PositionBatchIn(positions=[PositionIn.model_validate_json(raw)])
         except ValidationError as error:
             return _error(422, "invalid_position", _problems(error))
+        items = batch.positions
+        if not items and not batch.vio_batch and not batch.imu_batch:
+            return _error(422, "invalid_position", "positions: send at least one position or AR sample.")
         fixes = [_fix_from(p) for p in items]
+        vios = [(_vio_from(v), v.reset) for v in [*batch.vio_batch, *(p.vio for p in items if p.vio is not None)]]
+        imus = [_imu_from(m) for m in [*batch.imu_batch, *(p.imu for p in items if p.imu is not None)]]
         # A position needs no plan to be echoed: if the desktop cannot answer, x/y stay null.
         snap, _failure = await snapshot()
         geo = projection.georef_of(snap) if snap is not None else None
+        if not fixes:  # AR/IMU samples only: they need the plan frame, so no plan is a refusal
+            if geo is None:
+                return _error(409, "not_georeferenced", "The plan has no georeference.")
+            result = rec_session.vio_only(vios, imus, geo)
+            if result.get("x_cm") is not None:
+                source.on_position(result)
+            return _json({"accepted": 0, "accepted_ar": len(vios) + len(imus), "telemetry": result})
         try:
-            result = projection.telemetry(fixes, geo, solver=rec_session.solver if geo is not None else None)
+            result = projection.telemetry(
+                fixes,
+                geo,
+                solver=(lambda fx, g: rec_session.solver(fx, g, vios, imus)) if geo is not None else None,
+            )
         except projection.ProjectionError as error:
             return _projection_error(error)
         source.on_position(result)

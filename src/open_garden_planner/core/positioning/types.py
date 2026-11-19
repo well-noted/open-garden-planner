@@ -82,6 +82,8 @@ class PositionEstimate:
     anchor_source: str = "none"  # "gnss_point" | "plan_points" | "none"
     anchor_age_s: float | None = None
     horizontal_accuracy_m: float | None = None
+    track_source: str = "gnss"  # "gnss" (Kalman) | "vio" (plan-locked VIO while locked and tracking)
+    motion_model: str | None = None  # "motion-smoothed" when a step prior fed the prediction
 
 
 # --- Kalman / gating tuning (replay-harness tunable; keep every number here) ---

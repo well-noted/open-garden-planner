@@ -15,7 +15,8 @@ from collections.abc import Sequence
 from typing import Any
 
 from open_garden_planner.core.georef import GeoReference
-from open_garden_planner.core.positioning import GnssSample, PositioningEngine
+from open_garden_planner.core.positioning import GnssSample, ImuSample, PositioningEngine, VioSample
+from open_garden_planner.core.positioning.fusion import FusionError
 from open_garden_planner.core.positioning.survey import SurveyResult
 from open_garden_planner.field_remote import projection
 
@@ -62,8 +63,34 @@ class RecordingSession:
 
     # -- position ---------------------------------------------------------------------------
 
-    def solver(self, fixes: Sequence[projection.Fix], geo: GeoReference | None) -> dict[str, Any]:
-        """The telemetry solver hook of :func:`projection.telemetry`: filtered, gated, anchored."""
+    def _feed_ar(
+        self, engine: PositioningEngine, vios: Sequence[tuple[VioSample, bool]], imus: Sequence[ImuSample]
+    ) -> None:
+        """VIO first, then IMU (the order the engine documents), before any GNSS fix.
+
+        Each VIO item carries the phone's ``reset`` flag (a reference-space reset moved the
+        frame): that drops the lock before the sample is used.
+        """
+        for v, reset in vios:
+            if reset:
+                engine.ar_unlock("reference_space_reset")
+            engine.add_vio(v)
+        for m in imus:
+            engine.add_imu(m)
+
+    def solver(
+        self,
+        fixes: Sequence[projection.Fix],
+        geo: GeoReference | None,
+        vios: Sequence[tuple[VioSample, bool]] = (),
+        imus: Sequence[ImuSample] = (),
+    ) -> dict[str, Any]:
+        """The telemetry solver hook of :func:`projection.telemetry`: filtered, gated, anchored.
+
+        ``vios``/``imus`` are fed first. While a plan lock is active and tracking is good, the
+        plan-locked VIO estimate is the published track (``track_source`` ``vio``); the GNSS
+        filter result is published otherwise.
+        """
         if geo is None or not fixes:
             raise projection.ProjectionError(422, "invalid_position", "No position or plan georeference.")
         with self.lock:
@@ -72,6 +99,7 @@ class RecordingSession:
             if last_t is not None and abs(fixes[0].t - last_t) > MAX_CLOCK_JUMP_S and not self.recording:
                 self._engine = None  # a new epoch (clock jump or a long gap): never refuse every later fix
                 engine = self.engine_for(geo)
+            self._feed_ar(engine, vios, imus)
             estimate = None
             for f in fixes:
                 got = engine.add_gnss(
@@ -79,38 +107,110 @@ class RecordingSession:
                                f.alt, f.heading_deg, f.speed_mps)
                 )
                 estimate = got or estimate
-            if estimate is None:  # every fix refused before any was accepted: say so, plainly
-                return {**projection.telemetry(fixes, geo), "gated": True, "reject_reason": engine.last_reject_reason}
-            last = fixes[-1]
-            reported = last.fix_quality in ("rtk_float", "rtk_fixed")
-            heading_canvas = None
-            if estimate.heading_deg is not None:
-                heading_canvas = round(projection.canvas_heading_deg(estimate.heading_deg, geo.rotation_deg), 2)
-            return {
-                "t": estimate.t,
-                "lat": round(estimate.lat, 9),
-                "lon": round(estimate.lon, 9),
-                "x_cm": round(estimate.x_cm, 1),
-                "y_cm": round(estimate.y_cm, 1),
-                "sigma_m": round(estimate.sigma_m, 2),
-                "horizontal_accuracy_m": estimate.horizontal_accuracy_m,
-                "heading_deg": estimate.heading_deg,
-                "heading_source": estimate.heading_source,
-                "heading_canvas_deg": heading_canvas,
-                "speed_mps": round(estimate.speed_mps, 2),
-                "fix_mode": last.fix_quality if reported else str(estimate.fix_mode),
-                "fix_mode_reported": reported,
-                "fix_source": last.source,
-                "anchor_source": estimate.anchor_source,
-                "anchor_age_s": estimate.anchor_age_s,
-                "stationary": estimate.stationary,
-                "gated": estimate.gated,
-                "reject_reason": engine.last_reject_reason,
-                "quality": estimate.quality,
-                "samples_used": len(fixes),
-                "georeferenced": True,
-                "recording": self.recording,
-            }
+            ref_t = max(f.t for f in fixes)
+            fused = engine.fused_estimate(ref_t)
+            if estimate is None and fused is None:  # every fix refused before any was accepted: say so, plainly
+                return {
+                    **projection.telemetry(fixes, geo), "gated": True, "reject_reason": engine.last_reject_reason,
+                    "fused": engine.ar_status(),
+                }
+            return self._telemetry(engine, geo, fused or estimate, fixes[-1], len(fixes))
+
+    def vio_only(
+        self, vios: Sequence[tuple[VioSample, bool]], imus: Sequence[ImuSample], geo: GeoReference
+    ) -> dict[str, Any]:
+        """A VIO/IMU batch with no GNSS fix. Answers with the locked track when there is one."""
+        with self.lock:
+            engine = self.engine_for(geo)
+            self._feed_ar(engine, vios, imus)
+            ref_t = max((v.t for v, _ in vios), default=None)
+            fused = None if ref_t is None else engine.fused_estimate(ref_t)
+            if fused is None:
+                return {
+                    "x_cm": None, "y_cm": None, "gated": False, "georeferenced": True,
+                    "recording": self.recording, "fused": engine.ar_status(), "track_source": "gnss",
+                    "samples_used": 0,
+                }
+            return self._telemetry(engine, geo, fused, None, 0)
+
+    def _telemetry(
+        self, engine: PositioningEngine, geo: GeoReference, estimate: Any, last: projection.Fix | None, used: int
+    ) -> dict[str, Any]:
+        reported = last is not None and last.fix_quality in ("rtk_float", "rtk_fixed")
+        vio_track = estimate.track_source == "vio"
+        heading_canvas = None
+        if estimate.heading_deg is not None:
+            heading_canvas = round(projection.canvas_heading_deg(estimate.heading_deg, geo.rotation_deg), 2)
+        fix_mode = last.fix_quality if reported and last is not None else str(estimate.fix_mode)
+        return {
+            "t": estimate.t,
+            "lat": round(estimate.lat, 9),
+            "lon": round(estimate.lon, 9),
+            "x_cm": round(estimate.x_cm, 1),
+            "y_cm": round(estimate.y_cm, 1),
+            # the plan-lock sigma is an unmeasured placeholder (fused.sigma_m): never shown as a spread
+            "sigma_m": None if vio_track else round(estimate.sigma_m, 2),
+            "horizontal_accuracy_m": estimate.horizontal_accuracy_m,
+            "heading_deg": estimate.heading_deg,
+            "heading_source": estimate.heading_source,
+            "heading_canvas_deg": heading_canvas,
+            "speed_mps": round(estimate.speed_mps, 2),
+            "fix_mode": fix_mode,
+            "fix_mode_reported": reported,
+            "fix_source": last.source if last is not None else "webxr",
+            "track_source": estimate.track_source,
+            "motion_model": estimate.motion_model,
+            "anchor_source": estimate.anchor_source,
+            "anchor_age_s": estimate.anchor_age_s,
+            "stationary": estimate.stationary,
+            "gated": estimate.gated,
+            "reject_reason": engine.last_reject_reason,
+            "quality": estimate.quality,
+            "samples_used": used,
+            "georeferenced": True,
+            "recording": self.recording,
+            "fused": engine.ar_status(),
+        }
+
+    # -- AR plan lock (WP-H) ------------------------------------------------------------------
+
+    def _plan_en(self, geo: GeoReference, plan: tuple[float, float]) -> tuple[float, float]:
+        from open_garden_planner.core.positioning.calibration import _plan_enu
+
+        try:
+            return _plan_enu(geo, *plan)
+        except ValueError as error:  # GeorefError is a ValueError
+            raise SessionError(422, "invalid_plan_point", str(error)) from error
+
+    def ar_lock(
+        self, which: str, geo: GeoReference, hit_xz: tuple[float, float], plan_cm: tuple[float, float], t: float
+    ) -> dict[str, Any]:
+        """Capture lock point ``a`` or ``b`` (the reticle hit, not the phone), or ``c`` for the closure check."""
+        with self.lock:
+            engine = self.engine_for(geo)
+            plan_en = self._plan_en(geo, plan_cm)
+            try:
+                if which == "a":
+                    engine.ar_capture_a(hit_xz, plan_en)
+                elif which == "b":
+                    engine.ar_capture_b(hit_xz, plan_en, t)
+                else:
+                    closure = engine.ar_closure(hit_xz, plan_en)
+                    return {"closure_m": round(closure, 3), "label": "closure at C", **{"fused": engine.ar_status()}}
+            except FusionError as error:
+                raise SessionError(409, "ar_lock_refused", str(error)) from error
+            status = engine.ar_status()
+            return {"state": status["state"], "scale": status["scale"], "fused": status}
+
+    def ar_unlock(self, geo: GeoReference) -> dict[str, Any]:
+        with self.lock:
+            engine = self.engine_for(geo)
+            engine.ar_unlock("user")
+            return {"state": engine.ar_status()["state"]}
+
+    def ar_status(self, geo: GeoReference) -> dict[str, Any]:
+        with self.lock:
+            return self.engine_for(geo).ar_status()
 
     # -- survey-in and calibration -------------------------------------------------------------
 

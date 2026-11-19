@@ -95,6 +95,27 @@ class KalmanCV:
         self.t = t
         return f, dt
 
+    def predict_displacement(self, t: float, de: float, dn: float, sigma_a: float = 1.5) -> tuple[np.ndarray, float]:
+        """Like :meth:`predict`, but the mean position moves by a step-counted displacement
+        (PDR, design 2.8) instead of ``v * dt``. Covariance propagates as usual with the
+        given acceleration noise. Returns ``(F, dt_used)``.
+        """
+        assert self.t is not None
+        raw_dt = t - self.t
+        self.chain_break = raw_dt > DT_MAX_S
+        if self.chain_break:
+            self.x[2:] = 0.0
+            self.p[:2, 2:] = 0.0
+            self.p[2:, :2] = 0.0
+            self.p[2:, 2:] = np.eye(2) * V0_SIGMA**2
+        dt = min(max(raw_dt, DT_MIN_S), DT_MAX_S)
+        f = _transition(dt)
+        self.x[0] += de
+        self.x[1] += dn
+        self.p = f @ self.p @ f.T + _process_noise(dt, sigma_a)
+        self.t = t
+        return f, dt
+
     def release_velocity(self) -> None:
         """Undo zero-velocity pinning when motion starts: velocity sigma back to ``V0_SIGMA``,
         decorrelated from the position (the mean is kept). Called before ``predict`` it acts

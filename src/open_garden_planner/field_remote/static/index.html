@@ -114,6 +114,12 @@
       <div id="cal-result" class="card" hidden></div>
       <button id="btn-uncal" type="button" hidden>Remove correction</button>
     </div>
+    <div class="card" id="xr-card" hidden>
+      <h3>AR lock (experimental)</h3>
+      <p class="hint">Uses the camera to track movement; no images leave the phone. Tap a known spot on the map, start AR, stand on that spot and lock A; walk to a second known spot, tap it on the map and lock B.</p>
+      <button id="xr-start" type="button">Start AR lock</button>
+      <p id="xr-status" class="hint"></p>
+    </div>
     <div class="card">
       <h3>Record an irrigation line</h3>
       <div id="rec-idle">
@@ -146,6 +152,16 @@
     <ul id="records" class="list"></ul>
   </section>
 </main>
+<div id="xr-overlay" hidden>
+  <div id="xr-banner" class="banner" hidden></div>
+  <div id="xr-bar" class="row">
+    <button id="xr-a" type="button" disabled>Lock A</button>
+    <button id="xr-b" type="button" disabled>Lock B</button>
+    <button id="xr-c" type="button" disabled>Check C</button>
+    <button id="xr-unlock" type="button" disabled>Unlock</button>
+    <button id="xr-end" type="button">End AR</button>
+  </div>
+</div>
 <div id="toast" class="toast" hidden></div>
 <nav id="tabs">
   <button data-screen="map" class="tab on" type="button">Map</button>
