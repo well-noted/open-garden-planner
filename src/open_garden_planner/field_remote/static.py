@@ -13,7 +13,7 @@ from pathlib import Path
 
 _DIR = Path(__file__).with_name("static")
 _TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8"}
-FILES = ("index.html", "app.css", "app.js", "api.js", "geo.js", "map.js")
+FILES = ("index.html", "app.css", "app.js", "api.js", "geo.js", "map.js", "survey.js", "record.js")
 #: Size budget for everything the phone downloads (design 4.1: 150 KB).
 BUDGET_BYTES = 150 * 1024
 

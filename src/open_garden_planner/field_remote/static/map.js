@@ -9,7 +9,7 @@ export class PlanMap {
     this.cx = 0; this.cy = 0; this.k = 0.1; // view centre (plan cm) and pixels per cm
     this.objects = []; this.hidden = new Set();
     this.base = null; this.rect = null;
-    this.puck = null; this.target = null; this.anchors = []; this.extent = null;
+    this.puck = null; this.track = []; this.target = null; this.anchors = []; this.extent = null;
     this.follow = false;
     this.pointers = new Map();
     this.moved = false; this.pinch = 0;
@@ -109,6 +109,11 @@ export class PlanMap {
       this.path(g, o);
       if (o.kind !== 'polyline') g.fill();
       g.stroke();
+    }
+    if (this.track && this.track.length > 1) {
+      g.strokeStyle = '#0288d1'; g.lineWidth = 3; g.lineJoin = 'round'; g.beginPath();
+      this.track.forEach((p, i) => { const [x, y] = this.toScreen(p[0], p[1]); if (i) g.lineTo(x, y); else g.moveTo(x, y); });
+      g.stroke(); g.lineWidth = 1.5;
     }
     for (const a of this.anchors) this.dot(a, '#1565c0', 6);
     if (this.target) this.cross(this.target);

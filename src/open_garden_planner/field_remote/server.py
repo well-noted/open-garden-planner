@@ -45,7 +45,17 @@ PUBLIC_PATHS = frozenset({"/"})  # the page itself; its scripts are static.ASSET
 #: Write-method routes that stay allowed while "phone may save records" is off: they change
 #: nothing on disk (design 1.6, position intake). Every OTHER non-GET/HEAD /api/ request is
 #: refused by the guard itself when the toggle is off, so a later route cannot forget the check.
-WRITES_ALLOWED_WITHOUT_RECORDS = frozenset({"/api/position"})
+WRITES_ALLOWED_WITHOUT_RECORDS = frozenset(
+    {
+        "/api/position",
+        # session-only positioning state (tracking_routes.SESSION_PATHS; a test keeps the two equal)
+        "/api/survey",
+        "/api/calibrate",
+        "/api/track/start",
+        "/api/track/finish",
+        "/api/track/cancel",
+    }
+)
 _TAILSCALE_NET = ipaddress.ip_network("100.64.0.0/10")
 
 #: Sent on every response, including rejections. No CORS headers are ever sent (a cross-origin

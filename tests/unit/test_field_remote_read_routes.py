@@ -219,7 +219,8 @@ def test_single_position_returns_telemetry_and_reaches_the_desktop(env: Env) -> 
     assert res.status_code == 200 and body["accepted"] == 1
     tele = body["telemetry"]
     assert tele["x_cm"] == pytest.approx(0.0, abs=0.1) and tele["y_cm"] == pytest.approx(0.0, abs=0.1)
-    assert tele["fix_mode"] == "standard" and tele["heading_canvas_deg"] == pytest.approx(0.0)
+    # the filter reports a heading only once it is moving (a lone fix has no velocity yet)
+    assert tele["fix_mode"] == "standard" and tele["heading_canvas_deg"] is None
     assert env.source.positions == [tele]
 
 
@@ -236,7 +237,8 @@ def test_batch_forms_use_the_last_fix_and_cap_at_50(env: Env) -> None:
 def test_position_accepts_reported_fix_quality_hdop_sigma_and_source(env: Env) -> None:
     res = env.post("/api/position", _pos(fix_quality="rtk_float", hdop=0.8, sigma_m=0.3, source="nmea_ble"))
     tele = res.json()["telemetry"]
-    assert tele["fix_mode"] == "rtk_float" and tele["fix_mode_reported"] is True and tele["sigma_m"] == 0.3
+    assert tele["fix_mode"] == "rtk_float" and tele["fix_mode_reported"] is True
+    assert tele["sigma_m"] >= 0.3  # the filter floors an optimistic reported sigma (core/positioning R_MIN_M)
     assert tele["fix_source"] == "nmea_ble"
 
 

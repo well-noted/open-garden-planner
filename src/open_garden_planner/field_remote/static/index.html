@@ -91,6 +91,54 @@
     </div>
   </section>
 
+  <section id="screen-field" class="screen scroll" hidden>
+    <h2>Position tools</h2>
+    <div class="card">
+      <h3>Survey-In and calibration</h3>
+      <p class="hint">Stand still on a spot whose place on the plan you know. Tap that spot on the map first.</p>
+      <button id="btn-survey" type="button">Survey here (5 s)</button>
+      <div id="survey-result" class="card" hidden></div>
+      <div id="survey-actions" hidden>
+        <p id="target-state" class="hint"></p>
+        <div class="row">
+          <button id="btn-fix-today" type="button">Fix my position today</button>
+          <button id="btn-add-point" type="button">Add as calibration point</button>
+        </div>
+        <label class="field">Name for a corner recording
+          <input id="corner-name" type="text" maxlength="120" autocomplete="off" placeholder="NE corner">
+        </label>
+        <button id="btn-corner" type="button">Send corner recording for review</button>
+      </div>
+      <ul id="cal-points" class="list"></ul>
+      <button id="btn-fit" type="button" hidden>Fit calibration</button>
+      <div id="cal-result" class="card" hidden></div>
+      <button id="btn-uncal" type="button" hidden>Remove correction</button>
+    </div>
+    <div class="card">
+      <h3>Record an irrigation line</h3>
+      <div id="rec-idle">
+        <p class="hint">Walk along the line. Short stops are fine; the computer filters the walk.</p>
+        <button id="btn-rec-start" class="primary" type="button">Start recording</button>
+      </div>
+      <div id="rec-live-box" hidden>
+        <p id="rec-live" class="hint">Recording</p>
+        <label class="field check"><input id="rec-close" type="checkbox"> The line is a closed loop</label>
+        <button id="btn-rec-stop" class="primary" type="button">Stop</button>
+      </div>
+      <div id="rec-done" hidden>
+        <div id="rec-summary" class="card"></div>
+        <label class="field">Name <input id="rec-name" type="text" maxlength="120" autocomplete="off"></label>
+        <label class="field">Pipe diameter (mm) <input id="rec-diameter" type="text" inputmode="decimal" maxlength="8"></label>
+        <label class="field">Flow (litres per hour) <input id="rec-flow" type="text" inputmode="decimal" maxlength="8"></label>
+        <label class="field">Emitter spacing (cm) <input id="rec-spacing" type="text" inputmode="decimal" maxlength="8"></label>
+        <div class="row">
+          <button id="btn-rec-discard" type="button">Discard</button>
+          <button id="btn-rec-save" class="primary" type="button">Save as pending</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <section id="screen-records" class="screen scroll" hidden>
     <h2>Saved records</h2>
     <div id="status" class="card"></div>
@@ -103,6 +151,7 @@
   <button data-screen="map" class="tab on" type="button">Map</button>
   <button data-screen="add" class="tab" type="button">Add</button>
   <button data-screen="measure" class="tab" type="button">Measure</button>
+  <button data-screen="field" class="tab" type="button">Field</button>
   <button data-screen="records" class="tab" type="button">Records</button>
 </nav>
 <script type="module" src="/static/app.js"></script>

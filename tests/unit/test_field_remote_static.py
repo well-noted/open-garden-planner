@@ -27,6 +27,7 @@ def client() -> TestClient:
 def test_the_expected_files_are_bundled() -> None:
     assert set(SOURCES) == {
         "/", "/static/app.css", "/static/app.js", "/static/api.js", "/static/geo.js", "/static/map.js",
+        "/static/survey.js", "/static/record.js",
     }
 
 

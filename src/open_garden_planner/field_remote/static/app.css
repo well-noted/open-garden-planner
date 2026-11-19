@@ -39,3 +39,14 @@ textarea,input[type=text],input[type=search]{width:100%}
 #tabs .tab{flex:1;padding:4px}
 .dist{width:7em;margin-left:8px}
 .thumb{max-width:100%;max-height:160px;display:block;margin-top:6px;border-radius:6px}
+h2{margin:4px 0 8px;font-size:20px}
+h3{margin:2px 0 8px;font-size:16px}
+.field.check{display:flex;gap:10px;align-items:center}
+.field.check input{width:24px;min-height:24px}
+#tabs .tab{font-size:14px;padding:4px 2px}
+.nudge{flex:0 0 22%}
+#nudge-step{flex:1 1 100%}
+.card>button,.screen.scroll>button,#rec-idle>button,#rec-live-box>button,#survey-actions>button{width:100%;margin:6px 0}
+.card>h3+p{margin-top:0}
+.list li button{margin-left:8px;min-height:40px}
+.screen.scroll{padding-bottom:32px}

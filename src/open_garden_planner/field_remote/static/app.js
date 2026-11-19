@@ -3,6 +3,8 @@
 import { api, errorText, fetchBasemap, fetchPhoto, initToken, uuid } from './api.js';
 import { canvasToGps, trilaterate } from './geo.js';
 import { PlanMap } from './map.js';
+import { initRecord } from './record.js';
+import { initSurvey } from './survey.js';
 
 const $ = (id) => document.getElementById(id);
 const S = {
@@ -11,7 +13,7 @@ const S = {
   fix: null, watch: null, queue: [], step: 5,
   kind: 'plant', species: null, candidates: [], group: null,
   pick: false, anchors: [], side: 0, measured: null,
-  ownRecords: [],
+  ownRecords: [], raw: [], calibrated: false,
 };
 const map = new PlanMap($('map'), (p) => onMapTap(p));
 
@@ -105,6 +107,8 @@ function startGps() {
     const item = { t: p.timestamp / 1000, lat: c.latitude, lon: c.longitude, accuracy_m: Math.max(0, c.accuracy || 0), source: 'browser' };
     for (const [k, v] of [['alt', num(c.altitude)], ['heading_deg', num(c.heading)], ['speed_mps', num(c.speed)]]) if (v !== null) item[k] = v;
     S.queue.push(item);
+    S.raw.push({ t: item.t, lat: item.lat, lon: item.lon, accuracy_m: item.accuracy_m });
+    if (S.raw.length > 300) S.raw.shift();
     if (S.queue.length > 200) S.queue.splice(0, S.queue.length - 200);
   }, (e) => {
     toast(e.code === 1 ? 'Location is blocked. The map still works; tap it to choose a spot.' : 'No location yet.');
@@ -427,6 +431,9 @@ $('btn-reload').addEventListener('click', loadRecords);
 // ---- start ------------------------------------------------------------------------------------
 
 setKind('plant');
+const ctx = { S, $, el, clear, toast, api, errorText, uuid, map, ensurePlanId, post };
+initSurvey(ctx);
+initRecord(ctx);
 if (!initToken()) {
   setConn('not paired', 'bad');
   $('banner').textContent = 'Open this page by scanning the QR code on the computer.'; $('banner').hidden = false;

@@ -31,6 +31,8 @@ from pydantic import (
 
 from open_garden_planner.field_remote import limits, projection, server
 from open_garden_planner.field_remote.events import EventHub
+from open_garden_planner.field_remote.session import RecordingSession
+from open_garden_planner.field_remote.tracking_routes import tracking_routes
 from open_garden_planner.services import field_records as fr
 
 if TYPE_CHECKING:
@@ -423,7 +425,12 @@ def _fix_from(p: PositionIn) -> projection.Fix:
     )
 
 
-def read_routes(source: PlanSource, plan_path: PlanPath, hub: EventHub | None = None) -> list[BaseRoute]:
+def read_routes(
+    source: PlanSource,
+    plan_path: PlanPath,
+    hub: EventHub | None = None,
+    session: RecordingSession | None = None,
+) -> list[BaseRoute]:
     """The read and position routes. Nothing here mutates the plan or the sidecar."""
     from starlette.concurrency import run_in_threadpool
     from starlette.responses import Response as RawResponse
@@ -431,6 +438,7 @@ def read_routes(source: PlanSource, plan_path: PlanPath, hub: EventHub | None = 
     from starlette.routing import Route
 
     events = hub if hub is not None else EventHub()
+    rec_session = session if session is not None else RecordingSession()
     basemap_cache: dict[str, projection.Basemap] = {}
 
     async def snapshot() -> tuple[dict[str, Any] | None, Response | None]:
@@ -518,7 +526,7 @@ def read_routes(source: PlanSource, plan_path: PlanPath, hub: EventHub | None = 
         snap, _failure = await snapshot()
         geo = projection.georef_of(snap) if snap is not None else None
         try:
-            result = projection.telemetry(fixes, geo)
+            result = projection.telemetry(fixes, geo, solver=rec_session.solver if geo is not None else None)
         except projection.ProjectionError as error:
             return _projection_error(error)
         source.on_position(result)
@@ -560,6 +568,7 @@ def read_routes(source: PlanSource, plan_path: PlanPath, hub: EventHub | None = 
         Route("/api/species", species, methods=["GET"]),
         Route("/api/position", position, methods=["POST"]),
         Route("/api/stream", stream, methods=["GET"]),
+        *tracking_routes(rec_session, source.snapshot, _error, _json),
     ]
 
 
