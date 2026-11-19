@@ -73,6 +73,7 @@ class GeoreferenceDialog(QDialog):
         self._fit: FitResult | None = None
         self._fit_rms: float | None = None
         self._original = georef
+        self._north0 = north_angle_deg
         self._ready = False
         self._touched = False
         self._setup_ui()
@@ -284,6 +285,8 @@ class GeoreferenceDialog(QDialog):
 
     @property
     def north_angle_deg(self) -> float:
+        if not self._touched:
+            return float(self._north0)  # the spin box rounds to 3 decimals
         return float(self._rotation.value())
 
     @property
@@ -294,7 +297,7 @@ class GeoreferenceDialog(QDialog):
         if self._original is not None and not self._touched:
             # Nothing was edited: hand back the stored value, not the spin boxes'
             # rounded copy of it (7 decimals of origin, 3 of rotation).
-            return self._original.with_rotation(self._rotation.value())
+            return self._original.with_rotation(self._north0)
         return GeoReference(
             origin_lat=self._lat.value(),
             origin_lon=self._lon.value(),

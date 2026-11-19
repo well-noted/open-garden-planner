@@ -308,6 +308,13 @@ class TestDialogProvenance:
         assert dialog.georef.scale_meters_per_unit == 0.0123456789
         assert dialog.georef.source == "google_static_maps"
 
+    def test_an_untouched_ok_keeps_a_north_the_spin_box_would_round(self, qtbot):
+        geo = GeoReference(48.0, 11.0, source="manual")
+        dialog = GeoreferenceDialog(None, georef=geo.with_rotation(12.3456), north_angle_deg=12.3456)
+        qtbot.addWidget(dialog)
+        assert dialog.north_angle_deg == 12.3456
+        assert dialog.georef == geo.with_rotation(12.3456)
+
     def test_a_fit_keeps_its_own_source_and_rms(self, qtbot):
         truth = GeoReference(48.0, 11.0, 0.01, 25.0)
         dialog = GeoreferenceDialog(None, georef=GeoReference(1.0, 1.0, source="google_static_maps"))
