@@ -56,7 +56,9 @@ what that site receives is between you and that site.
 The built-in Agent API is on by default and listens on `127.0.0.1` only, so other computers
 cannot reach it. An AI assistant **you connect** to it (*Help > Connect AI Assistant...*, or
 by hand) can read your whole plan - including its location, plants, tasks and notes - and
-can save the open plan and export it to files on your computer. It can change the plan
+can save the open plan and export it to files on your computer. It can also read the location and compass data inside a photo you point it to, and the
+field notes and photos stored beside your plan (`<plan>.fieldnotes.json`, `<plan>.fieldnotes/`),
+all of which stay on your computer. It can change the plan
 itself only if you turn on *Allow AI assistants to edit the plan* in the preferences. What
 the assistant then sends to its own provider is decided by that assistant, under its
 provider's privacy terms, not by Open Garden Planner.
