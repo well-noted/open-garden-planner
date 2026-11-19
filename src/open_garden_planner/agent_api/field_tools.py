@@ -9,21 +9,26 @@ hop and the one undoable command of ``place_geotagged_feature``.
 from __future__ import annotations
 
 import contextlib
-import math
-from collections.abc import Mapping
-from pathlib import Path
 from typing import Any
 
 from open_garden_planner.core.georef import GeoReference, GeorefError
-from open_garden_planner.core.plant_sizing import species_drop_diameter_cm
 from open_garden_planner.services import field_records as fr
 from open_garden_planner.services import photo_geotag as pg
+from open_garden_planner.services.field_record_placement import (  # noqa: F401  (re-exported API)
+    MAX_DISTANCE_M,
+    field_metadata,
+    mature_radius_cm,
+    object_type_for_species,
+    resolve_target,
+)
+from open_garden_planner.services.field_record_placement import (
+    distance_cm as _distance_cm,
+)
+from open_garden_planner.services.field_record_placement import (
+    finite_in as _finite_in,
+)
 
 MAX_LIST = 500
-#: Furthest a record may be placed from the camera along its bearing, metres.
-MAX_DISTANCE_M = 500.0
-
-
 def extract_geotag(
     geo: GeoReference | None,
     *,
@@ -50,23 +55,6 @@ def _geotag_payload(
         tag, geo, magnetic_declination_deg=magnetic_declination_deg, distance_cm=distance_cm
     )
     return {**{k: v for k, v in tag.to_dict().items() if k != "warnings"}, **projected}
-
-
-def _finite_in(value: object, lo: float, hi: float) -> bool:
-    return (
-        not isinstance(value, bool)
-        and isinstance(value, (int, float))
-        and math.isfinite(value)
-        and lo <= value <= hi
-    )
-
-
-def _distance_cm(distance_m: object, geo: GeoReference | None) -> float:
-    if not _finite_in(distance_m, 0.0, MAX_DISTANCE_M):
-        raise ValueError(f"distance_m must be between 0 and {MAX_DISTANCE_M:g} metres")
-    assert isinstance(distance_m, (int, float))
-    scale = geo.scale_meters_per_unit if geo is not None else 0.01
-    return float(distance_m) / scale
 
 
 def record_view(
@@ -179,99 +167,3 @@ def ingest(
         "geotag": _geotag_payload(tag, geo, magnetic_declination_deg, None),
         "warnings": warnings,
     }
-
-
-def object_type_for_species(species: Mapping[str, Any]) -> str:
-    """TREE / SHRUB / PERENNIAL from the species' permaculture layer and height."""
-    layer = str(species.get("permaculture_layer") or "")
-    height = species.get("max_height_cm")
-    tall = isinstance(height, (int, float)) and height >= 400
-    if layer in ("canopy", "sub_canopy") or tall:
-        return "TREE"
-    if layer in ("shrub", "vine"):
-        return "SHRUB"
-    return "PERENNIAL"
-
-
-def mature_radius_cm(species: Mapping[str, Any], object_type: str) -> float:
-    """Mature canopy radius (half the species' max spread, else the type default)."""
-    return species_drop_diameter_cm(dict(species), object_type) / 2.0
-
-
-def resolve_target(
-    geo: GeoReference,
-    record: fr.FieldRecord | None,
-    *,
-    lat: float | None,
-    lon: float | None,
-    bearing_deg: float | None,
-    distance_m: float | None,
-) -> dict[str, Any]:
-    """Where the feature goes on the canvas.
-
-    Camera position = explicit ``lat``/``lon`` else the record's. With a
-    ``distance_m`` the feature sits that far from the camera along the bearing
-    (explicit ``bearing_deg`` else the record's, TRUE north); without it, at the
-    camera. Returns ``x``/``y`` (scene cm), the camera and the true bearing used.
-    """
-    cam_lat = lat if lat is not None else (record.lat if record else None)
-    cam_lon = lon if lon is not None else (record.lon if record else None)
-    if cam_lat is None or cam_lon is None:
-        raise ValueError(
-            "no position: give lat and lon, or a record_id whose record has a GPS fix"
-        )
-    try:
-        cx, cy = geo.gps_to_canvas(cam_lat, cam_lon)
-    except GeorefError as error:
-        raise ValueError(f"the position cannot be placed on this plan: {error}") from error
-    bearing = bearing_deg if bearing_deg is not None else (record.bearing_deg if record else None)
-    if bearing is not None and not _finite_in(bearing, 0.0, 360.0):
-        raise ValueError("bearing_deg must be between 0 and 360")
-    x, y = cx, cy
-    if distance_m is not None and distance_m > 0:
-        if bearing is None:
-            raise ValueError("distance_m needs a bearing: give bearing_deg or use a record that has one")
-        dist_cm = _distance_cm(distance_m, geo)
-        dx, dy = pg.canvas_direction(bearing, geo.rotation_deg)
-        x, y = cx + dx * dist_cm, cy + dy * dist_cm
-    elif distance_m is not None:
-        _distance_cm(distance_m, geo)  # validates (0 is allowed: at the camera)
-    return {
-        "x": x,
-        "y": y,
-        "camera_x_cm": cx,
-        "camera_y_cm": cy,
-        "true_bearing_deg": None if bearing is None else bearing % 360.0,
-    }
-
-
-def field_metadata(
-    record: fr.FieldRecord | None,
-    target: Mapping[str, Any],
-    *,
-    plan_path: str | None,
-    distance_m: float | None,
-    lat: float | None,
-    lon: float | None,
-) -> dict[str, Any]:
-    """The ``metadata['field_record']`` block stored on a placed object."""
-    block: dict[str, Any] = {
-        "camera_lat": lat if lat is not None else (record.lat if record else None),
-        "camera_lon": lon if lon is not None else (record.lon if record else None),
-        "bearing_deg": target.get("true_bearing_deg"),
-        "distance_m": distance_m,
-    }
-    if record is not None:
-        block.update(
-            {
-                "record_id": record.id,
-                "photo": record.photo,
-                "photo_plan": Path(plan_path).name if plan_path else None,
-                "age": record.age,
-                "notes": record.notes,
-                "fix_mode": record.fix_mode,
-                "accuracy_m": record.accuracy_m,
-                "observed_at": record.timestamp,
-            }
-        )
-    return {k: v for k, v in block.items() if v is not None}
