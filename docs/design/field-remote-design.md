@@ -38,9 +38,9 @@ Field Remote (new, off by default)             Agent API (unchanged)
 
 ### 1.2 Bind
 
-Off (default) | this computer only (127.0.0.1) | local network (one chosen interface address; the wildcard
-only after an explicit warning) | Tailscale (the `100.x` interface, if present). Interface detection is
-advisory; the user can type an address. A specific address, not `0.0.0.0`, so café Wi-Fi does not expose it.
+Off (default) | this computer only (127.0.0.1) | local network (one chosen interface address; wildcard only
+after an explicit warning) | Tailscale (the `100.x` interface). Detection is advisory; the user can type an
+address. A specific address, not `0.0.0.0`, so café Wi-Fi does not expose it.
 
 ### 1.3 TLS (decided: HTTPS)
 
@@ -62,8 +62,12 @@ Chrome exposes Geolocation, DeviceMotion/Orientation and WebXR only in secure co
 ### 1.4 Pairing and auth
 
 - Token `secrets.token_urlsafe(32)` kept in the existing secret store (separate key; not hashed because
-  the QR must be shown again). QR encodes `https://<ip>:<port>/#token=<token>`; a fragment is never sent in a
-  request, so it stays out of logs and Referer. `app.js` reads `location.hash`, strips it with
+  the QR must be shown again). QR encodes `https://<ip>:<port>/#token=<token>&fp=<sha256-hex>`; a fragment is never sent in a
+  request, so it stays out of logs and Referer. `fp` is the SHA-256 fingerprint of the server's
+  self-signed certificate. It is **not a secret**: any TLS peer sees the certificate, and the fingerprint only
+  lets a client check it is talking to the paired desktop; it grants no access without the token. The web page
+  ignores `fp` (the browser handles trust, and the dialog shows it for the manual check); a native client
+  pins it (§6). `app.js` reads `location.hash`, strips it with
   `history.replaceState`, keeps the token in memory and `sessionStorage` (not `localStorage`), and sends
   `Authorization: Bearer`. Header only: no `?token=` form here. Compare with `secrets.compare_digest` plus
   an ASCII guard.
@@ -97,7 +101,9 @@ server time; ETag, polled every 5 s); `GET /scene?bbox=&layers=` (simplified geo
 (desktop-to-phone events); `GET /strings` (UI strings from desktop `tr()`).
 
 Position intake (changes nothing on disk, allowed with writes off): `POST /position` (single or batch of at
-most 50: `t, lat, lon, accuracy_m, alt, heading_deg, speed_mps, vio?, imu?`) returns telemetry (§2.9).
+most 50: `t, lat, lon, accuracy_m, alt, heading_deg, speed_mps, vio?, imu?`, plus optional client-reported
+`fix_quality` (`none|gps|dgps|rtk_float|rtk_fixed`, NMEA GGA meaning), `hdop`, `sigma_m`, `source`
+(`browser|nmea_usb|nmea_ble|native_fused`); a browser client omits them) returns telemetry (§2.9).
 
 Writes (need `writes_enabled`): `POST /field-records` (multipart `meta` + `photo`; sidecar only, no undo step,
 like `ingest_site_photo`); `POST /place` (`species_key|object_type, x,y | lat,lon, field_record_id?`);
@@ -260,7 +266,7 @@ to path length; refuse when the ratio is over 5 % (a mistake, not a drift).
 
 Two alignment sources, primary first.
 
-**Primary: plan-locked VIO (hypothesis, WebXR only).** The user stands at two known plan points A and B and
+**Primary: plan-locked VIO (experimental, WebXR only, pending WP-M).** The user stands at two known plan points A and B and
 "locks" each (hit-test reticle on the ground to remove the arm-offset: the point recorded is the reticle hit,
 not the phone). The two VIO positions vs the two plan positions give yaw and translation of a 2D rigid
 transform (scale fixed at 1, VIO being metric). **Scale sanity check:** `|VIO_AB| / |plan_AB|` must be within
@@ -287,7 +293,9 @@ the AR session takes over the screen, the map is a small inset.
 
 ### 2.9 `fix_mode` and telemetry
 
-Precedence: `rtk_fixed` > `rtk_float` (both inferred) > `vio_fused` (tracking good and locked) >
+A client-reported `fix_quality` (real NMEA) overrides inference and is shown as "reported"; a client
+`sigma_m` replaces the `accuracy_m`-derived `r` in the filter (never below `r_min`). Otherwise precedence:
+`rtk_fixed` > `rtk_float` (both inferred) > `vio_fused` (tracking good and locked) >
 `anchor_calibrated` (anchor < 10 min or georef fit rms < 2 m today) > `standard`. Telemetry from
 `POST /position` and `/stream`, also feeding the desktop puck:
 
@@ -295,8 +303,7 @@ Precedence: `rtk_fixed` > `rtk_float` (both inferred) > `vio_fused` (tracking go
 {"t": 1767000000.0, "lat": 33.43, "lon": -111.74, "x_cm": 1234.5, "y_cm": -230.1, "sigma_m": 2.1,
  "horizontal_accuracy_m": 3.4, "heading_deg": 87.0, "heading_source": "gnss|compass|vio|none",
  "speed_mps": 0.9, "fix_mode": "anchor_calibrated", "anchor_source": "gnss_point|plan_points|none",
- "anchor_age_s": 144, "stationary": false, "gated": false, "quality": "fair",
- "relative_sigma_m_per_10m": null, "samples_used": 5, "samples_gated": 0}
+ "anchor_age_s": 144, "stationary": false, "gated": false, "quality": "fair", "samples_used": 5}
 ```
 
 `horizontal_accuracy_m` is the raw reported value; `sigma_m` the filtered, calibrated estimate. The desktop
@@ -324,11 +331,10 @@ the phone's own software can do).
 
 ### 4.1 Constraints
 
-Served from memory from `field_remote/static/` (`index.html`, `app.css`, `app.js` + ES modules `map.js`,
-`api.js`, `position.js`, `capture.js`, `store.js`). No CDN, no framework, no build step; Android Chrome 100+;
-budget 150 KB; system font; inline SVG icons. Canvas 2D map (basemap JPEG + scene polylines) with pointer
-events and two-pointer pinch. Targets >= 48 px, high contrast, one-handed bottom controls, Wake Lock while
-recording. Strings from `/strings` so the translation gate still covers them.
+Served from memory from `field_remote/static/` (`index.html`, `app.css`, ES modules `app.js`, `map.js`,
+`api.js`, `position.js`, `capture.js`, `store.js`). No CDN, framework or build step; Android Chrome 100+;
+150 KB budget; Canvas 2D map with pointer events and pinch; targets >= 48 px, high contrast, one-handed
+controls, Wake Lock while recording; strings from `/strings` so the translation gate covers them.
 
 ### 4.2 Screens
 
@@ -367,9 +373,8 @@ degrades gracefully (map only; tap placement and tape measurement still work).
   not to reload; recordings live in the page (and IndexedDB) until the connection returns.
 - **Offline reload and PWA install** only with a trusted cert (Tailscale `*.ts.net` or user-installed CA):
   then a service worker caches the shell and basemap, versioned by build id.
-- Position keeps collecting offline; the puck shows raw fixes labelled "offline, unfiltered" with a thin
-  client smoothing. On reconnect the buffered samples go in time order (batch <= 50) to the server filter.
-  A batch whose clock differs by > 120 s from the server is rejected with a visible message.
+- Position keeps collecting offline (raw fixes labelled "offline, unfiltered"); on reconnect buffered samples
+  go in time order (batch <= 50) to the server filter. A batch whose clock differs by > 120 s is rejected.
 
 ## 5. Delivery plan
 
@@ -410,34 +415,24 @@ by the measured result; otherwise the UI shows reported sigma only. The protocol
 
 ### 5.2 Only the user can test on the phone (Android Chrome)
 
-Cert warning and fingerprint step (LAN and Tailscale); geolocation permission and real accuracy readings
-near the house, under trees, in open lawn; `deviceorientationabsolute` support and screen-orientation
-compensation; screen-sleep behaviour with the wake lock; camera capture keeps EXIF GPS/bearing; Survey-In
-sanity at a known corner; the 20 m straight tape walk; tape trilateration against two known points;
-WebXR availability, tracking on gravel/lawn, battery over 5 minutes; airplane-mode mid-write and mid-
-recording; confirm a reload while offline fails as documented; optional RTK app feeding Mock Location.
+Cert warning and fingerprint (LAN, Tailscale); real accuracy near the house, under trees, in open lawn;
+`deviceorientationabsolute` and screen-rotation compensation; wake lock; photo EXIF kept; Survey-In at a known
+corner; the 20 m tape walk; tape trilateration; WebXR availability, tracking on gravel/lawn, 5-minute battery;
+airplane mode mid-write and mid-recording; offline reload fails as documented; optional RTK app via Mock Location.
 
 ### 5.3 Risks
 
-1. Chrome stops geolocation when the screen sleeps or the page is backgrounded: wake lock, warnings, client
-   buffer.
-2. Self-signed friction and no service worker: pairing dialog quality; Tailscale cert path for offline reload.
-3. Reported accuracy is not truth: `r_min`, replay harness and WP-M.
-4. WebXR may be missing or unstable on the owner's phone: silent fallback; "when supported" wording.
-5. Bridge latency: the engine runs on the server thread; only the puck signal and writes touch Qt.
-6. Scope creep on the phone page; hold the screen list in §4.2.
-7. Licensing: `cryptography` (Apache/BSD, GPLv3-compatible), vendored QR encoder licence file;
-   `ogp-external-positioning` check in WP-A; no public accuracy claim before WP-M.
-8. WP-0 may fail to find the cause quickly; HTTPS cannot ship in the exe until it is fixed.
+Chrome stops geolocation when the screen sleeps (wake lock, warnings, client buffer); self-signed friction
+and no service worker (pairing dialog quality, Tailscale path); reported accuracy is not truth (`r_min`,
+replay harness, WP-M); WebXR may be missing or unstable on the owner's phone (silent fallback, "when
+supported" wording); phone-page scope creep (hold §4.2); licensing (`cryptography` Apache/BSD, QR encoder
+licence, `ogp-external-positioning` check in WP-A); WP-0 may delay HTTPS in the exe.
 
 ### 5.4 Deferred to v2 / open
 
-- **BarcodeDetector QR fiducials:** a planar pose from `cornerPoints` needs camera intrinsics (not exposed to
-  the page), so a 1-3 cm figure is unproven.
-- **Web Bluetooth NMEA from an external receiver ($GPGGA/$GPGST):** gives real fix quality and could replace the
-  Mock Location heuristic and be the base of a real NTRIP relay; needs hardware and a Chrome feature; v2.
-- **Desktop photogrammetry orthomosaic:** large and unrelated to the field loop; v2.
-- Per-phone tokens and fingerprint pinning; control-network solver beyond a small size.
+BarcodeDetector QR fiducials (a planar pose from `cornerPoints` needs camera intrinsics the page cannot get,
+so 1-3 cm is unproven); Web Bluetooth NMEA from an external receiver (real fix quality, base for a real NTRIP
+relay; needs hardware, see §6); desktop photogrammetry orthomosaic; per-phone tokens and pinning.
 
 ### 5.5 Open questions for the owner
 
@@ -450,3 +445,27 @@ recording; confirm a reload while offline fails as documented; optional RTK app 
 7. Confirm NTRIP relay deferred to v2, with the SW Maps / RTKGPS+ how-to in the wiki.
 8. Photo caps (25 MB each, 5000 records): enough?
 9. Do you own a tape or laser measure for the trilateration mode and WP-M?
+
+## 6. Native client (later)
+
+Decision: **web client first; a native Android client (Kotlin) only after WP-M.** The server contract in
+§1.6 is client-agnostic (HTTPS + JSON + header token), so nothing in the server changes for a second client.
+Two hooks exist now for it: the certificate fingerprint in the pairing QR (`fp`, §1.4) and the optional
+`fix_quality/hdop/sigma_m/source` fields on position posts (§1.6).
+
+**Triggers (any one, decided from WP-M data):** measured plan-locked WebXR error above the owner's target
+(owner sets the number before the runs); Chrome WebXR unavailable or unreliable on the owner's phone; an
+external RTK receiver wanted (Chrome cannot read it); the screen-sleep/background limit (§5.3) proves too
+disruptive in real irrigation walks.
+
+**What it would add:** foreground-service GNSS logging (survives screen off; raw `GnssMeasurement` access);
+certificate pinning from `fp` (no warning screen, and a real service-worker-free offline path); ARCore Depth
+for ground-point ranging; direct USB/Bluetooth NMEA ($GGA/$GST) from an external receiver with its own NTRIP
+client, reporting `fix_quality`/`hdop` honestly.
+
+**Unproven hypotheses, not promises:** 1-2 cm plan-local accuracy from ARCore Depth or AprilTag/fiducial
+poses, and decimeter-class accuracy from raw phone GNSS, are unmeasured; both need WP-M-style evidence before
+any claim.
+
+**Costs:** a separate Kotlin/Gradle toolchain and CI; APK signing and update distribution; testable only on
+the device; ARCore Depth works on a limited device list; a second UI to keep in step with the web one.
