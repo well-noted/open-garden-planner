@@ -3950,37 +3950,37 @@ Use 0,1 para DXF en mm, 100 para DXF en metros.</translation>
     <context>
         <name>FieldRemoteDialog</name>
         <message>
-            <location filename="../../ui/dialogs/field_remote_dialog.py" line="53" />
+            <location filename="../../ui/dialogs/field_remote_dialog.py" line="56" />
             <source>Certificate fingerprint (SHA-256):</source>
             <translation>Huella del certificado (SHA-256):</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/field_remote_dialog.py" line="68" />
+            <location filename="../../ui/dialogs/field_remote_dialog.py" line="71" />
             <source>Close</source>
             <translation>Cerrar</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/field_remote_dialog.py" line="66" />
+            <location filename="../../ui/dialogs/field_remote_dialog.py" line="69" />
             <source>Copy link</source>
             <translation>Copiar enlace</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/field_remote_dialog.py" line="88" />
+            <location filename="../../ui/dialogs/field_remote_dialog.py" line="108" />
             <source>Hidden. Close this window and open it again.</source>
             <translation>Oculto. Cierre esta ventana y ábrala de nuevo.</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/field_remote_dialog.py" line="39" />
+            <location filename="../../ui/dialogs/field_remote_dialog.py" line="42" />
             <source>Open this link in Chrome on your Android phone. Your phone's browser will warn that the certificate is not trusted; that is expected for a certificate this computer made itself. Compare the fingerprint below with the one the browser shows (under the warning's certificate details), then continue.</source>
             <translation>Abra este enlace en Chrome en su teléfono Android. El navegador avisará de que el certificado no es de confianza; es lo esperado en un certificado que este ordenador ha creado por sí mismo. Compare la huella de abajo con la que muestra el navegador (en los detalles del certificado de la advertencia) y continúe.</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/field_remote_dialog.py" line="34" />
+            <location filename="../../ui/dialogs/field_remote_dialog.py" line="36" />
             <source>Pair a phone</source>
             <translation>Vincular un teléfono</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/field_remote_dialog.py" line="60" />
+            <location filename="../../ui/dialogs/field_remote_dialog.py" line="63" />
             <source>The link contains the access token. It is hidden after two minutes; do not share it.</source>
             <translation>El enlace contiene el token de acceso. Se oculta tras dos minutos; no lo comparta.</translation>
         </message>
@@ -3988,14 +3988,19 @@ Use 0,1 para DXF en mm, 100 para DXF en metros.</translation>
     <context>
         <name>FieldRemoteHost</name>
         <message>
-            <location filename="../../app/field_remote_host.py" line="113" />
+            <location filename="../../app/field_remote_host.py" line="116" />
             <source>Field Remote failed to start (see log)</source>
             <translation>Field Remote no pudo iniciarse (consulte el registro)</translation>
         </message>
         <message>
-            <location filename="../../app/field_remote_host.py" line="109" />
+            <location filename="../../app/field_remote_host.py" line="112" />
             <source>Port {port} is already in use</source>
             <translation>El puerto {port} ya está en uso</translation>
+        </message>
+        <message>
+            <location filename="../../app/field_remote_host.py" line="104" />
+            <source>Port {port} is used by the Agent API</source>
+            <translation>El puerto {port} lo usa la Agent API</translation>
         </message>
     </context>
     <context>
@@ -11633,7 +11638,7 @@ para asignar datos de especie.</translation>
     <context>
         <name>PreferencesDialog</name>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="452" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="466" />
             <source>3D View</source>
             <translation>Vista 3D</translation>
         </message>
@@ -11669,7 +11674,7 @@ para asignar datos de especie.</translation>
             <translation>Permitir a los asistentes de IA editar el plano</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="424" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="432" />
             <source>Allow phone to submit field records</source>
             <translation>Permitir que el teléfono envíe registros de campo</translation>
         </message>
@@ -11679,22 +11684,22 @@ para asignar datos de especie.</translation>
             <translation>Permitir la búsqueda de direcciones (API de Geocodificación de Google)</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="415" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="423" />
             <source>Anyone on this network who gets the pairing link can read your plan. Use a network you trust, and rotate the token if the link leaks.</source>
             <translation>Cualquiera en esta red que obtenga el enlace de vinculación puede leer su plan. Use una red de confianza y renueve el token si el enlace se filtra.</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="476" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="490" />
             <source>Atmosphere with clouds</source>
             <translation>Atmósfera con nubes</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="457" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="471" />
             <source>Automatic</source>
             <translation>Automática</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="507" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="521" />
             <source>Cancel</source>
             <translation>Cancelar</translation>
         </message>
@@ -11702,6 +11707,11 @@ para asignar datos de especie.</translation>
             <location filename="../../ui/dialogs/preferences_dialog.py" line="279" />
             <source>Canvas</source>
             <translation>Lienzo</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="420" />
+            <source>Certificate fingerprint:</source>
+            <translation>Huella del certificado:</translation>
         </message>
         <message>
             <location filename="../../ui/dialogs/preferences_dialog.py" line="107" />
@@ -11714,7 +11724,7 @@ para asignar datos de especie.</translation>
             <translation>Conectar asistente de IA…</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="815" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="865" />
             <source>Connection to {api} is working.</source>
             <translation>La conexión con {api} funciona correctamente.</translation>
         </message>
@@ -11724,12 +11734,17 @@ para asignar datos de especie.</translation>
             <translation>Copiar</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="821" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="871" />
             <source>Could not connect to {api}. Please check your credentials.</source>
             <translation>No se pudo conectar con {api}. Por favor, compruebe sus credenciales.</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="689" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="454" />
+            <source>Create a new certificate and key now; phones must accept the new certificate again.</source>
+            <translation>Crea ahora un nuevo certificado y clave; los teléfonos deberán aceptar de nuevo el certificado.</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="735" />
             <source>Enable AI editing to generate a token</source>
             <translation>Active la edición por IA para generar un token</translation>
         </message>
@@ -11774,12 +11789,13 @@ para asignar datos de especie.</translation>
             <translation>Introducir token de API de Trefle...</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="832" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="882" />
             <source>Error testing {api}: {error}</source>
             <translation>Error al probar {api}: {error}</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="627" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="673" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="793" />
             <source>Field Remote</source>
             <translation>Field Remote</translation>
         </message>
@@ -11789,7 +11805,12 @@ para asignar datos de especie.</translation>
             <translation>Field Remote (teléfono)</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="628" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="646" />
+            <source>Field Remote and the Agent API cannot share port {port}.</source>
+            <translation>Field Remote y la Agent API no pueden compartir el puerto {port}.</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="674" />
             <source>Field Remote is not running. Click Save, then open this again.</source>
             <translation>Field Remote no está en funcionamiento. Haga clic en Guardar y vuelva a abrir esto.</translation>
         </message>
@@ -11806,12 +11827,12 @@ para asignar datos de especie.</translation>
             <translation>Google Maps</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="460" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="474" />
             <source>High</source>
             <translation>Alta</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="465" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="479" />
             <source>How detailed the 3D view is drawn. Automatic picks a level from the frame rate it measures on this computer.</source>
             <translation>Con qué nivel de detalle se dibuja la vista 3D. «Automática» elige un nivel según la velocidad de fotogramas que mide en este equipo.</translation>
         </message>
@@ -11825,7 +11846,7 @@ para asignar datos de especie.</translation>
             <translation type="vanished">Mantener quietas las hojas y la hierba en lugar de mecerse con el viento.</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="492" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="506" />
             <source>Keep leaves and grass still instead of swaying in the wind. The operating system's animation-effects setting also stops the wind.</source>
             <translation>Mantener quietas las hojas y la hierba en lugar de mecerse con el viento. La configuración de efectos de animación del sistema operativo también detiene el viento.</translation>
         </message>
@@ -11855,17 +11876,17 @@ para asignar datos de especie.</translation>
             <translation>Permite que un asistente de IA establezca el mapa inicial a partir de una dirección postal. La dirección se envía a Google con su clave de API; la API de Geocodificación debe estar habilitada para esa clave. Desactivado de forma predeterminada.</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="426" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="434" />
             <source>Lets the paired phone add pending field records (notes, photos, positions). The phone never edits the plan; you or an AI assistant approve records later. Off by default.</source>
             <translation>Permite que el teléfono vinculado añada registros de campo pendientes (notas, fotos, posiciones). El teléfono nunca edita el plan; usted o un asistente de IA aprueban los registros más tarde. Desactivado por defecto.</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="458" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="472" />
             <source>Low</source>
             <translation>Baja</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="459" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="473" />
             <source>Medium</source>
             <translation>Media</translation>
         </message>
@@ -11873,6 +11894,11 @@ para asignar datos de especie.</translation>
             <location filename="../../ui/dialogs/preferences_dialog.py" line="273" />
             <source>Metric (cm, m)</source>
             <translation>Métrico (cm, m)</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="625" />
+            <source>Not created yet</source>
+            <translation>Aún no creado</translation>
         </message>
         <message>
             <location filename="../../ui/dialogs/preferences_dialog.py" line="259" />
@@ -11890,12 +11916,12 @@ para asignar datos de especie.</translation>
             <translation>Umbral de aviso naranja (°C):</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="475" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="489" />
             <source>Painted</source>
             <translation>Pintado</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="480" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="494" />
             <source>Painted: the soft painted sky. Atmosphere with clouds: a physically based sky with volumetric clouds by day, which costs more on the graphics card. The sun, the shadows and the night are the same in both.</source>
             <translation>Pintado: el cielo pintado y suave. Atmósfera con nubes: un cielo de base física con nubes volumétricas de día, que exige más a la tarjeta gráfica. El sol, las sombras y la noche son iguales en ambos.</translation>
         </message>
@@ -11910,17 +11936,17 @@ para asignar datos de especie.</translation>
             <translation>Permapeople (permapeople.org)</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="789" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="839" />
             <source>Please enter a Perenual API key first.</source>
             <translation>Por favor, introduzca primero una clave API de Perenual.</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="781" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="831" />
             <source>Please enter a Trefle API token first.</source>
             <translation>Por favor, introduzca primero un token de API de Trefle.</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="800" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="850" />
             <source>Please enter both Permapeople Key ID and Key Secret.</source>
             <translation>Por favor, introduzca tanto el ID de clave como el secreto de clave de Permapeople.</translation>
         </message>
@@ -11936,7 +11962,7 @@ para asignar datos de especie.</translation>
             <translation>Preferencias</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="470" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="484" />
             <source>Quality:</source>
             <translation>Calidad:</translation>
         </message>
@@ -11946,7 +11972,7 @@ para asignar datos de especie.</translation>
             <translation>Umbral de alerta roja (°C):</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="489" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="503" />
             <source>Reduce motion in the 3D view</source>
             <translation>Reducir el movimiento en la vista 3D</translation>
         </message>
@@ -11956,7 +11982,12 @@ para asignar datos de especie.</translation>
             <translation>Regenerar</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="438" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="452" />
+            <source>Regenerate certificate</source>
+            <translation>Regenerar certificado</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="446" />
             <source>Replace the token now; every paired phone must pair again.</source>
             <translation>Sustituye el token ahora; cada teléfono vinculado deberá vincularse de nuevo.</translation>
         </message>
@@ -11966,7 +11997,7 @@ para asignar datos de especie.</translation>
             <translation>Reemplaza el token; los asistentes que usen el anterior deberán reconectarse.</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="436" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="444" />
             <source>Rotate token</source>
             <translation>Renovar token</translation>
         </message>
@@ -11976,7 +12007,12 @@ para asignar datos de especie.</translation>
             <translation>Ejecutar un servidor local MCP para que los asistentes de IA puedan leer este plano del huerto. Se vincula solo a 127.0.0.1 (este equipo). La edición permanece desactivada a menos que la active abajo.</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="511" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="418" />
+            <source>SHA-256 fingerprint of this computer's certificate. It is not a secret.</source>
+            <translation>Huella SHA-256 del certificado de este ordenador. No es un secreto.</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="525" />
             <source>Save</source>
             <translation>Guardar</translation>
         </message>
@@ -11991,7 +12027,7 @@ para asignar datos de especie.</translation>
             <translation>Mostrar un recordatorio al inicio si el proyecto abierto tiene tareas vencidas</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="434" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="442" />
             <source>Show pairing link…</source>
             <translation>Mostrar enlace de vinculación…</translation>
         </message>
@@ -12001,7 +12037,7 @@ para asignar datos de especie.</translation>
             <translation>Mostrar esta URL y facilitar su registro con un asistente de IA</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="486" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="500" />
             <source>Sky:</source>
             <translation>Cielo:</translation>
         </message>
@@ -12024,26 +12060,31 @@ para asignar datos de especie.</translation>
             <location filename="../../ui/dialogs/preferences_dialog.py" line="131" />
             <location filename="../../ui/dialogs/preferences_dialog.py" line="154" />
             <location filename="../../ui/dialogs/preferences_dialog.py" line="183" />
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="781" />
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="789" />
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="799" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="831" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="839" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="849" />
             <source>Test</source>
             <translation>Probar</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="831" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="881" />
             <source>Test Error</source>
             <translation>Error de prueba</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="820" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="870" />
             <source>Test Failed</source>
             <translation>Prueba fallida</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="814" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="864" />
             <source>Test Successful</source>
             <translation>Prueba correcta</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="643" />
+            <source>The Field Remote address cannot be used: {reason}</source>
+            <translation>No se puede usar la dirección de Field Remote: {reason}</translation>
         </message>
         <message>
             <location filename="../../ui/dialogs/preferences_dialog.py" line="351" />
@@ -12066,7 +12107,7 @@ para asignar datos de especie.</translation>
             <translation>Trefle (trefle.io)</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="461" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="475" />
             <source>Ultra</source>
             <translation>Ultra</translation>
         </message>
@@ -12081,7 +12122,7 @@ para asignar datos de especie.</translation>
             <translation>Se usa para Cargar fondo satelital. La clave se guarda solo en su configuración local y nunca se incluye en planos ni en el instalador.</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="563" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="577" />
             <source>Using OGP_GOOGLE_MAPS_KEY from environment</source>
             <translation>Usando OGP_GOOGLE_MAPS_KEY del entorno</translation>
         </message>

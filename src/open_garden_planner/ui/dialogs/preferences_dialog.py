@@ -411,6 +411,14 @@ class PreferencesDialog(QDialog):
         )
         remote_layout.addRow(self.tr("Port:"), self._field_remote_port_spin)
 
+        self._field_remote_fp_label = QLabel()
+        self._field_remote_fp_label.setWordWrap(True)
+        self._field_remote_fp_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self._field_remote_fp_label.setToolTip(
+            self.tr("SHA-256 fingerprint of this computer's certificate. It is not a secret.")
+        )
+        remote_layout.addRow(self.tr("Certificate fingerprint:"), self._field_remote_fp_label)
+
         self._field_remote_warning = QLabel(
             self.tr(
                 "Anyone on this network who gets the pairing link can read your plan. Use a "
@@ -441,6 +449,12 @@ class PreferencesDialog(QDialog):
         remote_buttons = QHBoxLayout()
         remote_buttons.addWidget(self._field_remote_pair_btn)
         remote_buttons.addWidget(self._field_remote_rotate_btn)
+        self._field_remote_regen_btn = QPushButton(self.tr("Regenerate certificate"))
+        self._field_remote_regen_btn.setToolTip(
+            self.tr("Create a new certificate and key now; phones must accept the new certificate again.")
+        )
+        self._field_remote_regen_btn.clicked.connect(self._on_regenerate_field_remote_certificate)
+        remote_buttons.addWidget(self._field_remote_regen_btn)
         remote_buttons.addStretch(1)
         remote_widget = QWidget()
         remote_widget.setLayout(remote_buttons)
@@ -600,6 +614,37 @@ class PreferencesDialog(QDialog):
         self._field_remote_bind_combo.addItems(choices)
         self._field_remote_bind_combo.setCurrentText(current)
         self._on_field_remote_toggled(settings.field_remote_enabled)
+        self._refresh_field_remote_fingerprint()
+
+    def _refresh_field_remote_fingerprint(self) -> None:
+        from open_garden_planner.field_remote.auth import format_fingerprint
+
+        host = getattr(self.parent(), "field_remote_host", None)
+        fingerprint = host.certificate_fingerprint() if host is not None else ""
+        self._field_remote_fp_label.setText(
+            format_fingerprint(fingerprint) if fingerprint else self.tr("Not created yet")
+        )
+
+    def _on_regenerate_field_remote_certificate(self) -> None:
+        host = getattr(self.parent(), "field_remote_host", None)
+        if host is not None:
+            host.regenerate_certificate()
+        self._refresh_field_remote_fingerprint()
+
+    def _field_remote_problem(self) -> str | None:
+        """Why the Field Remote settings cannot be saved, or None (translated, for the user)."""
+        from open_garden_planner.field_remote.server import check_bind_address
+
+        if not self._field_remote_check.isChecked():
+            return None
+        try:
+            check_bind_address(self._field_remote_bind_combo.currentText())
+        except ValueError as exc:
+            return self.tr("The Field Remote address cannot be used: {reason}").format(reason=str(exc))
+        agent_port = self._agent_api_port_spin.value()
+        if self._agent_api_check.isChecked() and self._field_remote_port_spin.value() == agent_port:
+            return self.tr("Field Remote and the Agent API cannot share port {port}.").format(port=agent_port)
+        return None
 
     def _on_field_remote_toggled(self, enabled: bool) -> None:
         for widget in (
@@ -608,6 +653,7 @@ class PreferencesDialog(QDialog):
             self._field_remote_records_check,
             self._field_remote_pair_btn,
             self._field_remote_rotate_btn,
+            self._field_remote_regen_btn,
         ):
             widget.setEnabled(enabled)
         self._update_field_remote_warning()
@@ -742,6 +788,10 @@ class PreferencesDialog(QDialog):
     def _save_and_accept(self) -> None:
         from open_garden_planner.app.settings import get_settings
 
+        problem = self._field_remote_problem()
+        if problem is not None:
+            QMessageBox.warning(self, self.tr("Field Remote"), problem)
+            return
         settings = get_settings()
         settings.unit_system = self._unit_system_combo.currentData()
         settings.trefle_api_token = self._trefle_token.text().strip()

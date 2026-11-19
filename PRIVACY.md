@@ -80,7 +80,11 @@ who holds the pairing link while the server runs on a network address can read y
 use a network you trust and rotate the token if the link leaks. The phone can save field
 records (notes, photos, positions) only if you also turn on
 *Allow phone to submit field records*; it never edits the plan, and you or an AI assistant approve records later. The app
-makes its own certificate and keeps the key in your user profile.
+makes its own certificate and keeps the key in your user profile (local, not roaming). The
+certificate names this computer's host name, which anyone who connects to the server can read.
+The access token is kept as plain text in your user registry settings, like the Agent API
+token; anyone who can read your Windows account's registry can read it, so rotate it if that
+account is shared.
 
 ## Questions and changes
 

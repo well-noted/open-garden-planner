@@ -177,3 +177,100 @@ def test_server_construction_refuses_a_wildcard_bind(tmp_path: Any) -> None:
     state = server.ServerState(token=TOKEN)
     with pytest.raises(ValueError):
         server.FieldRemoteServer(state, None, bind="0.0.0.0")  # type: ignore[arg-type]
+
+
+# -- review round: guard-level consent, public-path limits, in-flight cap --------------------------
+
+
+async def _blind(request: Request) -> Response:
+    """A write route that forgets the records check on purpose: the guard must cover it."""
+    return JSONResponse({"ok": True})
+
+
+def make_blind_client(state: server.ServerState | None = None, **guard: Any) -> tuple[TestClient, server.ServerState]:
+    state = state or server.ServerState(token=TOKEN)
+    guard.setdefault("failure_delay_s", 0.0)
+    routes = [
+        Route("/api/blind", _blind, methods=["POST", "PATCH", "DELETE"]),
+        Route("/api/position", _blind, methods=["POST"]),
+    ]
+    app = server.build_app(state, "127.0.0.1", PORT, extra_routes=routes, guard_kwargs=guard)
+    return TestClient(app, base_url=BASE), state
+
+
+def test_guard_refuses_every_write_method_while_records_are_off_even_if_the_route_forgets() -> None:
+    client, state = make_blind_client()
+    for method in ("POST", "PATCH", "DELETE"):
+        response = client.request(method, "/api/blind", headers=AUTH)
+        assert response.status_code == 403 and response.json()["error"] == "records_disabled", method
+    state.records_enabled = True
+    assert client.post("/api/blind", headers=AUTH).status_code == 200
+
+
+def test_position_intake_is_the_one_allowlisted_write_while_records_are_off() -> None:
+    client, _ = make_blind_client()
+    assert client.post("/api/position", headers=AUTH).status_code == 200
+    assert client.post("/api/blind", headers=AUTH).status_code == 403
+
+
+def test_the_records_check_runs_after_auth_so_it_leaks_nothing_to_strangers() -> None:
+    client, _ = make_blind_client()
+    assert client.post("/api/blind").status_code == 401
+
+
+def test_public_page_is_rate_limited_per_address() -> None:
+    clock = Clock()
+    client, _ = make_client(clock=clock)
+    codes = [client.get("/").status_code for _ in range(15)]
+    assert codes.count(200) == 10 and codes[-1] == 429
+    clock.now += 5
+    assert client.get("/").status_code == 200
+
+
+def test_one_address_cannot_hold_more_than_the_inflight_cap_open() -> None:
+    import asyncio
+
+    release = asyncio.Event()
+
+    async def slow_app(scope: dict[str, Any], receive: Any, send: Any) -> None:
+        await release.wait()
+        await send({"type": "http.response.start", "status": 200, "headers": []})
+        await send({"type": "http.response.body", "body": b""})
+
+    state = server.ServerState(token=TOKEN)
+    hosts = server.auth.allowed_hosts("127.0.0.1", PORT)
+    guard = server.FieldRemoteGuard(slow_app, state, hosts, max_inflight=2, failure_delay_s=0.0)
+
+    async def call(client: str) -> int:
+        status: list[int] = []
+
+        async def send(message: dict[str, Any]) -> None:
+            if message["type"] == "http.response.start":
+                status.append(message["status"])
+
+        async def receive() -> dict[str, Any]:
+            return {"type": "http.request", "body": b"", "more_body": False}
+
+        scope = {
+            "type": "http",
+            "method": "GET",
+            "path": "/api/status",
+            "query_string": b"",
+            "client": (client, 1234),
+            "headers": [(b"host", f"127.0.0.1:{PORT}".encode()), (b"authorization", f"Bearer {TOKEN}".encode())],
+        }
+        await guard(scope, receive, send)
+        return status[0]
+
+    async def scenario() -> list[int]:
+        held = [asyncio.create_task(call("10.0.0.1")) for _ in range(2)]
+        await asyncio.sleep(0.05)
+        over = await call("10.0.0.1")  # third from the same address while two are open
+        other = asyncio.create_task(call("10.0.0.2"))  # another address is unaffected
+        await asyncio.sleep(0.05)
+        release.set()
+        return [over, *await asyncio.gather(*held, other)]
+
+    over, first, second, other = asyncio.run(scenario())
+    assert over == 429 and (first, second, other) == (200, 200, 200)
+    assert guard._inflight == {}  # counters are released, also on the rejected path

@@ -69,3 +69,59 @@ def test_generation_never_logs_the_private_key(tmp_path: Path, caplog: pytest.Lo
     material = tls.generate_self_signed(tmp_path, ["127.0.0.1"])
     assert "PRIVATE KEY" not in caplog.text
     assert material.key_path.read_text(encoding="ascii").splitlines()[1] not in caplog.text
+
+
+# -- review round: atomic writes, key/cert match, Windows ACL --------------------------------------
+
+
+def test_pair_is_written_atomically_without_temp_leftovers(tmp_path: Path) -> None:
+    tls.generate_self_signed(tmp_path, ["127.0.0.1"])
+    assert sorted(p.name for p in tmp_path.iterdir()) == sorted([tls.CERT_NAME, tls.KEY_NAME])
+
+
+def test_a_key_that_does_not_match_the_certificate_forces_regeneration(tmp_path: Path) -> None:
+    first = tls.generate_self_signed(tmp_path, ["127.0.0.1"])
+    other_dir = tmp_path / "other"
+    other = tls.generate_self_signed(other_dir, ["127.0.0.1"])
+    first.key_path.write_bytes(other.key_path.read_bytes())  # a crash mid-update, or a hand copy
+    fresh = tls.load_or_create(tmp_path, ["127.0.0.1"])
+    assert fresh.fingerprint_hex not in (first.fingerprint_hex, other.fingerprint_hex)
+    # and the new pair really loads as a TLS server identity
+    ssl.create_default_context(ssl.Purpose.CLIENT_AUTH).load_cert_chain(fresh.cert_path, fresh.key_path)
+
+
+def test_stored_fingerprint(tmp_path: Path) -> None:
+    assert tls.stored_fingerprint(tmp_path) == ""
+    material = tls.generate_self_signed(tmp_path, ["127.0.0.1"])
+    assert tls.stored_fingerprint(tmp_path) == material.fingerprint_hex
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="icacls is Windows-only")
+def test_key_acl_on_windows_grants_only_the_current_user(tmp_path: Path) -> None:
+    import subprocess
+
+    material = tls.generate_self_signed(tmp_path, ["127.0.0.1"])
+    out = subprocess.run(["icacls", str(material.key_path)], capture_output=True, text=True, check=True).stdout
+    entries = [line.strip() for line in out.splitlines() if "(" in line and ":" in line]
+    assert len(entries) == 1, out  # inheritance removed; one explicit grant
+    user = os.environ["USERNAME"].lower()
+    assert user in entries[0].lower() and "(F)" in entries[0], out
+    for broad in ("everyone", "users", "authenticated users"):
+        assert not any(broad in e.lower().split(":")[0].split("\\")[-1] for e in entries), out
+
+
+def test_restrict_logs_a_warning_when_icacls_fails(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import subprocess
+
+    monkeypatch.setattr(sys, "platform", "win32")
+    monkeypatch.setattr(tls, "_current_user_sid", lambda: "S-1-5-21-1")
+    monkeypatch.setattr(
+        subprocess, "run", lambda *a, **_k: subprocess.CompletedProcess(a, 5, b"", b"denied")
+    )
+    key = tmp_path / "k.pem"
+    key.write_bytes(b"x")
+    with caplog.at_level("WARNING"):
+        assert tls._restrict_to_user(key) is False
+    assert "icacls exited with 5" in caplog.text

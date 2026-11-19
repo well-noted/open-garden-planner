@@ -204,3 +204,43 @@ RU = {
         _NOT_RUNNING: "Field Remote не запущен. Нажмите «Сохранить», затем откройте это снова.",
     },
 }
+
+# -- security review additions: certificate controls and settings validation --
+_FP_TIP = "SHA-256 fingerprint of this computer's certificate. It is not a secret."
+_REGEN_TIP = "Create a new certificate and key now; phones must accept the new certificate again."
+_BIND_BAD = "The Field Remote address cannot be used: {reason}"
+_PORT_SHARED = "Field Remote and the Agent API cannot share port {port}."
+_AGENT_PORT = "Port {port} is used by the Agent API"
+
+DE["PreferencesDialog"].update({
+    "Certificate fingerprint:": "Zertifikat-Fingerabdruck:",
+    _FP_TIP: "SHA-256-Fingerabdruck des Zertifikats dieses Computers. Er ist kein Geheimnis.",
+    "Regenerate certificate": "Zertifikat neu erstellen",
+    _REGEN_TIP: "Erstellt sofort ein neues Zertifikat samt Schlüssel; Smartphones müssen das neue Zertifikat erneut akzeptieren.",
+    "Not created yet": "Noch nicht erstellt",
+    _BIND_BAD: "Die Field-Remote-Adresse kann nicht verwendet werden: {reason}",
+    _PORT_SHARED: "Field Remote und die Agent API können nicht denselben Port {port} nutzen.",
+})
+DE["FieldRemoteHost"][_AGENT_PORT] = "Port {port} wird von der Agent API verwendet"
+
+ES["PreferencesDialog"].update({
+    "Certificate fingerprint:": "Huella del certificado:",
+    _FP_TIP: "Huella SHA-256 del certificado de este ordenador. No es un secreto.",
+    "Regenerate certificate": "Regenerar certificado",
+    _REGEN_TIP: "Crea ahora un nuevo certificado y clave; los teléfonos deberán aceptar de nuevo el certificado.",
+    "Not created yet": "Aún no creado",
+    _BIND_BAD: "No se puede usar la dirección de Field Remote: {reason}",
+    _PORT_SHARED: "Field Remote y la Agent API no pueden compartir el puerto {port}.",
+})
+ES["FieldRemoteHost"][_AGENT_PORT] = "El puerto {port} lo usa la Agent API"
+
+RU["PreferencesDialog"].update({
+    "Certificate fingerprint:": "Отпечаток сертификата:",
+    _FP_TIP: "Отпечаток SHA-256 сертификата этого компьютера. Это не секрет.",
+    "Regenerate certificate": "Создать сертификат заново",
+    _REGEN_TIP: "Сразу создаёт новый сертификат и ключ; телефонам придётся снова принять новый сертификат.",
+    "Not created yet": "Ещё не создан",
+    _BIND_BAD: "Адрес Field Remote использовать нельзя: {reason}",
+    _PORT_SHARED: "Field Remote и Agent API не могут использовать один порт {port}.",
+})
+RU["FieldRemoteHost"][_AGENT_PORT] = "Порт {port} используется Agent API"

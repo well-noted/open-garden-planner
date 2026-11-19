@@ -41,7 +41,8 @@ DISCLOSED: dict[str, tuple[str, ...]] = {
     "agent_api/server.py": ("127.0.0.1",),
     "main.py": ("127.0.0.1",),
     # Opt-in phone listener: binds only the address the user chose (default 127.0.0.1).
-    "field_remote/server.py": ("Field Remote", "off by default", "Allow phone to submit field records"),
+    "field_remote/server.py": ("Field Remote", "off by default", "Allow phone to submit field records",
+                                   "plain text in your user registry", "names this computer's host name"),
     "services/weather_service.py": ("Weather forecast and frost alerts",),
     "services/climate_service.py": ("Frost dates and hardiness zone",),
     "services/image_download.py": ("Satellite background", "Plant thumbnail download", "Address lookup"),

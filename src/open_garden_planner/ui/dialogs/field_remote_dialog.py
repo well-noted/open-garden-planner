@@ -7,7 +7,7 @@ two minutes (design 1.5). A QR image is not drawn yet: the design leaves the enc
 
 from __future__ import annotations
 
-from PyQt6.QtCore import QTimer
+from PyQt6.QtCore import QMimeData, QTimer
 from PyQt6.QtWidgets import (
     QApplication,
     QDialog,
@@ -21,6 +21,8 @@ from PyQt6.QtWidgets import (
 
 #: How long the link stays visible. It is a credential.
 SHOW_SECONDS = 120
+#: Windows clipboard format that keeps an entry out of clipboard history and cloud clipboard.
+CLIPBOARD_EXCLUDE_FORMAT = "ExcludeClipboardContentFromMonitorProcessing"
 
 
 class FieldRemoteDialog(QDialog):
@@ -33,6 +35,7 @@ class FieldRemoteDialog(QDialog):
 
         self.setWindowTitle(self.tr("Pair a phone"))
         self._url = pairing_url
+        self._copied = ""
         layout = QVBoxLayout(self)
 
         intro = QLabel(
@@ -78,11 +81,28 @@ class FieldRemoteDialog(QDialog):
         self._timer.start(SHOW_SECONDS * 1000)
 
     def _on_copy(self) -> None:
-        if self._url:
-            QApplication.clipboard().setText(self._url)
+        """Copy the link, asking Windows clipboard history and cloud sync not to keep it."""
+        if not self._url:
+            return
+        mime = QMimeData()
+        mime.setText(self._url)
+        mime.setData(CLIPBOARD_EXCLUDE_FORMAT, b"\x00\x00\x00\x00")
+        QApplication.clipboard().setMimeData(mime)
+        self._copied = self._url
+
+    def _clear_clipboard(self) -> None:
+        """Empty the clipboard, but only if it still holds the link we put there."""
+        if self._copied and QApplication.clipboard().text() == self._copied:
+            QApplication.clipboard().clear()
+        self._copied = ""
+
+    def done(self, result: int) -> None:
+        self._clear_clipboard()
+        super().done(result)
 
     def hide_link(self) -> None:
         """Remove the token from the screen and the dialog's memory."""
+        self._clear_clipboard()
         self._url = ""
         self._url_edit.clear()
         self._url_edit.setPlaceholderText(self.tr("Hidden. Close this window and open it again."))

@@ -46,22 +46,60 @@ def fingerprint_of_pem(pem: bytes) -> str:
     return hashlib.sha256(cert.public_bytes(serialization.Encoding.DER)).hexdigest()
 
 
-def _restrict_to_user(path: Path) -> None:
-    """Make the key readable by the current user only (best effort, never raises)."""
+def _current_user_sid() -> str | None:
+    """The current user's SID (Windows), from ``whoami``; None if it cannot be read."""
+    try:
+        result = subprocess.run(  # nosec B603 B607 - fixed argv, no shell
+            ["whoami", "/user", "/fo", "csv", "/nh"], check=False, capture_output=True, text=True, timeout=10
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if result.returncode != 0:
+        return None
+    fields = [part.strip().strip('"') for part in result.stdout.strip().split(",")]
+    return fields[-1] if fields and fields[-1].startswith("S-1-") else None
+
+
+def _restrict_to_user(path: Path) -> bool:
+    """Make the key readable by the current user only. Returns True if the restriction applied.
+
+    POSIX: mode 0600. Windows: drop inherited ACEs and grant full control to the user's SID only
+    (a SID, not a name, so a localised or renamed account cannot make the grant fail). A failure
+    is logged as a warning (the key then keeps the directory's inherited, per-user ACL)."""
     with contextlib.suppress(OSError):
         os.chmod(path, 0o600)
     if sys.platform != "win32":
-        return
-    user = os.environ.get("USERNAME")
-    if not user:
-        return
-    with contextlib.suppress(OSError, subprocess.SubprocessError):
-        subprocess.run(  # nosec B603 B607 - fixed argv, no shell, user name is one argv item
-            ["icacls", str(path), "/inheritance:r", "/grant:r", f"{user}:F"],
+        return True
+    sid = _current_user_sid()
+    if sid is None:
+        logger.warning("Field Remote key: could not read the user's SID; the file ACL was not tightened")
+        return False
+    try:
+        result = subprocess.run(  # nosec B603 B607 - fixed argv, no shell, SID read from whoami
+            ["icacls", str(path), "/inheritance:r", "/grant:r", f"*{sid}:F"],
             check=False,
             capture_output=True,
             timeout=10,
         )
+    except (OSError, subprocess.SubprocessError) as exc:
+        logger.warning("Field Remote key: icacls could not run (%s)", type(exc).__name__)
+        return False
+    if result.returncode != 0:
+        logger.warning("Field Remote key: icacls exited with %d; the file ACL was not tightened", result.returncode)
+        return False
+    return True
+
+
+def _write_private(path: Path, data: bytes, *, restrict: bool) -> None:
+    """Write via a temp file in the same directory, then ``os.replace``: a crash never leaves
+    a half-written key or certificate, and the key is never visible with wide permissions."""
+    temp = path.with_name(path.name + ".tmp")
+    fd = os.open(temp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "wb") as handle:
+        handle.write(data)
+    if restrict:
+        _restrict_to_user(temp)
+    os.replace(temp, path)
 
 
 def _san_for(addresses: list[str], names: list[str]) -> list[object]:
@@ -111,26 +149,29 @@ def generate_self_signed(directory: Path, addresses: list[str], extra_names: lis
         serialization.NoEncryption(),
     )
     cert_path, key_path = directory / CERT_NAME, directory / KEY_NAME
-    # The key is created with 0600 from the first byte, not written wide and narrowed later.
-    fd = os.open(key_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "wb") as handle:
-        handle.write(key_pem)
-    _restrict_to_user(key_path)
-    cert_path.write_bytes(cert_pem)
+    _write_private(key_path, key_pem, restrict=True)
+    _write_private(cert_path, cert_pem, restrict=False)
     logger.info("Field Remote certificate generated (fingerprint %s)", fingerprint_of_pem(cert_pem))
     return TlsMaterial(cert_path, key_path, fingerprint_of_pem(cert_pem))
 
 
-def _usable(cert_path: Path, addresses: list[str]) -> bool:
-    """The stored certificate covers every bind address and is not about to expire."""
+def _usable(cert_path: Path, key_path: Path, addresses: list[str]) -> bool:
+    """The stored pair matches, covers every bind address and is not about to expire."""
     from cryptography import x509
+    from cryptography.hazmat.primitives import serialization
 
     try:
         cert = x509.load_pem_x509_certificate(cert_path.read_bytes())
         san = cert.extensions.get_extension_for_class(x509.SubjectAlternativeName).value
         have = {str(ip) for ip in san.get_values_for_type(x509.IPAddress)}
         left = cert.not_valid_after_utc - datetime.datetime.now(datetime.UTC)
-    except (OSError, ValueError, x509.ExtensionNotFound):
+        key = serialization.load_pem_private_key(key_path.read_bytes(), password=None)
+        spki = serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo
+        # A crash between writing the two files, or a hand-copied cert, leaves a pair that
+        # does not match; the server would then fail to start with an opaque TLS error.
+        if key.public_key().public_bytes(*spki) != cert.public_key().public_bytes(*spki):
+            return False
+    except (OSError, ValueError, TypeError, x509.ExtensionNotFound):
         return False
     return left > datetime.timedelta(days=RENEW_BEFORE_DAYS) and {
         str(ipaddress.ip_address(a)) for a in addresses
@@ -142,6 +183,14 @@ def load_or_create(
 ) -> TlsMaterial:
     """Reuse the stored certificate, or regenerate on demand, on a bind change or near expiry."""
     cert_path, key_path = directory / CERT_NAME, directory / KEY_NAME
-    if not force and cert_path.is_file() and key_path.is_file() and _usable(cert_path, addresses):
+    if not force and cert_path.is_file() and key_path.is_file() and _usable(cert_path, key_path, addresses):
         return TlsMaterial(cert_path, key_path, fingerprint_of_pem(cert_path.read_bytes()))
     return generate_self_signed(directory, addresses, extra_names)
+
+
+def stored_fingerprint(directory: Path) -> str:
+    """Fingerprint of the stored certificate, or '' if there is none or it cannot be read."""
+    try:
+        return fingerprint_of_pem((directory / CERT_NAME).read_bytes())
+    except (OSError, ValueError):
+        return ""

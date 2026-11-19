@@ -62,6 +62,29 @@ class RateLimiter:
         return (self._reads if safe else self._writes).allow()
 
 
+#: Pre-auth traffic (the public page) per address: no token yet, so no per-token bucket applies.
+PUBLIC_RATE = 5.0
+#: In-flight requests one address may hold open at once (slow-request and flood cap).
+MAX_INFLIGHT_PER_IP = 8
+
+
+class KeyedRateLimiter:
+    """A token bucket per key (an address), with a bound on how many keys are remembered."""
+
+    def __init__(self, rate: float, burst: float | None = None, clock: Clock = time.monotonic) -> None:
+        self._rate, self._burst, self._clock = rate, burst, clock
+        self._buckets: OrderedDict[str, TokenBucket] = OrderedDict()
+        self._lock = threading.Lock()
+
+    def allow(self, key: str) -> bool:
+        with self._lock:
+            bucket = self._buckets.pop(key, None) or TokenBucket(self._rate, self._burst, self._clock)
+            self._buckets[key] = bucket
+            while len(self._buckets) > _MAX_TRACKED:
+                self._buckets.popitem(last=False)
+        return bucket.allow()
+
+
 class FailureLockout:
     """Per-address lockout after repeated bad tokens (a LAN device guessing the token)."""
 

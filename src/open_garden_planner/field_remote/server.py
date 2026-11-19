@@ -42,6 +42,10 @@ FAILURE_DELAY_S = 0.25
 #: Paths served without a token. Only the page that has to load BEFORE it can read the token
 #: from the URL fragment belongs here; every /api/ route needs the header.
 PUBLIC_PATHS = frozenset({"/"})
+#: Write-method routes that stay allowed while "phone may save records" is off: they change
+#: nothing on disk (design 1.6, position intake). Every OTHER non-GET/HEAD /api/ request is
+#: refused by the guard itself when the toggle is off, so a later route cannot forget the check.
+WRITES_ALLOWED_WITHOUT_RECORDS = frozenset({"/api/position"})
 _TAILSCALE_NET = ipaddress.ip_network("100.64.0.0/10")
 
 #: Sent on every response, including rejections. No CORS headers are ever sent (a cross-origin
@@ -152,6 +156,7 @@ class FieldRemoteGuard:
         clock: Callable[[], float] = time.monotonic,
         failure_delay_s: float = FAILURE_DELAY_S,
         max_body: int = limits.MAX_BODY_BYTES,
+        max_inflight: int = limits.MAX_INFLIGHT_PER_IP,
     ) -> None:
         self._app = app
         self._state = state
@@ -160,6 +165,9 @@ class FieldRemoteGuard:
         self._failure_delay = failure_delay_s
         self.lockout = limits.FailureLockout(clock=clock)
         self.rate = limits.RateLimiter(clock=clock)
+        self.public_rate = limits.KeyedRateLimiter(limits.PUBLIC_RATE, burst=10.0, clock=clock)
+        self._max_inflight = max_inflight
+        self._inflight: dict[str, int] = {}
 
     async def __call__(self, scope: dict[str, Any], receive: Any, send: Any) -> None:
         if scope["type"] == "lifespan":
@@ -177,17 +185,30 @@ class FieldRemoteGuard:
                 message = {**message, "headers": [*message.get("headers", []), *SECURITY_HEADERS]}
             await send(message)
 
-        rejection = await self._check(scope)
-        if rejection is not None:
-            await rejection(scope, receive, guarded_send)
+        client = (scope.get("client") or ("unknown", 0))[0]
+        # Flooding / slow requests: one address may hold only a few requests open at once.
+        if self._inflight.get(client, 0) >= self._max_inflight:
+            await _reject(429, "too_many_requests", extra=[(b"retry-after", b"1")])(scope, receive, guarded_send)
             return
+        self._inflight[client] = self._inflight.get(client, 0) + 1
         try:
-            await self._app(scope, limits.limit_receive(receive, self._max_body), guarded_send)
-        except limits.BodyTooLarge:
-            if not started:  # a streamed body that outgrew the cap; nothing was answered yet
-                await _reject(413, "body_too_large")(scope, receive, guarded_send)
+            rejection = await self._check(scope, client)
+            if rejection is not None:
+                await rejection(scope, receive, guarded_send)
+                return
+            try:
+                await self._app(scope, limits.limit_receive(receive, self._max_body), guarded_send)
+            except limits.BodyTooLarge:
+                if not started:  # a streamed body that outgrew the cap; nothing was answered yet
+                    await _reject(413, "body_too_large")(scope, receive, guarded_send)
+        finally:
+            remaining = self._inflight[client] - 1
+            if remaining > 0:
+                self._inflight[client] = remaining
+            else:
+                del self._inflight[client]
 
-    async def _check(self, scope: dict[str, Any]) -> Any:
+    async def _check(self, scope: dict[str, Any], client: str) -> Any:
         headers: list[tuple[bytes, bytes]] = scope.get("headers") or []
         # DNS rebinding: a page on attacker.example that resolves to this IP sends
         # "Host: attacker.example", which is not in the allowlist.
@@ -203,8 +224,10 @@ class FieldRemoteGuard:
         if length is not None and (length < 0 or length > self._max_body):
             return _reject(413, "body_too_large")
         if scope["path"] in PUBLIC_PATHS:
+            # No token here, so bound it per address instead.
+            if not self.public_rate.allow(client):
+                return _reject(429, "rate_limited", extra=[(b"retry-after", b"1")])
             return None
-        client = (scope.get("client") or ("unknown", 0))[0]
         # Token guessing from the LAN: lock the address out after repeated failures.
         if self.lockout.is_locked(client):
             return _reject(429, "locked_out", extra=[(b"retry-after", str(int(limits.LOCKOUT_SECONDS)).encode())])
@@ -213,6 +236,14 @@ class FieldRemoteGuard:
             await asyncio.sleep(self._failure_delay)
             return _reject(401, "unauthorized", extra=[(b"www-authenticate", b"Bearer")])
         self.lockout.reset(client)
+        # Writes without consent: the toggle is enforced here, not left to each route.
+        if (
+            scope["method"].upper() not in ("GET", "HEAD")
+            and scope["path"].startswith("/api/")
+            and scope["path"] not in WRITES_ALLOWED_WITHOUT_RECORDS
+            and not self._state.records_enabled
+        ):
+            return _reject(403, "records_disabled", "Saving records from the phone is turned off on the computer.")
         # A paired phone (or a leaked token) flooding the desktop.
         if not self.rate.allow(scope["method"]):
             return _reject(429, "rate_limited", extra=[(b"retry-after", b"1")])
@@ -318,6 +349,7 @@ class FieldRemoteServer:
             lifespan="on",
             server_header=False,
             ws="none",
+            proxy_headers=False,  # the client address is the socket's; X-Forwarded-For is attacker input
             limit_concurrency=32,  # flooding: excess connections get 503
             timeout_keep_alive=5,
         )
@@ -335,7 +367,12 @@ class FieldRemoteServer:
             if getattr(server, "started", False):
                 return
             time.sleep(0.02)
-        logger.warning("Field Remote server did not report ready within %.0fs", _READY_TIMEOUT_S)
+        # Never report a listener that is not up: stop the thread and raise.
+        server.should_exit = True
+        thread.join(timeout=_STOP_TIMEOUT_S)
+        self._thread = None
+        self._server = None
+        raise RuntimeError("Field Remote server did not report ready")
 
     @staticmethod
     def _run(server: Any) -> None:

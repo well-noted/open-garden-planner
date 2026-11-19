@@ -100,6 +100,9 @@ class FieldRemoteHost(QObject):
         except ValueError as exc:
             self._fail(settings.field_remote_bind, port, records, str(exc))
             return
+        if port == settings.agent_api_port:
+            self._fail(bind, port, records, self.tr("Port {port} is used by the Agent API").format(port=port))
+            return
         try:
             material = tls.load_or_create(self._tls_dir(), [bind], force=force_new_certificate)
             state = ServerState(token=settings.field_remote_token, records_enabled=records)
@@ -144,11 +147,31 @@ class FieldRemoteHost(QObject):
             self._publish(RUNNING)
 
     def regenerate_certificate(self) -> None:
-        """New certificate (new fingerprint); restarts the listener if it was running."""
+        """New certificate (new fingerprint), whether or not the listener is running.
+
+        A running listener is restarted on the new certificate; a stopped one just gets the
+        new file, which is what a user who suspects a leaked key expects."""
+        from open_garden_planner.app.settings import get_settings
+        from open_garden_planner.field_remote import tls
+        from open_garden_planner.field_remote.server import check_bind_address
+
         was_running = self.is_running
         self.stop()
         if was_running:
             self.start(force_new_certificate=True)
+            return
+        try:
+            bind = check_bind_address(get_settings().field_remote_bind)
+        except ValueError:
+            bind = "127.0.0.1"
+        tls.load_or_create(self._tls_dir(), [bind], force=True)
+        self._publish(OFF)
+
+    def certificate_fingerprint(self) -> str:
+        """The stored certificate's SHA-256 fingerprint (not a secret), or '' if none exists."""
+        from open_garden_planner.field_remote import tls
+
+        return tls.stored_fingerprint(self._tls_dir())
 
     # -- internals -----------------------------------------------------------------------
     def _tls_dir(self) -> Path:

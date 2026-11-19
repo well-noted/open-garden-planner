@@ -1,7 +1,7 @@
 # Field Remote and positioning: design
 
 Status: proposal (design only, no production code), revision 2. Builds on ADR-079 (georeferencing) and
-ADR-080 (field records sidecar). Becomes ADR-081 plus FR-GEO entries when the first package lands.
+ADR-080 (field records sidecar). ADR-081 (written with WP-A) records the shipped server; FR-GEO entries follow with WP-I.
 
 ## 0. Ground truth
 
@@ -61,7 +61,7 @@ Chrome exposes Geolocation, DeviceMotion/Orientation and WebXR only in secure co
 
 ### 1.4 Pairing and auth
 
-- Token `secrets.token_urlsafe(32)` kept in the existing secret store (separate key; not hashed because
+- Token `secrets.token_urlsafe(32)` kept in `QSettings` as plain text, like the Agent API token (the app has no OS secret store; a separate key `field_remote/token`; not hashed because
   the QR must be shown again). QR encodes `https://<ip>:<port>/#token=<token>&fp=<sha256-hex>`; a fragment is never sent in a
   request, so it stays out of logs and Referer. `fp` is the SHA-256 fingerprint of the server's
   self-signed certificate. It is **not a secret**: any TLS peer sees the certificate, and the fingerprint only
@@ -71,7 +71,7 @@ Chrome exposes Geolocation, DeviceMotion/Orientation and WebXR only in secure co
   `history.replaceState`, keeps the token in memory and `sessionStorage` (not `localStorage`), and sends
   `Authorization: Bearer`. Header only: no `?token=` form here. Compare with `secrets.compare_digest` plus
   an ASCII guard.
-- Streams use fetch-streaming (can set headers); QR via a vendored MIT encoder or `qrcode` (BSD): decide in WP-A/C.
+- Streams use fetch-streaming (can set headers). **QR drawing is deferred (WP-A shipped without it):** no encoder is in the environment and adding one is a new dependency (vendored MIT encoder or `qrcode`, BSD), a decision for a later package. WP-A shows the link and fingerprint as text with a Copy link button (ADR-081).
 
 ### 1.5 Threat model
 
