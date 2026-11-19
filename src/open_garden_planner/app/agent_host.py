@@ -406,8 +406,14 @@ class AgentHost:
         text: str | None = None,
         box_dx: float | None = None,
         box_dy: float | None = None,
+        extra_metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Create one supported object — one undoable step (US-D2.1/D2.5).
+
+        ``extra_metadata`` (ADR-080) is merged into the new object's metadata
+        BEFORE the create command runs, so it is part of the same single undo
+        step (``place_geotagged_feature`` attaches its field-record block there).
+
 
         Mirrors the GUI's own creation orchestration, not merely
         ``CreateItemCommand``. The gallery-drop path in ``CanvasView`` does five
@@ -487,6 +493,8 @@ class AgentHost:
                 populate_item_species_metadata(item, species)
             # US-E8: every new plant is dated, species or not (see docstring).
             stamp_default_planting_date(cast(Any, item).metadata, self._agent_plan_date())
+            if extra_metadata:
+                cast(Any, item).metadata.update(extra_metadata)
 
         linked_items: list[Any] = []
         from open_garden_planner.core.roof_style import is_ridge_bearing_kind
@@ -3749,9 +3757,186 @@ class AgentHost:
             set_georeference=self._agent_set_georeference,
             set_georeference_from_reference_points=self._agent_set_georeference_from_reference_points,
             set_initial_map=self._agent_set_initial_map,
+            list_field_records=self._agent_list_field_records,
+            ingest_site_photo=self._agent_ingest_site_photo,
+            place_geotagged_feature=self._agent_place_geotagged_feature,
             plan_date=lambda: self._agent_plan_date().isoformat(),
         )
 
+
+    # --- ADR-080: field photos and records ------------------------------------
+
+    def _agent_field_context(self) -> tuple[str | None, Any]:
+        """``(saved plan path or None, GeoReference or None)`` — main thread only.
+
+        The georeference's rotation is the plan's north angle (one north), so
+        the returned object is rebuilt with ``pm.north_angle_deg``.
+        """
+        pm = self._host._project_manager
+        current = pm.current_file
+        geo = pm.georef
+        if geo is not None:
+            from dataclasses import replace
+
+            geo = replace(geo, rotation_deg=pm.north_angle_deg)
+        return (str(current) if current is not None else None), geo
+
+    def _agent_list_field_records(self, **kwargs: Any) -> dict[str, Any]:
+        """Read the field-record sidecar ON the Qt main thread (open read)."""
+        host = self._host
+
+        def run() -> dict[str, Any]:
+            from open_garden_planner.agent_api import field_tools
+
+            plan_path, geo = self._agent_field_context()
+            if plan_path is None:
+                return {
+                    "total": 0,
+                    "returned": 0,
+                    "records": [],
+                    "warnings": [
+                        "The plan has not been saved yet; field records live beside the saved file."
+                    ],
+                }
+            return field_tools.list_records(plan_path, geo, **kwargs)
+
+        return host._agent_bridge.run_on_main(run)
+
+    def _agent_ingest_site_photo(self, **kwargs: Any) -> dict[str, Any]:
+        """Store a photo + record in the sidecar ON the Qt main thread (token-gated write)."""
+        host = self._host
+
+        def run() -> dict[str, Any]:
+            from open_garden_planner.agent_api import field_tools
+            from open_garden_planner.services.field_records import FieldRecordError
+            from open_garden_planner.services.photo_geotag import PhotoGeotagError
+
+            plan_path, geo = self._agent_field_context()
+            try:
+                return field_tools.ingest(plan_path, geo, **kwargs)
+            except (FieldRecordError, PhotoGeotagError) as error:
+                raise ValueError(str(error)) from error
+
+        return host._agent_bridge.run_on_main(run)
+
+    def _agent_place_geotagged_feature(self, **kwargs: Any) -> dict[str, Any]:
+        """Place a plant from a field record ON the Qt main thread (token-gated write)."""
+        host = self._host
+        return host._agent_bridge.run_on_main(
+            lambda: self._do_agent_place_geotagged_feature(**kwargs)
+        )
+
+    def _do_agent_place_geotagged_feature(
+        self,
+        record_id: str | None = None,
+        species: str | None = None,
+        lat: float | None = None,
+        lon: float | None = None,
+        bearing_deg: float | None = None,
+        distance_m: float | None = None,
+        name: str | None = None,
+        object_type: str | None = None,
+        allow_duplicate: bool = False,
+    ) -> dict[str, Any]:
+        """Main-thread body of ``place_geotagged_feature`` — ONE undo step (ADR-080).
+
+        Everything that can refuse runs BEFORE the create command: georeference,
+        position, species match and an already-placed record here, then (inside
+        ``_do_agent_create_object``) the locked active layer and the shape checks.
+        The plant is created by the SAME path as ``create_object`` with the
+        species' mature canopy radius and a ``field_record`` metadata block, so
+        it is one ``CreateItemCommand``. Linking the sidecar record is a file
+        write, not a scene change, and is not part of the undo step; if it fails
+        the plant stays and a warning says so.
+        """
+        from open_garden_planner.agent_api import creates, field_tools
+        from open_garden_planner.services import field_records as fr
+        from open_garden_planner.services.bundled_species_db import (
+            lookup_species,
+            merge_calendar_data,
+        )
+
+        plan_path, geo = self._agent_field_context()
+        if geo is None:
+            raise ValueError(
+                "The plan is not georeferenced; set it up first (set_initial_map, "
+                "set_georeference or set_georeference_from_reference_points)."
+            )
+        record: fr.FieldRecord | None = None
+        if record_id is not None:
+            try:
+                record = fr.get_record(plan_path, record_id)
+            except fr.FieldRecordError as error:
+                raise ValueError(str(error)) from error
+            if record.placed_object_id and not allow_duplicate:
+                raise ValueError(
+                    f"Record {record_id} is already placed as object "
+                    f"{record.placed_object_id}; pass allow_duplicate=true to place it again."
+                )
+        elif species is None:
+            raise ValueError("give a record_id, or a species (with lat and lon) to place")
+
+        wanted = (
+            species
+            or (record.species_key if record else None)
+            or (record.plant_name if record else None)
+        )
+        if not wanted:
+            raise ValueError("no species: pass species, or use a record with a species_key or plant_name")
+        matched = lookup_species(wanted)
+        if matched is None:
+            raise ValueError(
+                f"No species named {wanted!r} in the bundled database. Pass species with a "
+                "scientific or common name from the garden://species resource."
+            )
+        species_dict = merge_calendar_data(dict(matched))
+        resolved_type = object_type or field_tools.object_type_for_species(species_dict)
+        if not creates.is_plant_type_name(resolved_type):
+            raise ValueError("object_type must be TREE, SHRUB or PERENNIAL")
+        radius = field_tools.mature_radius_cm(species_dict, resolved_type)
+
+        target = field_tools.resolve_target(
+            geo, record, lat=lat, lon=lon, bearing_deg=bearing_deg, distance_m=distance_m
+        )
+        metadata = {
+            "field_record": field_tools.field_metadata(
+                record, target, plan_path=plan_path, distance_m=distance_m, lat=lat, lon=lon
+            )
+        }
+        display = name or (record.plant_name if record else None) or species_dict.get("common_name")
+        scientific = str(species_dict.get("scientific_name") or wanted)
+        created = self._do_agent_create_object(
+            resolved_type,
+            target["x"],
+            target["y"],
+            None,
+            None,
+            radius,
+            display if isinstance(display, str) else None,
+            scientific,
+            extra_metadata=metadata,
+        )
+        warnings: list[str] = []
+        if abs(created["x"] - target["x"]) > 1.0 or abs(created["y"] - target["y"]) > 1.0:
+            warnings.append("The position was at the canvas edge and was moved inside the canvas.")
+        if record is not None:
+            try:
+                fr.update_record(plan_path, record.id, placed_object_id=created["item_id"])
+            except fr.FieldRecordError as error:
+                warnings.append(f"The plant was placed but the record could not be linked: {error}")
+        return {
+            "item_id": created["item_id"],
+            "object_type": resolved_type,
+            "species": scientific,
+            "x": created["x"],
+            "y": created["y"],
+            "radius_cm": radius,
+            "true_bearing_deg": target["true_bearing_deg"],
+            "record_id": record.id if record else None,
+            "undo_description": created["undo_description"],
+            "new_parent_bed_id": created["new_parent_bed_id"],
+            "warnings": warnings,
+        }
 
     # --- ADR-079: georeference writes -----------------------------------------
 

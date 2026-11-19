@@ -1387,3 +1387,124 @@ class GeorefWriteResult(BaseModel):
     canvas_width_cm: float | None = Field(default=None, description="set_initial_map: new canvas width.")
     canvas_height_cm: float | None = Field(default=None, description="set_initial_map: new canvas height.")
     zoom: int | None = Field(default=None, description="set_initial_map: Google zoom level used.")
+
+
+# --- ADR-080: field photos and records ---------------------------------------
+
+
+class DirectionVector(BaseModel):
+    """A unit direction on the canvas (Y-up): +dx is east on a north-up plan, +dy plan-up."""
+
+    dx: float
+    dy: float
+
+
+class PhotoGeotagResult(BaseModel):
+    """What a photo's EXIF says, plus the camera and sightline on the plan.
+
+    Every EXIF field may be null (photos from some apps carry no GPS or no
+    compass). ``warnings`` explains each gap. The field of view is always an
+    ESTIMATE (``hfov_is_estimate`` is true); ``hfov_source`` says how rough.
+    """
+
+    lat: float | None = Field(default=None, description="Camera latitude, WGS-84 degrees.")
+    lon: float | None = Field(default=None, description="Camera longitude, WGS-84 degrees.")
+    altitude_m: float | None = None
+    gps_accuracy_m: float | None = Field(
+        default=None, description="Rough accuracy derived from GPS DOP (about 5 m per DOP unit)."
+    )
+    bearing_deg: float | None = Field(
+        default=None, description="Compass direction the camera faced, as the photo stored it."
+    )
+    bearing_reference: Literal["true", "magnetic"] | None = None
+    true_bearing_deg: float | None = Field(
+        default=None,
+        description="The bearing converted to TRUE north (magnetic needs magnetic_declination_deg).",
+    )
+    focal_length_mm: float | None = None
+    focal_length_35mm: float | None = None
+    taken_at: str | None = Field(
+        default=None, description="Camera-local ISO time 'YYYY-MM-DDTHH:MM:SS' (no time zone in EXIF)."
+    )
+    width_px: int | None = None
+    height_px: int | None = None
+    georeferenced: bool = Field(description="False when the plan has no georeference.")
+    hfov_deg: float = Field(description="ESTIMATED horizontal field of view, degrees.")
+    hfov_source: str = Field(
+        description="'exif_35mm', 'exif_focal_length_assumed_sensor' or 'default_estimate'."
+    )
+    hfov_is_estimate: bool = True
+    camera_x_cm: float | None = Field(default=None, description="Camera X, scene cm.")
+    camera_y_cm: float | None = Field(default=None, description="Camera Y, scene cm (Y-up).")
+    sightline: DirectionVector | None = Field(
+        default=None, description="Unit canvas vector the camera faced (honours the plan's north)."
+    )
+    fov_left: DirectionVector | None = Field(default=None, description="Left edge of the view cone.")
+    fov_right: DirectionVector | None = Field(default=None, description="Right edge of the view cone.")
+    target_x_cm: float | None = Field(
+        default=None, description="Point distance_m along the sightline (only when distance_m given)."
+    )
+    target_y_cm: float | None = None
+    warnings: list[str] = Field(default_factory=list)
+
+
+class FieldRecordView(BaseModel):
+    """One field observation from the plan's sidecar file (``<plan>.fieldnotes.json``)."""
+
+    id: str
+    plant_name: str | None = None
+    species_key: str | None = None
+    age: str | None = None
+    notes: str | None = None
+    photo: str | None = Field(default=None, description="Photo path relative to the .fieldnotes folder.")
+    photo_path: str | None = Field(
+        default=None, description="Absolute path of the stored photo; pass it to extract_photo_geotag."
+    )
+    lat: float | None = None
+    lon: float | None = None
+    accuracy_m: float | None = None
+    bearing_deg: float | None = Field(default=None, description="Camera direction, TRUE north.")
+    fix_mode: str | None = Field(
+        default=None, description="'gps', 'exif', 'map_tap', 'manual' or 'remote_position'."
+    )
+    timestamp: str
+    placed_object_id: str | None = Field(
+        default=None, description="UUID of the plan object this record was placed as, if any."
+    )
+    canvas_x_cm: float | None = Field(
+        default=None, description="The record's position on the canvas (needs a georeference)."
+    )
+    canvas_y_cm: float | None = None
+
+
+class FieldRecordList(BaseModel):
+    """Result of ``list_field_records``."""
+
+    total: int = Field(description="Records stored for the plan.")
+    returned: int
+    records: list[FieldRecordView]
+    warnings: list[str] = Field(default_factory=list)
+
+
+class IngestPhotoResult(BaseModel):
+    """Result of ``ingest_site_photo``: the stored record and what the photo said."""
+
+    record: FieldRecordView
+    geotag: PhotoGeotagResult
+    warnings: list[str] = Field(default_factory=list)
+
+
+class PlaceFeatureResult(BaseModel):
+    """Result of ``place_geotagged_feature`` (ONE undoable step)."""
+
+    item_id: str = Field(description="UUID of the plant that was created.")
+    object_type: str
+    species: str = Field(description="Scientific name of the matched species.")
+    x: float = Field(description="Centre X, scene cm.")
+    y: float = Field(description="Centre Y, scene cm (Y-up).")
+    radius_cm: float = Field(description="Mature canopy radius used for the drawn footprint.")
+    true_bearing_deg: float | None = None
+    record_id: str | None = Field(default=None, description="The field record that was linked.")
+    undo_description: str
+    new_parent_bed_id: str | None = None
+    warnings: list[str] = Field(default_factory=list)

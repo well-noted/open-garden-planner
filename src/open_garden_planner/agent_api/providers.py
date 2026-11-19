@@ -403,6 +403,11 @@ class AgentProviders:
     set_georeference: Callable[..., dict[str, Any]] | None = None
     set_georeference_from_reference_points: Callable[..., dict[str, Any]] | None = None
     set_initial_map: Callable[..., dict[str, Any]] | None = None
+    # ADR-080 field photos: a read of the plan's sidecar, a sidecar write and a
+    # placement (one undoable command). ``extract_photo_geotag`` needs no provider.
+    list_field_records: Callable[..., dict[str, Any]] | None = None
+    ingest_site_photo: Callable[..., dict[str, Any]] | None = None
+    place_geotagged_feature: Callable[..., dict[str, Any]] | None = None
     render_3d: Callable[
         [tuple[tuple[float, float, float], tuple[float, float, float], float] | None,
          tuple[int, int]],

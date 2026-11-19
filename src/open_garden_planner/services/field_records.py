@@ -187,7 +187,7 @@ class LoadResult:
     newer_version: bool = False
 
 
-def _migrate(data: dict[str, Any], version: int) -> dict[str, Any]:
+def _migrate(data: dict[str, Any], _version: int) -> dict[str, Any]:
     """Bring an older sidecar up to :data:`FIELD_RECORDS_VERSION` (none older yet)."""
     return data
 
