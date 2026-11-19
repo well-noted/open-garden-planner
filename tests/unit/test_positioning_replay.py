@@ -108,7 +108,6 @@ def test_replay_is_deterministic() -> None:
     assert np.array_equal(a, b)
 
 
-@pytest.mark.xfail(strict=True, reason="open review finding P1-1 (stand-then-walk reseed); fix needs the ZUPT exit logic reworked")
 def test_a_walk_that_starts_after_standing_still_is_not_pinned_by_the_stationary_filter() -> None:
     """Review finding: stationary updates held velocity at zero, the first walking fixes were
     gated, and the filter only recovered through the three-reject reseed (a position jump)."""

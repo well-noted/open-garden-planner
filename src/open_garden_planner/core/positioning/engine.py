@@ -35,6 +35,7 @@ from .types import (
     SIGMA_A_STILL,
     SIGMA_A_WALK,
     ZUPT_R_V,
+    ZUPT_WINDOW_S,
     FixMode,
     GnssSample,
     ImuSample,
@@ -114,12 +115,26 @@ class PositioningEngine:
             return self._estimate(s, gated=False)
 
         prev_pos = kf.x[:2].copy()
+        # Leaving the stationary state (review P1-1). The ZUPT pinned the velocity, and the
+        # window-based evidence lags a walk that began by up to ZUPT_WINDOW_S, so without the
+        # two measures below the first walking fixes were gated and only the three-reject
+        # reseed recovered (a position jump). 1) On the exit, re-open the velocity, before
+        # predict so the prediction re-correlates it with the position. 2) Within the window
+        # of the last stationary evidence, the implied-speed gate counts from the earliest
+        # moment the walk could have begun, not from the last fix.
+        if self._zupt.exited:
+            kf.release_velocity()
+            self._zupt.exited = False  # once, even if this fix is then gated
         sigma_a = SIGMA_A_STILL if self._zupt.stationary else SIGMA_A_WALK
         f, dt = kf.predict(s.t, sigma_a)
+        gate_dt = dt
+        still_t = self._zupt.last_still_t
+        if still_t is not None and s.t - still_t <= ZUPT_WINDOW_S:
+            gate_dt = max(dt, s.t - (still_t - ZUPT_WINDOW_S))  # motion may predate the exit
         x_pred, p_pred = kf.x.copy(), kf.p.copy()
         y, cov = kf.innovation(e, n, r)
         reason = gate_measurement(
-            y, cov, jump_m=math.dist((e, n), (prev_pos[0], prev_pos[1])), r=r, dt=dt
+            y, cov, jump_m=math.dist((e, n), (prev_pos[0], prev_pos[1])), r=r, dt=gate_dt
         )
         if reason is not None:
             self.last_reject_reason = reason
@@ -132,8 +147,7 @@ class PositioningEngine:
 
         self._rejects.accept()
         kf.update(e, n, r)
-        stationary = self._zupt.update(s.t, e, n, s.accuracy_m, s.speed_mps)
-        if stationary:
+        if self._zupt.update(s.t, e, n, s.accuracy_m, s.speed_mps):
             kf.update_zero_velocity(ZUPT_R_V)
         self._recent_acc.append(s.accuracy_m)
         self._record(Step(s.t, x_pred, p_pred, kf.x.copy(), kf.p.copy(), f, kf.chain_break))

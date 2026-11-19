@@ -95,6 +95,15 @@ class KalmanCV:
         self.t = t
         return f, dt
 
+    def release_velocity(self) -> None:
+        """Undo zero-velocity pinning when motion starts: velocity sigma back to ``V0_SIGMA``,
+        decorrelated from the position (the mean is kept). Called before ``predict`` it acts
+        as extra process noise on that step, so the RTS smoother stays valid.
+        """
+        self.p[:2, 2:] = 0.0
+        self.p[2:, :2] = 0.0
+        self.p[2:, 2:] = np.eye(2) * V0_SIGMA**2
+
     def innovation(self, e: float, n: float, r: float) -> tuple[np.ndarray, np.ndarray]:
         """Residual ``y`` and its covariance ``S`` for a position measurement."""
         y = np.array([e, n]) - _H_POS @ self.x
