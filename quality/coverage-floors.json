@@ -5,6 +5,7 @@
     "app": 77,
     "config": 95,
     "core": 77,
+    "field_remote": 80,
     "models": 95,
     "services": 86,
     "ui": 71

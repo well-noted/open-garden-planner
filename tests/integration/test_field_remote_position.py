@@ -94,19 +94,23 @@ def test_posted_position_shows_a_puck_that_is_not_saved_and_not_in_undo(phone: A
     puck = scene.position_puck
     assert isinstance(puck, PositionPuckItem)
     assert (puck.pos().x(), puck.pos().y()) == pytest.approx((tele["x_cm"], tele["y_cm"]))
-    assert puck.halo_radius_cm == pytest.approx(300.0)  # sigma 3 m = 300 cm of halo
-    assert puck.heading_canvas_deg == pytest.approx(0.0, abs=0.01)  # compass east = +x on a north-up plan
-    assert puck.badge_text.startswith("GPS") and "3.0" in puck.badge_text
+    assert puck.halo_radius_cm == pytest.approx(tele["sigma_m"] * 100.0)  # the filter's sigma, in cm
+    assert puck.heading_canvas_deg is None  # one fix has no velocity yet; a heading needs motion
+    assert puck.badge_text.startswith("GPS") and f"{tele['sigma_m']:.1f}" in puck.badge_text
 
     # An overlay, not a plan object: not serialised, no undo step, the plan stays clean.
     assert pm.snapshot_dict(scene)["objects"] == objects_before
     assert len(win.canvas_view.command_manager._undo_stack) == undo_before
     assert pm.is_dirty is False
 
-    # A later position moves the same item.
-    res = client.call("POST", "/api/position", json=_pos(*GeoReference(origin_lat=48.0, origin_lon=11.0).canvas_to_gps(0, 0)))
+    # A later position moves the same item. The filter refuses a repeated time or a 15 m jump in
+    # a second, so this is one metre of walking a second later; the puck follows the telemetry.
+    nxt = GeoReference(origin_lat=48.0, origin_lon=11.0).canvas_to_gps(1600.0, 800.0)
+    res = client.call("POST", "/api/position", json={**_pos(*nxt), "t": 101.0})
     assert res.status_code == 200
-    qtbot.waitUntil(lambda: scene.position_puck is not None and scene.position_puck.pos().x() == pytest.approx(0, abs=0.5))
+    moved = res.json()["telemetry"]
+    assert moved["gated"] is False and moved["x_cm"] > 1500.0
+    qtbot.waitUntil(lambda: scene.position_puck is not None and scene.position_puck.pos().x() == pytest.approx(moved["x_cm"], abs=0.5))
     assert scene.position_puck is puck
 
 
