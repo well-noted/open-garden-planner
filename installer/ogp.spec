@@ -313,6 +313,34 @@ a = Analysis(
     noarchive=False,
 )
 
+# PF-CI-22: PyInstaller resolves _ssl.pyd's libssl/libcrypto through PATH before
+# the interpreter's own DLLs folder, so a build started from Git Bash (Git's
+# mingw64/bin precedes) bundled Git's OpenSSL 3.2.3 beside a _ssl.pyd built for
+# 3.5.x: `import ssl` died with 0xc0000139 in the frozen exe. Bundle the pair
+# that sits beside _ssl.pyd, whatever PATH holds.
+def _pin_openssl_pair(binaries):
+    import re
+
+    ssl_dir = None
+    for _dest, _src, _kind in binaries:
+        if Path(_dest).name == "_ssl.pyd":
+            ssl_dir = Path(_src).parent
+            break
+    if ssl_dir is None:
+        return binaries
+    pair = {p.name.lower(): p for p in ssl_dir.glob("lib*-3*.dll")
+            if re.fullmatch(r"lib(ssl|crypto)-3.*\.dll", p.name, re.I)}
+    if not pair:
+        raise SystemExit(f"PF-CI-22: no libssl/libcrypto beside {ssl_dir}")
+    kept = [b for b in binaries
+            if not re.fullmatch(r"lib(ssl|crypto)-3.*\.dll", Path(b[0]).name, re.I)]
+    for name, path in pair.items():
+        kept.append((name, str(path), "BINARY"))
+    return kept
+
+
+a.binaries = _pin_openssl_pair(list(a.binaries))
+
 # Requires-Dist is a minimum, not the shipped inventory. Hooks can collect
 # build/dev packages and copies vendored by setuptools; index actual source
 # ownership after Analysis and preserve each copy's own metadata and licenses.
