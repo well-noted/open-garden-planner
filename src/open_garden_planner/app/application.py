@@ -268,9 +268,24 @@ class GardenPlannerApp(QMainWindow):
         # Field Remote (ADR-081): off by default, a separate listener from the Agent API.
         from open_garden_planner.app.field_remote_host import FieldRemoteHost
 
-        self.field_remote_host = FieldRemoteHost(self, plan_path=self._saved_plan_path)
+        self.field_remote_host = FieldRemoteHost(
+            self,
+            plan_path=self._saved_plan_path,
+            snapshot=self._agent_snapshot,
+            plan_name=self._field_remote_plan_name,
+        )
         self.field_remote_host.status_changed.connect(self._on_field_remote_status)
+        self.field_remote_host.position_received.connect(self._on_field_remote_position)
         QTimer.singleShot(1500, self.field_remote_host.maybe_start)
+
+    def _field_remote_plan_name(self) -> str | None:
+        """The open plan's file name for the phone (any thread; a plain attribute read)."""
+        current = self._project_manager.current_file
+        return Path(current).stem if current is not None else None
+
+    def _on_field_remote_position(self, telemetry: Any) -> None:
+        """Show the phone's position as a canvas overlay (not saved, not in undo)."""
+        self.canvas_scene.show_position(telemetry)
 
     def _saved_plan_path(self) -> str | None:
         """The open plan's saved path for the Field Remote's record routes (any thread)."""
@@ -1786,6 +1801,16 @@ class GardenPlannerApp(QMainWindow):
 
         menu.addSeparator()
 
+        # Field Remote: the phone's position on the canvas (shown only while positions arrive)
+        self._phone_position_action = QAction(self.tr("Show &Phone Position"), self)
+        self._phone_position_action.setCheckable(True)
+        self._phone_position_action.setChecked(True)
+        self._phone_position_action.setStatusTip(
+            self.tr("Show the position a paired phone reports (not saved with the plan)")
+        )
+        self._phone_position_action.toggled.connect(self.canvas_scene.set_position_puck_enabled)
+        menu.addAction(self._phone_position_action)
+
         # Fullscreen Preview
         self._preview_action = QAction(self.tr("Fullscreen &Preview"), self)
         self._preview_action.setShortcut(QKeySequence("F11"))
@@ -2389,6 +2414,8 @@ class GardenPlannerApp(QMainWindow):
         # command_executed only fires on execute, so wiring mark_dirty there left
         # undo/redo silently "clean" (issue #209). stack_changed covers all three.
         cmd_mgr.stack_changed.connect(self._project_manager.mark_dirty)
+        # Field Remote: connected phones learn the plan changed (coalesced; no-op while off).
+        cmd_mgr.stack_changed.connect(lambda: self.field_remote_host.notify("plan_changed"))
 
         # Refresh dependent panels after any stack mutation (add/remove/edit/
         # undo/redo). stack_changed fires exactly once per execute/register_applied

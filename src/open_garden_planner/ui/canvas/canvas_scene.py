@@ -374,6 +374,9 @@ class CanvasScene(QGraphicsScene):
 
         # Compare overlay: ghosted plant items from a previous season
         self._compare_items: list[QGraphicsItem] = []
+        # Field Remote: the phone's position overlay (never saved, never in undo).
+        self._position_puck: QGraphicsItem | None = None
+        self._position_puck_enabled = True
         self._compare_overlay_visible = False
 
         # Suspends the per-add z-refresh during bulk inserts (issue #338)
@@ -2214,6 +2217,53 @@ class CanvasScene(QGraphicsScene):
                 super().addItem(label)
                 self._compare_items.append(label)
 
+    # -- Field Remote position puck (overlay, not a plan object) -------------------------
+
+    @property
+    def position_puck(self) -> QGraphicsItem | None:
+        """The phone-position overlay, or None before the first position arrives."""
+        return self._position_puck
+
+    def set_position_puck_enabled(self, enabled: bool) -> None:
+        """View-menu toggle: hide or show the puck without losing its last position."""
+        self._position_puck_enabled = bool(enabled)
+        if self._position_puck is not None:
+            self._position_puck.setVisible(self._position_puck_enabled)
+
+    def show_position(self, telemetry: dict[str, Any]) -> None:
+        """Move the puck to a phone position (``x_cm``/``y_cm`` from the telemetry, design 2.9).
+
+        A position with no plan coordinates (the plan is not georeferenced) hides the puck.
+        The puck is one item kept for the scene's life; it is not serialised and is outside the
+        undo stack, so this never marks the plan changed.
+        """
+        from open_garden_planner.ui.canvas.items.position_puck import PositionPuckItem
+
+        x, y = telemetry.get("x_cm"), telemetry.get("y_cm")
+        if not isinstance(x, (int, float)) or not isinstance(y, (int, float)):
+            self.hide_position()
+            return
+        if self._position_puck is None:
+            puck = PositionPuckItem()
+            puck.setVisible(self._position_puck_enabled)
+            super().addItem(puck)
+            self._position_puck = puck
+        puck = self._position_puck
+        puck.update_from(  # type: ignore[attr-defined]
+            float(x),
+            float(y),
+            sigma_m=telemetry.get("sigma_m"),
+            heading_canvas_deg=telemetry.get("heading_canvas_deg"),
+            fix_mode=str(telemetry.get("fix_mode") or "standard"),
+        )
+        puck.setVisible(self._position_puck_enabled)
+
+    def hide_position(self) -> None:
+        """Remove the puck (no position to show)."""
+        if self._position_puck is not None:
+            super().removeItem(self._position_puck)
+            self._position_puck = None
+
     def clear_compare_overlay(self) -> None:
         """Remove all compare overlay ghost items."""
         for item in self._compare_items:
@@ -2249,6 +2299,7 @@ class CanvasScene(QGraphicsScene):
         self._plan_change_commit = False
         self._compare_items.clear()
         self._compare_overlay_visible = False
+        self._position_puck = None  # destroyed with the scene's items below
         self._calibration_markers.clear()
         self._calibration_points.clear()
         self._calibration_image = None
