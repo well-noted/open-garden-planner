@@ -321,7 +321,10 @@ the AR session takes over the screen, the map is a small inset.
 A client-reported `fix_quality` (real NMEA) overrides inference and is shown as "reported"; a client
 `sigma_m` replaces the `accuracy_m`-derived `r` in the filter (never below `r_min`). Otherwise precedence:
 `rtk_fixed` > `rtk_float` (both inferred) > `vio_fused` (tracking good and locked) >
-`anchor_calibrated` (anchor < 10 min or georef fit rms < 2 m today) > `standard`. Telemetry from
+`anchor_calibrated` (anchor < 10 min or georef fit rms < 2 m today) > `standard`. The label follows
+the source of the published position: a VIO-sourced position (`track_source` `vio`) is always
+`vio_fused`, never an RTK label (reported or inferred), because the RTK label describes the GNSS fix,
+not the plan-locked frame. Telemetry from
 `POST /position` and `/stream`, also feeding the desktop puck:
 
 Telemetry JSON: `t, lat, lon, x_cm, y_cm, sigma_m, horizontal_accuracy_m, heading_deg, heading_source
