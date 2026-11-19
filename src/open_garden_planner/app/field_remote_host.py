@@ -8,17 +8,27 @@ records until a second, separate toggle is on. The phone never edits the plan.
 from __future__ import annotations
 
 import logging
+import threading
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from PyQt6.QtCore import QObject, pyqtSignal
+
+from open_garden_planner.field_remote.events import EventHub
 
 if TYPE_CHECKING:
     from open_garden_planner.field_remote.server import FieldRemoteServer, ServerState
 
 logger = logging.getLogger(__name__)
+
+#: How long a plan snapshot is reused by the read routes: a phone polls every few seconds, and
+#: a snapshot costs a main-thread hop (it encodes the background image the first time).
+SNAPSHOT_TTL_S = 1.0
+#: Plan-change events closer together than this collapse into one (a drag fires many).
+EVENT_COALESCE_S = 0.25
 
 OFF = "off"
 RUNNING = "running"
@@ -46,6 +56,8 @@ class FieldRemoteHost(QObject):
     """Start/stop/status for the phone listener; ``status_changed`` fires on every change."""
 
     status_changed = pyqtSignal(object)  # FieldRemoteStatus
+    #: Telemetry dict of each accepted ``POST /api/position`` (queued to the GUI thread).
+    position_received = pyqtSignal(object)
 
     def __init__(
         self,
@@ -53,9 +65,19 @@ class FieldRemoteHost(QObject):
         *,
         data_dir: Path | None = None,
         plan_path: Callable[[], str | None] | None = None,
+        snapshot: Callable[[], dict[str, Any]] | None = None,
+        plan_name: Callable[[], str | None] | None = None,
     ) -> None:
         super().__init__(parent)
         self._data_dir = data_dir
+        #: ``snapshot_dict`` of the open plan, taken on the Qt thread (the bridge does the hop);
+        #: called from the server's thread pool. Reads only: nothing here mutates the scene.
+        self._snapshot_fn = snapshot
+        self._plan_name = plan_name or (lambda: None)
+        self._snap_lock = threading.Lock()
+        self._snap: tuple[float, dict[str, Any]] | None = None
+        self.events = EventHub()
+        self._last_event: dict[str, float] = {}
         #: Saved path of the open plan (None while unsaved); read from the server thread, so it
         #: must be a plain attribute read. The server learns nothing else about the plan.
         self._plan_path = plan_path or (lambda: None)
@@ -81,6 +103,40 @@ class FieldRemoteHost(QObject):
         from open_garden_planner.field_remote.auth import pairing_url
 
         return pairing_url(self._server.bind, self._server.port, self._state.token, self._fingerprint)
+
+    # -- PlanSource (read routes; any thread) -----------------------------------------------
+    def snapshot(self) -> dict[str, Any]:
+        """The open plan as a plain dict, at most ``SNAPSHOT_TTL_S`` old. Raises ``RuntimeError``
+        when no snapshot source is wired and ``TimeoutError`` when the GUI thread is busy."""
+        if self._snapshot_fn is None:
+            raise RuntimeError("no plan source")
+        with self._snap_lock:  # one hop at a time; concurrent phones share the result
+            now = time.monotonic()
+            if self._snap is not None and now - self._snap[0] < SNAPSHOT_TTL_S:
+                return self._snap[1]
+            data = self._snapshot_fn()
+            self._snap = (time.monotonic(), data)
+            return data
+
+    def plan_name(self) -> str | None:
+        return self._plan_name()
+
+    def on_position(self, telemetry: dict[str, Any]) -> None:
+        self.position_received.emit(telemetry)  # queued to the GUI thread when emitted off it
+
+    def notify(self, kind: str) -> None:
+        """Tell connected phones something changed on the desktop (coalesced, no-op while off).
+
+        Drops the cached snapshot so the next read sees the change."""
+        if kind == "plan_changed":
+            self._snap = None
+        if not self.is_running:
+            return
+        now = time.monotonic()
+        if now - self._last_event.get(kind, 0.0) < EVENT_COALESCE_S:
+            return
+        self._last_event[kind] = now
+        self.events.publish(kind)
 
     # -- lifecycle -----------------------------------------------------------------------
     def maybe_start(self) -> None:
@@ -116,11 +172,11 @@ class FieldRemoteHost(QObject):
         try:
             material = tls.load_or_create(self._tls_dir(), [bind], force=force_new_certificate)
             state = ServerState(token=settings.field_remote_token, records_enabled=records)
-            from open_garden_planner.field_remote.routes import records_routes
+            from open_garden_planner.field_remote.routes import read_routes, records_routes
 
-            server = FieldRemoteServer(
-                state, material, bind=bind, port=port, extra_routes=records_routes(self._plan_path)
-            )
+            routes = records_routes(self._plan_path)
+            routes += read_routes(self, self._plan_path, self.events)
+            server = FieldRemoteServer(state, material, bind=bind, port=port, extra_routes=routes)
             server.start()
         except PortInUseError:
             self._fail(bind, port, records, self.tr("Port {port} is already in use").format(port=port))
@@ -150,6 +206,7 @@ class FieldRemoteHost(QObject):
         if self._state is not None:
             self._state.records_enabled = bool(enabled)
             self._publish(RUNNING)
+            self.events.publish("settings_changed", {"records_enabled": bool(enabled)})
 
     def rotate_token(self) -> None:
         """New token: the old one stops working on the next request; phones must pair again."""

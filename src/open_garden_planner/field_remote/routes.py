@@ -12,10 +12,12 @@ bodies that never echo input, paths or the token.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import logging
+import time
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Annotated, Any, Literal
+from typing import TYPE_CHECKING, Annotated, Any, Literal, Protocol
 
 from pydantic import (
     BaseModel,
@@ -27,7 +29,8 @@ from pydantic import (
     ValidationError,
 )
 
-from open_garden_planner.field_remote import limits, server
+from open_garden_planner.field_remote import limits, projection, server
+from open_garden_planner.field_remote.events import EventHub
 from open_garden_planner.services import field_records as fr
 
 if TYPE_CHECKING:
@@ -341,4 +344,223 @@ def records_routes(plan_path: PlanPath) -> list[BaseRoute]:
     ]
 
 
-__all__ = ["RecordIn", "RecordPatch", "records_routes"]
+# -- read API (WP-C): state, scene, basemap, species, stream, position ---------------------------
+
+#: Seconds one /api/stream connection lives; the phone reconnects with ``since`` (bounded).
+STREAM_LIFETIME_S = 60.0
+STREAM_POLL_S = 0.5
+STREAM_HEARTBEAT_S = 15.0
+MAX_STREAMS = 2
+
+
+class PlanSource(Protocol):
+    """What the read routes need of the desktop. Implemented by ``FieldRemoteHost``.
+
+    ``snapshot`` returns a plain ``snapshot_dict`` of the open plan, fetched on the Qt thread
+    through the main-thread bridge (it may block, so routes call it from the thread pool).
+    It raises ``TimeoutError`` or ``RuntimeError`` when the desktop cannot answer.
+    ``on_position`` receives each accepted telemetry dict and may be called from any thread.
+    """
+
+    def snapshot(self) -> dict[str, Any]: ...
+
+    def plan_name(self) -> str | None: ...
+
+    def on_position(self, telemetry: dict[str, Any]) -> None: ...
+
+
+class PositionIn(_Strict):
+    """One position report (design 1.6). ``vio``/``imu`` are accepted for later packages and unused."""
+
+    t: Annotated[Number, Field(ge=0)]
+    lat: Annotated[Number, Field(ge=-90, le=90)]
+    lon: Annotated[Number, Field(ge=-180, le=180)]
+    accuracy_m: Annotated[Number, Field(ge=0, le=100_000)]
+    alt: Number | None = None
+    heading_deg: Annotated[Number, Field(ge=0, le=360)] | None = None
+    speed_mps: Annotated[Number, Field(ge=0, le=500)] | None = None
+    fix_quality: Literal["none", "gps", "dgps", "rtk_float", "rtk_fixed"] | None = None
+    hdop: Annotated[Number, Field(ge=0, le=1000)] | None = None
+    sigma_m: Annotated[Number, Field(gt=0, le=100_000)] | None = None
+    source: Literal["browser", "nmea_usb", "nmea_ble", "native_fused"] = "browser"
+    vio: dict[str, Any] | None = None
+    imu: dict[str, Any] | None = None
+
+
+class PositionBatchIn(_Strict):
+    positions: Annotated[list[PositionIn], Field(min_length=1, max_length=projection.MAX_BATCH)]
+
+
+def _cached(request: Request, body: dict[str, Any], etag: str) -> Response:
+    """The JSON *body* with its ETag, or a 304 when the phone already has it."""
+    from starlette.responses import Response as RawResponse
+
+    if projection.etag_matches(request.headers.get("if-none-match"), etag):
+        return RawResponse(status_code=304, headers={"ETag": etag})
+    response = _json(body)
+    response.headers["ETag"] = etag
+    return response
+
+
+def _projection_error(error: projection.ProjectionError) -> Response:
+    return _error(error.status, error.code, error.detail)
+
+
+def _ndjson(payload: dict[str, Any]) -> bytes:
+    import json
+
+    return (json.dumps(payload, separators=(",", ":")) + "\n").encode("utf-8")
+
+
+def _fix_from(p: PositionIn) -> projection.Fix:
+    def opt(value: Any) -> float | None:
+        return None if value is None else float(value)
+
+    return projection.Fix(
+        t=float(p.t), lat=float(p.lat), lon=float(p.lon), accuracy_m=float(p.accuracy_m), alt=opt(p.alt),
+        heading_deg=opt(p.heading_deg), speed_mps=opt(p.speed_mps), fix_quality=p.fix_quality,
+        hdop=opt(p.hdop), sigma_m=opt(p.sigma_m), source=p.source,
+    )
+
+
+def read_routes(source: PlanSource, plan_path: PlanPath, hub: EventHub | None = None) -> list[BaseRoute]:
+    """The read and position routes. Nothing here mutates the plan or the sidecar."""
+    from starlette.concurrency import run_in_threadpool
+    from starlette.responses import Response as RawResponse
+    from starlette.responses import StreamingResponse
+    from starlette.routing import Route
+
+    events = hub if hub is not None else EventHub()
+    basemap_cache: dict[str, projection.Basemap] = {}
+
+    async def snapshot() -> tuple[dict[str, Any] | None, Response | None]:
+        try:
+            return await run_in_threadpool(source.snapshot), None
+        except (TimeoutError, RuntimeError):
+            return None, _error(503, "plan_unavailable", "The computer is busy; try again.")
+
+    async def state(request: Request) -> Response:
+        snap, failure = await snapshot()
+        if snap is None:
+            return failure or _error(503, "plan_unavailable")
+        body, etag = projection.plan_state(
+            snap,
+            plan_name=source.plan_name(),
+            saved=bool(plan_path()),
+            records_enabled=request.app.state.field_remote.records_enabled,
+        )
+        # server_time changes every second, so the ETag (which excludes it) drives the 304.
+        return _cached(request, body, etag)
+
+    async def scene(request: Request) -> Response:
+        try:
+            bbox = projection.parse_bbox(request.query_params.get("bbox"))
+            layers = projection.parse_layers(request.query_params.get("layers"))
+        except projection.ProjectionError as error:
+            return _projection_error(error)
+        snap, failure = await snapshot()
+        if snap is None:
+            return failure or _error(503, "plan_unavailable")
+        body, etag = await run_in_threadpool(lambda: projection.project_scene(snap, bbox=bbox, layers=layers))
+        return _cached(request, body, etag)
+
+    async def basemap(request: Request) -> Response:
+        snap, failure = await snapshot()
+        if snap is None:
+            return failure or _error(503, "plan_unavailable")
+        key = projection.basemap_key(snap)
+        if key is None:
+            return _error(404, "no_basemap", "The plan has no background image.")
+        cached = basemap_cache.get(key)
+        if cached is None:
+            try:
+                cached = await run_in_threadpool(projection.project_basemap, snap)
+            except projection.ProjectionError as error:
+                return _projection_error(error)
+            basemap_cache.clear()  # one background at a time
+            basemap_cache[key] = cached
+        rect = ",".join(str(cached.rect[k]) for k in ("x_cm", "y_cm", "width_cm", "height_cm"))
+        headers = {"ETag": cached.etag, "X-Basemap-Rect": rect}
+        if projection.etag_matches(request.headers.get("if-none-match"), cached.etag):
+            return RawResponse(status_code=304, headers=headers)
+        if request.query_params.get("meta") == "1":  # the rectangle only, no pixels
+            meta = {
+                "rect": cached.rect,
+                "width_px": cached.width_px,
+                "height_px": cached.height_px,
+                "source_px": list(cached.source_px),
+                "units": "cm",
+                "y_up": True,
+            }
+            return _json(meta)
+        return RawResponse(cached.jpeg, media_type="image/jpeg", headers=headers)
+
+    async def species(request: Request) -> Response:
+        rows = await run_in_threadpool(projection.species_rows, request.query_params.get("q"))
+        return _json({"species": rows, "count": len(rows), "limit": projection.SPECIES_LIMIT})
+
+    async def position(request: Request) -> Response:
+        if request.headers.get("content-type", "").split(";")[0].strip().lower() != "application/json":
+            return _error(415, "unsupported_media_type", "Send application/json.")
+        raw = await request.body()
+        try:
+            stripped = raw.lstrip()
+            if stripped.startswith(b"["):  # a bare array is a batch
+                items = PositionBatchIn.model_validate_json(b'{"positions":' + stripped + b"}").positions
+            elif stripped.startswith(b"{") and b'"positions"' in stripped[:64]:
+                items = PositionBatchIn.model_validate_json(raw).positions
+            else:
+                items = [PositionIn.model_validate_json(raw)]
+        except ValidationError as error:
+            return _error(422, "invalid_position", _problems(error))
+        fixes = [_fix_from(p) for p in items]
+        # A position needs no plan to be echoed: if the desktop cannot answer, x/y stay null.
+        snap, _failure = await snapshot()
+        geo = projection.georef_of(snap) if snap is not None else None
+        try:
+            result = projection.telemetry(fixes, geo)
+        except projection.ProjectionError as error:
+            return _projection_error(error)
+        source.on_position(result)
+        return _json({"accepted": len(fixes), "telemetry": result})
+
+    async def stream(request: Request) -> Response:
+        try:
+            since = int(request.query_params.get("since", "-1"))
+        except ValueError:
+            return _error(400, "bad_request", "since must be an integer.")
+        if not events.open_stream(MAX_STREAMS):
+            return _error(429, "stream_busy", "Too many streams are open; close one first.")
+        hello_records = request.app.state.field_remote.records_enabled
+
+        async def generate():  # type: ignore[no-untyped-def]
+            try:
+                seen = events.last_seq if since < 0 else since
+                yield _ndjson({"type": "hello", "seq": seen, "records_enabled": hello_records})
+                started = last_sent = time.monotonic()
+                while time.monotonic() - started < STREAM_LIFETIME_S:
+                    for event in events.since(seen):
+                        seen = event["seq"]
+                        yield _ndjson(event)
+                        last_sent = time.monotonic()
+                    if time.monotonic() - last_sent >= STREAM_HEARTBEAT_S:
+                        yield _ndjson({"type": "ping", "t": round(time.time(), 1)})
+                        last_sent = time.monotonic()
+                    await asyncio.sleep(STREAM_POLL_S)
+                yield _ndjson({"type": "end", "seq": seen, "reconnect": True})
+            finally:
+                events.close_stream()
+
+        return StreamingResponse(generate(), media_type="application/x-ndjson", headers={"X-Accel-Buffering": "no"})
+
+    return [
+        Route("/api/state", state, methods=["GET"]),
+        Route("/api/scene", scene, methods=["GET"]),
+        Route("/api/basemap", basemap, methods=["GET"]),
+        Route("/api/species", species, methods=["GET"]),
+        Route("/api/position", position, methods=["POST"]),
+        Route("/api/stream", stream, methods=["GET"]),
+    ]
+
+
+__all__ = ["EventHub", "PlanSource", "RecordIn", "RecordPatch", "read_routes", "records_routes"]
