@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from typing import Any, Protocol
 
-from PyQt6.QtCore import QT_TR_NOOP, QCoreApplication, QPointF, QRectF, Qt, pyqtSignal
+from PyQt6.QtCore import QPointF, QRectF, Qt, pyqtSignal
 from PyQt6.QtGui import QBrush, QColor, QPainter, QPen, QPixmap
 from PyQt6.QtWidgets import (
     QComboBox,
@@ -40,23 +40,8 @@ from open_garden_planner.ui.theme import set_text_role
 _ID_ROLE = Qt.ItemDataRole.UserRole
 _GROUP_ROLE = Qt.ItemDataRole.UserRole + 1
 
-#: Display names, marked for extraction and translated when shown.
-_KIND_NAMES = {
-    "plant": QT_TR_NOOP("Plant"),
-    "irrigation_path": QT_TR_NOOP("Irrigation line"),
-    "reference_point": QT_TR_NOOP("Reference point"),
-    "note": QT_TR_NOOP("Note"),
-    "measurement": QT_TR_NOOP("Measurement"),
-    "placement_request": QT_TR_NOOP("Placement request"),
-}
-_STATUS_NAMES = {
-    "pending": QT_TR_NOOP("Pending"),
-    "approved": QT_TR_NOOP("Approved"),
-    "rejected": QT_TR_NOOP("Rejected"),
-    "placed": QT_TR_NOOP("Placed"),
-    "superseded": QT_TR_NOOP("Superseded"),
-}
-_CTX = "FieldRecordsPanel"
+_KINDS = ("plant", "irrigation_path", "reference_point", "note", "measurement", "placement_request")
+_STATUSES = ("pending", "approved", "rejected", "placed", "superseded")
 
 
 class Approver(Protocol):
@@ -211,13 +196,13 @@ class FieldRecordsPanel(QWidget):
         filters.addWidget(QLabel(self.tr("Kind:")))
         self.kind_filter = QComboBox()
         self.kind_filter.addItem(self.tr("All kinds"), "")
-        for kind in sorted(_KIND_NAMES):
+        for kind in _KINDS:
             self.kind_filter.addItem(self.kind_name(kind), kind)
         filters.addWidget(self.kind_filter)
         filters.addWidget(QLabel(self.tr("Status:")))
         self.status_filter = QComboBox()
         self.status_filter.addItem(self.tr("All statuses"), "")
-        for status in _STATUS_NAMES:
+        for status in _STATUSES:
             self.status_filter.addItem(self.status_name(status), status)
         self.status_filter.setCurrentIndex(self.status_filter.findData("pending"))
         filters.addWidget(self.status_filter)
@@ -249,10 +234,25 @@ class FieldRecordsPanel(QWidget):
     # -- text -------------------------------------------------------------------------------
 
     def kind_name(self, kind: str) -> str:
-        return QCoreApplication.translate(_CTX, _KIND_NAMES.get(kind, kind))
+        names = {
+            "plant": self.tr("Plant"),
+            "irrigation_path": self.tr("Irrigation line"),
+            "reference_point": self.tr("Reference point"),
+            "note": self.tr("Note"),
+            "measurement": self.tr("Measurement"),
+            "placement_request": self.tr("Placement request"),
+        }
+        return names.get(kind, kind)
 
     def status_name(self, status: str) -> str:
-        return QCoreApplication.translate(_CTX, _STATUS_NAMES.get(status, status))
+        names = {
+            "pending": self.tr("Pending"),
+            "approved": self.tr("Approved"),
+            "rejected": self.tr("Rejected"),
+            "placed": self.tr("Placed"),
+            "superseded": self.tr("Superseded"),
+        }
+        return names.get(status, status)
 
     def describe(self, rec: fr.FieldRecord) -> str:
         lines = [f"{self.kind_name(rec.kind)} - {self.status_name(rec.status)}"]
