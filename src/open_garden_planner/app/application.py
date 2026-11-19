@@ -265,6 +265,13 @@ class GardenPlannerApp(QMainWindow):
         # Auto-start shortly after launch (when enabled in Preferences).
         QTimer.singleShot(1500, self._maybe_start_agent_api)
 
+        # Field Remote (ADR-081): off by default, a separate listener from the Agent API.
+        from open_garden_planner.app.field_remote_host import FieldRemoteHost
+
+        self.field_remote_host = FieldRemoteHost(self)
+        self.field_remote_host.status_changed.connect(self._on_field_remote_status)
+        QTimer.singleShot(1500, self.field_remote_host.maybe_start)
+
     def _agent_snapshot(self) -> dict[str, Any]:
         return self._agent_host._agent_snapshot()
 
@@ -4044,6 +4051,7 @@ class GardenPlannerApp(QMainWindow):
         if self._confirm_discard_changes():
             # Stop the Agent API server first, while the scene/bridge still exist.
             self._stop_agent_api()
+            self.field_remote_host.stop()
             # Join a running heatmap worker — a QThread destroyed while
             # running aborts the process (the #230 class).
             self._live_sun_map.shutdown()
@@ -5654,9 +5662,21 @@ class GardenPlannerApp(QMainWindow):
                 settings.agent_api_token if settings.agent_api_writes_enabled else "",
             )
 
+        def _field_remote_state() -> tuple[bool, str, int]:
+            return (
+                settings.field_remote_enabled,
+                settings.field_remote_bind,
+                settings.field_remote_port,
+            )
+
         before = _agent_api_state()
+        remote_before = _field_remote_state()
         dialog = PreferencesDialog(self)
         if dialog.exec():
+            # The phone-save toggle applies live; enable, address and port need a restart.
+            self.field_remote_host.set_records_enabled(settings.field_remote_records)
+            if _field_remote_state() != remote_before:
+                self.field_remote_host.restart()
             self._apply_unit_setting()
             self._update_satellite_menu_state()
             self._workspace.apply_look_settings()  # 3D quality, reduced motion (L1.4), sky (L7)
@@ -5668,6 +5688,16 @@ class GardenPlannerApp(QMainWindow):
                 self._stop_agent_api()
                 if after[0]:
                     self._start_agent_api()
+
+    def _on_field_remote_status(self, status: Any) -> None:
+        """Say in the status bar when Field Remote starts, stops or fails."""
+        if status.state == "running":
+            text = self.tr("Field Remote running at {url}").format(url=status.base_url)
+        elif status.state == "error":
+            text = self.tr("Field Remote: {reason}").format(reason=status.message)
+        else:
+            return
+        self.statusBar().showMessage(text, 8000)
 
     def _on_insert_guild(self) -> None:
         from open_garden_planner.ui.dialogs.insert_guild_dialog import InsertGuildDialog

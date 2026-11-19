@@ -69,6 +69,19 @@ local address - with the access token, if AI editing is on - into that assistant
 configuration file; those entries stay when you uninstall Open Garden Planner. You can turn
 the Agent API off in the preferences.
 
+## Field Remote (phone)
+
+*Field Remote* is **off by default**. When you turn it on in the preferences, the app starts a
+second local web server (HTTPS, port 8766 unless you change it) so a phone can open a page
+from this computer. It is separate from the Agent API, uses its own access token, and listens
+only on the one address you choose: `127.0.0.1` (this computer only) unless you select a
+local-network or Tailscale address. Nothing goes to the developer or to any provider. Anyone
+who holds the pairing link while the server runs on a network address can read your plan, so
+use a network you trust and rotate the token if the link leaks. The phone can save field
+records (notes, photos, positions) only if you also turn on
+*Allow phone to submit field records*; it never edits the plan, and you or an AI assistant approve records later. The app
+makes its own certificate and keeps the key in your user profile.
+
 ## Questions and changes
 
 Ask in the project's issue tracker: <https://github.com/cofade/open-garden-planner/issues>.
