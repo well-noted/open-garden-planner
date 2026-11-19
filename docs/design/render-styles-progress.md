@@ -24,6 +24,14 @@ Branch `claude/render-styles-wp3-310d4a` (renamed on request if the name matters
   `paint_style_paper` (no-op until WP6), `THUMBNAIL_STYLE` + `render_thumbnail_region`;
   PNG/SVG/PDF/print/Agent call sites go through `styled_scene` (a test pins every site).
 
+- WP2: `ui/canvas/style/base.py` (`StylePainter`, `STYLE_PAINTERS`, `style_of`,
+  `styled_bounding_rect`, `pen_for_painter`) and `state.py` (`StyleState`, LRU of 2). The scene
+  builds state on a style switch, a band change (`CanvasView._apply_transform` ->
+  `set_style_band`), a coalesced deferred rebuild after a paint revision bump and an export
+  prewarm (`style_band_for_render`); a paint only reads it. `fill_paint` and
+  `PathStylePaint.paint(render_style=)` ask `STYLE_PAINTERS`. A switch or band change calls
+  `update()` on every item (a device-cached item kept the previous style's picture).
+
 ## Not done
 - No painters (WP4-6), UI (WP7), agent (WP11), NprStyle production code (WP9).
 - No new user-visible strings, so no translation changes needed yet.
@@ -43,4 +51,9 @@ Branch `claude/render-styles-wp3-310d4a` (renamed on request if the name matters
   (`THUMBNAIL_STYLE`) and a helper (`render_thumbnail_region`) for the first caller.
 - `CanvasScene.drawBackground` is unchanged in WP1/WP2 (it paints the canvas colour); the
   style paper reaches it with the first painter (WP4/WP6). Exports fill `style_background`.
+- `pen_for_painter` takes an explicit `dpi` for exports (default 96 x devicePixelRatio);
+  nothing passes it yet (WP7 wires the export dialog's dpi).
+- The bounding pad helper (`styled_bounding_rect`) is not yet applied in the item classes'
+  `boundingRect` overrides: with no painter registered the pad is 0, so adopting it now is
+  dead code; each shape class adopts it with its first painter (WP4/WP6).
 - A print dialog follows the canvas style (no per-dialog override until WP7).

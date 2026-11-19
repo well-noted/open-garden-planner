@@ -35,6 +35,7 @@ from open_garden_planner.core.object_types import (
     get_style,
 )
 from open_garden_planner.core.string_lights import Layout
+from open_garden_planner.ui.canvas.style.base import style_of
 
 from .garden_item import GardenItemMixin, is_interactive_paint
 from .path_style_paint import (
@@ -351,7 +352,7 @@ class PolylineItem(PolylineVertexEditMixin, RotationHandleMixin, GardenItemMixin
                     fill_transform=getattr(self, "fill_transform", None),
                     level_tiles=True,
                 )
-            path_paint.paint(painter, style)
+            path_paint.paint(painter, style, style_of(self))
             self._paint_selection(painter, option)
         else:
             super().paint(painter, option, widget)

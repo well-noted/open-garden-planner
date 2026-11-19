@@ -176,6 +176,7 @@ from open_garden_planner.ui.canvas.items.resize_handle import (
     RotationHandle,
     VertexHandle,
 )
+from open_garden_planner.ui.canvas.style.geometry import band_for_scale
 from open_garden_planner.ui.canvas.sun_legend import (
     SunLegendKey,
     legend_font,
@@ -849,8 +850,18 @@ class CanvasView(QGraphicsView):
         # Translate to put origin at bottom-left after flip
         transform.translate(0, -self._canvas_scene.height_cm)
         self.setTransform(transform)
+        self._sync_style_band()
         self._refresh_dense_vertex_overlays()
         self._refresh_edit_handles()
+
+    def _sync_style_band(self) -> None:
+        """Tell the scene which LOD band the view now paints at, so a render
+        style's state for that band is built before the paint, not in it."""
+        scene = getattr(self, "_canvas_scene", None)
+        if scene is None:
+            return
+        px_per_cm = self._zoom_factor * self.devicePixelRatioF()
+        scene.set_style_band(band_for_scale(px_per_cm))
 
     def _refresh_edit_handles(self) -> None:
         """Refresh screen-sized editing affordances after selection or zoom (#840)."""

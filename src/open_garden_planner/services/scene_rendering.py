@@ -96,10 +96,12 @@ def styled_scene(
     previous = scene.render_style  # type: ignore[attr-defined]
     setter(style)
     try:
-        prewarm = getattr(scene, "prewarm_render_style", None)
-        if prewarm is not None and px_per_cm is not None:
-            prewarm(px_per_cm)
-        yield
+        band_ctx = getattr(scene, "style_band_for_render", None)
+        if band_ctx is not None and px_per_cm is not None:
+            with band_ctx(px_per_cm):
+                yield
+        else:
+            yield
     finally:
         setter(previous)
 

@@ -10032,3 +10032,34 @@ any machine: `tests/integration/test_sun_overlay_cache.py`,
 `tests/integration/test_sprite_cache_teardown.py`, `TestPanIsCheap` and
 `TestALargeViewportKeepsItsSprites` in `tests/integration/test_canvas_sharpness.py`
 and `TestViewportChangesDoNotRender` in `tests/unit/test_minimap_widget.py`.
+
+## 8.38 Deterministic stylisation (render styles, Package 4)
+
+The render style (`illustrated`, `cad`, `line_and_wash`) is a **view preference**,
+never plan data: `CanvasScene.set_render_style` moves the paint revision and
+repaints, and touches no `plan_changed`, no undo stack, no modified flag and no
+.ogp byte (pinned by `tests/integration/test_render_style_seam.py`).
+
+- **One path.** Every output (canvas, PNG, SVG, PDF, print, the Agent API picture)
+  paints through each item's own `paint()`, reading the style from the scene.
+  Exports wrap their `scene.render` in `scene_rendering.styled_scene`; a test
+  fails on any `scene.render` call site in `services/` or the print dialog that
+  does not. A thumbnail uses `render_thumbnail_region` (always illustrated).
+- **Seeds, not randomness.** Wobble and scatter are pure functions of a
+  `zlib.crc32` seed of item id, role and `GEOM_VERSION`; `hash()`, `random` and
+  time are forbidden in `ui/canvas/style/` (an AST test).
+- **LOD band.** Derived geometry is quantised to the zoom octave
+  `floor(log2(device px per cm))`: identical inside a band, so zooming and
+  panning do not shimmer. The view's `_apply_transform` reports the band to the
+  scene.
+- **Scene-wide state follows the paint revision** (§8.9, §8.37). `StyleState`
+  is keyed `(style, paint_revision, band)`, kept in an LRU of two (screen and an
+  export), and built by the scene's own triggers: a style switch, a band change,
+  a deferred coalesced rebuild after a revision bump, an export's prewarm. A
+  paint only reads it (`CanvasScene.style_state`); on a miss it paints the base
+  geometry and a rebuild is scheduled. It is never built inside `paint()`.
+- **Pad and cache.** A style's ink may reach beyond an item's rect: an item that
+  adopts `styled_bounding_rect` re-announces its geometry from
+  `style_geometry_changed()`. A style switch or band change also calls
+  `update()` on every item: a device-cached item would otherwise keep the picture
+  of the previous style.

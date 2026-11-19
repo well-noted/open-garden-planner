@@ -9,11 +9,16 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+from PyQt6.QtCore import QPointF
+from PyQt6.QtGui import QColor, QImage, QPainter
+
 from open_garden_planner.core.commands import CommandManager, CreateItemCommand
 from open_garden_planner.core.project import ProjectManager
 from open_garden_planner.core.render_style import RenderStyle
 from open_garden_planner.services.export_service import ExportService
 from open_garden_planner.ui.canvas.canvas_scene import CanvasScene
+from open_garden_planner.ui.canvas.canvas_view import CanvasView
 from open_garden_planner.ui.canvas.items import RectangleItem
 
 
@@ -75,3 +80,96 @@ def test_export_style_override_does_not_change_the_canvas_style(
     assert scene.render_style is RenderStyle.LINE_AND_WASH
     assert (tmp_path / "cad.png").stat().st_size > 0
     assert (tmp_path / "cad.svg").stat().st_size > 0
+
+
+class _Painter:
+    """A style painter that claims every shape and path it is asked about."""
+
+    def __init__(self) -> None:
+        self.shapes = 0
+        self.paths = 0
+        self.builds: list[int] = []
+
+    def paint_shape(self, item, painter, option) -> bool:
+        self.shapes += 1
+        painter.fillRect(item.rect(), QColor("black"))
+        return True
+
+    def paint_path(self, path_paint, painter, style) -> bool:
+        self.paths += 1
+        return True
+
+    def paint_canopy(self, item, painter, spec) -> bool:
+        return False
+
+    def paint_label_decor(self, item, painter) -> None:
+        return None
+
+    def bounding_pad_cm(self, item, band) -> float:
+        return 0.0
+
+    def build_state(self, scene, band) -> dict:
+        self.builds.append(band)
+        return {}
+
+
+def _paint_view(view: CanvasView) -> QImage:
+    image = QImage(200, 160, QImage.Format.Format_ARGB32)
+    image.fill(QColor("white"))
+    painter = QPainter(image)
+    try:
+        view.scene().render(painter)
+    finally:
+        painter.end()
+    return image
+
+
+def test_style_painter_is_asked_by_shapes_and_paths(
+    qtbot: object, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from open_garden_planner.core.object_types import ObjectType, PathFenceStyle
+    from open_garden_planner.ui.canvas.items import PolylineItem
+    from open_garden_planner.ui.canvas.style import base
+
+    fake = _Painter()
+    monkeypatch.setitem(base.STYLE_PAINTERS, RenderStyle.CAD, fake)
+    scene = CanvasScene(width_cm=400, height_cm=300)
+    scene.addItem(RectangleItem(50, 50, 100, 80))
+    scene.addItem(PolylineItem(
+        [QPointF(20, 200), QPointF(300, 200)],
+        object_type=ObjectType.PATH, path_fence_style=PathFenceStyle.PAVED_PATH,
+    ))
+    view = CanvasView(scene)
+    qtbot.addWidget(view)  # type: ignore[attr-defined]
+    view.resize(420, 320)
+
+    _paint_view(view)
+    assert fake.shapes == 0 and fake.paths == 0  # illustrated: the painter is not asked
+
+    scene.set_render_style(RenderStyle.CAD)
+    _paint_view(view)
+    assert fake.shapes >= 1 and fake.paths >= 1
+
+
+def test_zoom_into_a_new_band_builds_its_state_before_the_paint(
+    qtbot: object, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from open_garden_planner.ui.canvas.style import base
+
+    fake = _Painter()
+    monkeypatch.setitem(base.STYLE_PAINTERS, RenderStyle.CAD, fake)
+    scene = CanvasScene(width_cm=400, height_cm=300)
+    view = CanvasView(scene)
+    qtbot.addWidget(view)  # type: ignore[attr-defined]
+    scene.set_render_style(RenderStyle.CAD)
+    band = scene.style_band
+    builds = len(fake.builds)
+
+    view.set_zoom(view.zoom_factor * 1.2)  # inside the band
+    if scene.style_band == band:
+        assert len(fake.builds) == builds
+    view.set_zoom(view.zoom_factor * 8)  # three octaves up
+    assert scene.style_band > band
+    assert fake.builds[-1] == scene.style_band
+    state = scene.style_state()
+    assert state is not None and state.band == scene.style_band

@@ -32,24 +32,11 @@ from PyQt6.QtWidgets import (
 )
 
 from open_garden_planner.core.fill_patterns import brush_for_painter
-from open_garden_planner.core.render_style import RenderStyle, normalise_render_style
+from open_garden_planner.core.render_style import RenderStyle
+from open_garden_planner.ui.canvas.style.base import painter_for, style_of
 
 #: A full ellipse in Qt's sixteenths of a degree.
 _FULL_TURN = 360 * 16
-
-#: A render style's shape painter: draws the item and returns True, or returns
-#: False for a shape it does not style (the illustrated code then paints).
-#: Empty until the CAD / Line & Wash painters (Package 4, WP4/WP6) register.
-ShapePainter = Callable[[Any, QPainter, QStyleOptionGraphicsItem], bool]
-STYLE_SHAPE_PAINTERS: dict[RenderStyle, ShapePainter] = {}
-
-
-def style_of(item: Any) -> RenderStyle:
-    """The render style ``item``'s scene is painted in (illustrated when the
-    scene has none, e.g. an item outside a ``GardenScene``)."""
-    scene = item.scene()
-    return normalise_render_style(getattr(scene, "render_style", None))
-
 
 def paint_shape(
     item: Any,
@@ -62,8 +49,9 @@ def paint_shape(
     ``paint``) does, with the fill tile at ``painter``'s resolution."""
     style = style_of(item)
     if style is not RenderStyle.ILLUSTRATED:
-        styled = STYLE_SHAPE_PAINTERS.get(style)
-        if styled is not None and styled(item, painter, option):
+        styled = painter_for(style)
+        # a style painter draws the shape or returns False (the code below paints)
+        if styled is not None and styled.paint_shape(item, painter, option):
             if option is not None and option.state & QStyle.StateFlag.State_Selected:
                 _highlight_selected(item, painter, option)
             return
@@ -125,4 +113,4 @@ def _highlight_selected(
     painter.drawRect(frame)
 
 
-__all__ = ["STYLE_SHAPE_PAINTERS", "paint_shape", "style_of"]
+__all__ = ["paint_shape", "style_of"]

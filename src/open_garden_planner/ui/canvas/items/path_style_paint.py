@@ -74,6 +74,8 @@ from open_garden_planner.core.fill_patterns import (
     create_pattern_brush,
 )
 from open_garden_planner.core.object_types import PathFenceStyle
+from open_garden_planner.core.render_style import RenderStyle
+from open_garden_planner.ui.canvas.style.base import painter_for
 
 #: A gravel path's edging: at most this wide (cm), at most this share of the path's
 #: width, in the line's colour times this — the 3D edging's (``core/scene3d/builders/
@@ -264,11 +266,23 @@ class PathStylePaint:
     def path(self) -> QPainterPath:
         return self._path
 
-    def paint(self, painter: QPainter, style: PathFenceStyle) -> bool:
+    def paint(
+        self,
+        painter: QPainter,
+        style: PathFenceStyle,
+        render_style: RenderStyle = RenderStyle.ILLUSTRATED,
+    ) -> bool:
         """Paint the polyline in ``style``. False — and nothing painted — for
         ``PathFenceStyle.NONE`` and for a style without a painter of its own: the
         caller then strokes the plain path. (A caller that paints often asks
-        ``STYLES_PAINTED`` first and builds no object for a plain line.)"""
+        ``STYLES_PAINTED`` first and builds no object for a plain line.)
+
+        ``render_style`` is the drawing style of the scene (not the path's
+        material ``style``): a non-illustrated style's painter gets the first
+        go and, when it draws the path, this returns True."""
+        styled = painter_for(render_style)
+        if styled is not None and styled.paint_path(self, painter, style):
+            return True
         style_painter = _STYLE_PAINTERS.get(style)
         if style_painter is None:
             return False
