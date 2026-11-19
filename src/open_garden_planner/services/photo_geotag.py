@@ -34,7 +34,7 @@ from open_garden_planner.core.georef import GeoReference, GeorefError
 #: Largest photo this module will open, bytes (a phone JPEG is 2-8 MB).
 MAX_PHOTO_BYTES = 25 * 1024 * 1024
 #: Extensions accepted for a path source.
-PHOTO_EXTENSIONS = frozenset({".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif", ".tif", ".tiff"})
+PHOTO_EXTENSIONS = frozenset({".jpg", ".jpeg", ".png", ".webp", ".tif", ".tiff"})
 
 #: Horizontal FOV used when the photo says nothing about its lens (about a 28 mm
 #: equivalent landscape frame). An estimate, reported as such.
@@ -73,7 +73,7 @@ class PhotoGeotag:
     focal_length_mm: float | None = None
     focal_length_35mm: float | None = None
     taken_at: str | None = None  # ISO "YYYY-MM-DDTHH:MM:SS", camera local time
-    width_px: int | None = None
+    width_px: int | None = None  # as DISPLAYED (EXIF Orientation applied)
     height_px: int | None = None
     warnings: list[str] = field(default_factory=list)
 
@@ -103,6 +103,30 @@ class PhotoGeotag:
 # --------------------------------------------------------------------------
 
 
+def _safe_local_path(path: str) -> Path:
+    """*path* resolved, refused when it names a network share or a device.
+
+    ``\\\\host\\share`` would make the app open an SMB connection (leaking the
+    user's NTLM hash to a hostile host); ``\\\\?\\`` and ``\\\\.\\`` reach devices.
+    Checked before AND after ``resolve()`` (a mapped path can resolve to a UNC one).
+    """
+    if "\x00" in path:
+        raise PhotoGeotagError("the path is invalid")
+
+    def bad(text: str) -> bool:
+        return text.startswith(("\\\\", "//"))
+
+    if bad(path):
+        raise PhotoGeotagError("network and device paths are not accepted; use a local file")
+    try:
+        resolved = Path(path).resolve()
+    except (OSError, RuntimeError, ValueError) as error:
+        raise PhotoGeotagError("the path is invalid") from error
+    if bad(str(resolved)):
+        raise PhotoGeotagError("network and device paths are not accepted; use a local file")
+    return resolved
+
+
 def photo_bytes_from_source(path: str | None = None, data_base64: str | None = None) -> bytes:
     """The raw bytes of a photo given as a file path OR base64 (exactly one)."""
     if (path is None) == (data_base64 is None):
@@ -120,9 +144,9 @@ def photo_bytes_from_source(path: str | None = None, data_base64: str | None = N
             raise PhotoGeotagError("data_base64 is not valid base64") from error
     else:
         assert path is not None
-        p = Path(path)
+        p = _safe_local_path(path)
         if p.suffix.lower() not in PHOTO_EXTENSIONS:
-            raise PhotoGeotagError("the path must point to an image file (jpg, png, webp, heic, tiff)")
+            raise PhotoGeotagError("the path must point to an image file (jpg, png, webp, tiff)")
         try:
             size = p.stat().st_size
             if not p.is_file():
@@ -217,6 +241,8 @@ def parse_photo_exif(raw: bytes) -> PhotoGeotag:
             result.width_px, result.height_px = img.size
             try:
                 exif = img.getexif()
+                if exif.get(0x0112) in (5, 6, 7, 8):  # rotated 90/270: displayed w/h swap
+                    result.width_px, result.height_px = img.size[1], img.size[0]
             except Exception as error:  # corrupt EXIF block
                 result.warnings.append(f"the EXIF block is unreadable ({type(error).__name__})")
                 return result
@@ -310,22 +336,39 @@ def parse_photo(path: str | None = None, data_base64: str | None = None) -> Phot
 # --------------------------------------------------------------------------
 
 
+#: Diagonal of a full-frame 35 mm sensor, mm: FocalLengthIn35mmFilm is diagonal-based.
+_FULL_FRAME_DIAGONAL_MM = 43.27
+
+
+def _sensor_width_mm(tag: PhotoGeotag) -> float:
+    """35 mm-equivalent width of the DISPLAYED frame: 36 mm landscape 3:2, 24 mm portrait."""
+    if tag.width_px and tag.height_px:
+        return _FULL_FRAME_DIAGONAL_MM * tag.width_px / math.hypot(tag.width_px, tag.height_px)
+    return _FULL_FRAME_WIDTH_MM
+
+
 def estimate_hfov_deg(tag: PhotoGeotag) -> tuple[float, str]:
     """``(horizontal FOV in degrees, source)``; the source states how good it is.
 
     ``"exif_35mm"`` (from FocalLengthIn35mmFilm), ``"exif_focal_length_assumed_sensor"``
     (real focal length with an assumed phone crop factor) or ``"default_estimate"``.
-    All are estimates: the frame orientation (portrait vs landscape) is unknown.
+    All are estimates. The frame's displayed shape (EXIF Orientation applied) sets
+    the sensor width, so a portrait photo gets a narrower view than a landscape one;
+    with no pixel size a 3:2 landscape frame is assumed.
     """
+    width = _sensor_width_mm(tag)
     if tag.focal_length_35mm:
-        return _hfov(tag.focal_length_35mm), "exif_35mm"
+        return _hfov(tag.focal_length_35mm, width), "exif_35mm"
     if tag.focal_length_mm:
-        return _hfov(tag.focal_length_mm * ASSUMED_CROP_FACTOR), "exif_focal_length_assumed_sensor"
+        return (
+            _hfov(tag.focal_length_mm * ASSUMED_CROP_FACTOR, width),
+            "exif_focal_length_assumed_sensor",
+        )
     return DEFAULT_HFOV_DEG, "default_estimate"
 
 
-def _hfov(focal_35mm: float) -> float:
-    return math.degrees(2.0 * math.atan(_FULL_FRAME_WIDTH_MM / (2.0 * focal_35mm)))
+def _hfov(focal_35mm: float, width_mm: float = _FULL_FRAME_WIDTH_MM) -> float:
+    return math.degrees(2.0 * math.atan(width_mm / (2.0 * focal_35mm)))
 
 
 def canvas_direction(true_bearing_deg: float, north_angle_deg: float) -> tuple[float, float]:

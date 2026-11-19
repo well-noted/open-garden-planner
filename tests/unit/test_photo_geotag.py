@@ -226,3 +226,35 @@ class TestProjection:
         tag = pg.PhotoGeotag(lat=48.0, lon=11.0)
         out = pg.project_to_plan(tag, GeoReference(48.0, 11.0))
         assert "camera_x_cm" in out and "sightline" not in out
+
+
+class TestPathSafetyAndOrientation:
+    @pytest.mark.parametrize(
+        "bad",
+        [r"\\host\share\a.jpg", "//host/share/a.jpg", r"\\?\C:\a.jpg", r"\\.\PhysicalDrive0\a.jpg"],
+    )
+    def test_network_and_device_paths_refused(self, bad) -> None:
+        with pytest.raises(pg.PhotoGeotagError, match="network and device"):
+            pg.photo_bytes_from_source(path=bad)
+
+    def test_heic_is_not_advertised_or_accepted(self, tmp_path) -> None:
+        assert ".heic" not in pg.PHOTO_EXTENSIONS and ".heif" not in pg.PHOTO_EXTENSIONS
+        p = tmp_path / "a.heic"
+        p.write_bytes(b"x")
+        with pytest.raises(pg.PhotoGeotagError, match="image file"):
+            pg.photo_bytes_from_source(path=str(p))
+
+    def test_portrait_frame_has_a_narrower_view_than_landscape(self) -> None:
+        land, _ = pg.estimate_hfov_deg(pg.PhotoGeotag(focal_length_35mm=26.0, width_px=4000, height_px=3000))
+        port, _ = pg.estimate_hfov_deg(pg.PhotoGeotag(focal_length_35mm=26.0, width_px=3000, height_px=4000))
+        assert port < land - 10
+        # 3:2 landscape with no pixel size keeps the classic 36 mm width.
+        assert pg.estimate_hfov_deg(pg.PhotoGeotag(focal_length_35mm=26.0))[0] == pytest.approx(
+            math.degrees(2 * math.atan(36 / 52))
+        )
+
+    def test_exif_orientation_swaps_displayed_size(self) -> None:
+        tag = pg.parse_photo_exif(_jpeg(FULL_GPS, None, {0x0112: 6}))
+        assert (tag.width_px, tag.height_px) == (6, 8)
+        tag = pg.parse_photo_exif(_jpeg(FULL_GPS, None, {0x0112: 1}))
+        assert (tag.width_px, tag.height_px) == (8, 6)

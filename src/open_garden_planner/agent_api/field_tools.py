@@ -98,7 +98,9 @@ def list_records(
     if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= MAX_LIST:
         raise ValueError(f"limit must be an integer between 1 and {MAX_LIST}")
     loaded = fr.load_records(plan_path)
-    recs = sorted(loaded.records, key=lambda r: r.timestamp, reverse=True)
+    # EXIF capture times carry no zone, ingest stamps are UTC 'Z': compare the first 19
+    # characters (naive times are read as UTC) so mixed records sort consistently.
+    recs = sorted(loaded.records, key=lambda r: r.timestamp[:19], reverse=True)
     if only_unplaced:
         recs = [r for r in recs if not r.placed_object_id]
     return {
@@ -133,6 +135,11 @@ def ingest(
     saved (the sidecar needs a path) BEFORE touching anything.
     """
     fr.sidecar_paths(plan_path)  # unsaved plan -> refuse early
+    if magnetic_declination_deg is not None and not _finite_in(magnetic_declination_deg, -90, 90):
+        raise ValueError("magnetic_declination_deg must be between -90 and 90")
+    for label, value in (("accuracy_m", accuracy_m), ("bearing_deg", bearing_deg)):
+        if value is not None and not _finite_in(value, 0.0, 100000.0 if label == "accuracy_m" else 360.0):
+            raise ValueError(f"{label} is out of range")
     raw = pg.photo_bytes_from_source(path=path, data_base64=data_base64)
     tag = pg.parse_photo_exif(raw)
     warnings = list(tag.warnings)

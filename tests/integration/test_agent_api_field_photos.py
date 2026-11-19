@@ -297,3 +297,78 @@ class TestPlace:
         app.canvas_scene.active_layer.locked = True
         (r,) = _call(app, qtbot, [("place_geotagged_feature", {"species": "Tomato", "lat": 48.0, "lon": 11.0})])
         assert r[0] is True and "locked" in r[2] and _undo_depth(app) == 0
+
+
+class TestReviewFixes:
+    def test_extract_by_path_needs_the_token_but_base64_does_not(self, app, qtbot, tmp_path):
+        _georeference(app)
+        p = tmp_path / "p.jpg"
+        p.write_bytes(base64.b64decode(_photo_b64()))
+        (denied,) = _call(app, qtbot, [("extract_photo_geotag", {"path": str(p)})], token=None)
+        assert denied[0] is True
+        (ok,) = _call(app, qtbot, [("extract_photo_geotag", {"path": str(p)})])
+        assert ok[0] is False and ok[1]["lat"] is not None
+        (unc,) = _call(app, qtbot, [("extract_photo_geotag", {"path": r"\\host\share\a.jpg"})])
+        assert unc[0] is True and "network" in unc[2]
+
+    def test_out_of_range_declination_refused_before_anything_is_written(self, app, qtbot):
+        _georeference(app)
+        a, b = _call(
+            app, qtbot,
+            [
+                ("ingest_site_photo", {"data_base64": _photo_b64(), "magnetic_declination_deg": 500}),
+                ("extract_photo_geotag", {"data_base64": _photo_b64(), "magnetic_declination_deg": 500}),
+            ],
+        )
+        assert a[0] is True and b[0] is True
+        assert not _plan_path(app).with_name("garden.fieldnotes.json").exists()
+        assert not _plan_path(app).with_name("garden.fieldnotes").exists()
+
+    def test_failed_record_link_is_a_warning_not_a_failure(self, app, qtbot, monkeypatch):
+        _georeference(app)
+        (r,) = _call(app, qtbot, [("ingest_site_photo", {"data_base64": _photo_b64(), "plant_name": "Tomato"})])
+        rid = r[1]["record"]["id"]
+
+        def deny(*_a, **_k):
+            raise PermissionError(13, "Permission denied")
+
+        monkeypatch.setattr(fr, "update_record", deny)
+        before = _undo_depth(app)
+        (p,) = _call(app, qtbot, [("place_geotagged_feature", {"record_id": rid})])
+        assert p[0] is False, p[2]
+        assert _undo_depth(app) == before + 1
+        assert any("could not be linked" in w for w in p[1]["warnings"])
+
+    def test_ingest_io_runs_off_the_gui_thread(self, app, qtbot, monkeypatch):
+        seen: list[bool] = []
+        real = fr.add_record
+
+        def spy(*a, **k):
+            seen.append(threading.current_thread() is threading.main_thread())
+            return real(*a, **k)
+
+        monkeypatch.setattr(fr, "add_record", spy)
+        (r,) = _call(app, qtbot, [("ingest_site_photo", {"data_base64": _photo_b64()})])
+        assert r[0] is False and seen == [False]
+
+    def test_unreadable_sidecar_is_not_overwritten(self, app, qtbot, monkeypatch):
+        side = _plan_path(app).with_name("garden.fieldnotes.json")
+        side.write_text('{"version": 1, "records": [{"id": "a"}]}', "utf-8")
+        real = type(side).read_bytes
+
+        def deny(self):
+            if self.name == "garden.fieldnotes.json":
+                raise PermissionError(13, "Permission denied")
+            return real(self)
+
+        monkeypatch.setattr(type(side), "read_bytes", deny)
+        (r,) = _call(app, qtbot, [("ingest_site_photo", {"data_base64": _photo_b64()})])
+        monkeypatch.undo()
+        assert r[0] is True
+        assert json_ids(side) == ["a"]
+
+
+def json_ids(path: Path) -> list[str]:
+    import json
+
+    return [r["id"] for r in json.loads(path.read_text("utf-8"))["records"]]

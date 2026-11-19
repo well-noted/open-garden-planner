@@ -3783,41 +3783,35 @@ class AgentHost:
 
     def _agent_list_field_records(self, **kwargs: Any) -> dict[str, Any]:
         """Read the field-record sidecar ON the Qt main thread (open read)."""
-        host = self._host
+        from open_garden_planner.agent_api import field_tools
 
-        def run() -> dict[str, Any]:
-            from open_garden_planner.agent_api import field_tools
-
-            plan_path, geo = self._agent_field_context()
-            if plan_path is None:
-                return {
-                    "total": 0,
-                    "returned": 0,
-                    "records": [],
-                    "warnings": [
-                        "The plan has not been saved yet; field records live beside the saved file."
-                    ],
-                }
-            return field_tools.list_records(plan_path, geo, **kwargs)
-
-        return host._agent_bridge.run_on_main(run)
+        # Qt state on the main thread; the file reads stay on the calling worker thread.
+        plan_path, geo = self._host._agent_bridge.run_on_main(self._agent_field_context)
+        if plan_path is None:
+            return {
+                "total": 0,
+                "returned": 0,
+                "records": [],
+                "warnings": ["The plan has not been saved yet; field records live beside the saved file."],
+            }
+        return field_tools.list_records(plan_path, geo, **kwargs)
 
     def _agent_ingest_site_photo(self, **kwargs: Any) -> dict[str, Any]:
         """Store a photo + record in the sidecar ON the Qt main thread (token-gated write)."""
-        host = self._host
+        from open_garden_planner.agent_api import field_tools
+        from open_garden_planner.services.field_records import FieldRecordError
+        from open_garden_planner.services.photo_geotag import PhotoGeotagError
 
-        def run() -> dict[str, Any]:
-            from open_garden_planner.agent_api import field_tools
-            from open_garden_planner.services.field_records import FieldRecordError
-            from open_garden_planner.services.photo_geotag import PhotoGeotagError
-
-            plan_path, geo = self._agent_field_context()
-            try:
-                return field_tools.ingest(plan_path, geo, **kwargs)
-            except (FieldRecordError, PhotoGeotagError) as error:
-                raise ValueError(str(error)) from error
-
-        return host._agent_bridge.run_on_main(run)
+        # Only the plan path and georeference are read on the main thread. The up-to-25 MB
+        # base64 decode, the Pillow open and the fsync run here, on the server's worker
+        # thread, so a large photo never freezes the GUI.
+        plan_path, geo = self._host._agent_bridge.run_on_main(self._agent_field_context)
+        try:
+            return field_tools.ingest(plan_path, geo, **kwargs)
+        except (FieldRecordError, PhotoGeotagError) as error:
+            raise ValueError(str(error)) from error
+        except OSError as error:
+            raise ValueError(f"cannot store the photo: {error.strerror or error}") from error
 
     def _agent_place_geotagged_feature(self, **kwargs: Any) -> dict[str, Any]:
         """Place a plant from a field record ON the Qt main thread (token-gated write)."""
@@ -3922,7 +3916,8 @@ class AgentHost:
         if record is not None:
             try:
                 fr.update_record(plan_path, record.id, placed_object_id=created["item_id"])
-            except fr.FieldRecordError as error:
+            except (fr.FieldRecordError, OSError) as error:
+                # The plant is already on the undo stack: report a warning, never a failure.
                 warnings.append(f"The plant was placed but the record could not be linked: {error}")
         return {
             "item_id": created["item_id"],

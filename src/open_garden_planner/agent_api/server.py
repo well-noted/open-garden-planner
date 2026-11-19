@@ -487,7 +487,9 @@ def build_server(
         gives a partial result with ``warnings``, never an error. Changes nothing.
 
         Args:
-            path: Local image file (jpg, png, webp, heic, tiff), at most 25 MB.
+            path: Local image file (jpg, png, webp, tiff), at most 25 MB. Needs the
+                Agent API token (and AI editing on); network paths are refused.
+                data_base64 needs neither.
             data_base64: The image bytes, base64 (a data: URL is accepted).
             magnetic_declination_deg: Degrees EAST of true north; converts a
                 magnetic compass bearing to true. Without it a magnetic bearing
@@ -495,6 +497,9 @@ def build_server(
             distance_m: When given, also return the point this far (metres)
                 along the sightline as target_x_cm/target_y_cm.
         """
+        if path is not None:
+            # A local file path lets the caller probe the user's disk: same gate as a write.
+            _require_write_auth(write_token)
         snapshot = await anyio.to_thread.run_sync(providers.snapshot)
         geo = georef_tools.georef_from_snapshot(snapshot)
         result = await anyio.to_thread.run_sync(
@@ -1838,7 +1843,7 @@ def build_server(
             ``<plan>.fieldnotes/photos/``), not the plan: it is not an undo step
             and the plan is untouched. The plan must have been saved once. The
             photo is validated as a real image (jpg, png, webp, tiff; at most
-            25 MB) and stored under a generated name. GPS position and compass
+            25 MB; a ``path`` must be a local file, not a network share) and stored under a generated name. GPS position and compass
             bearing are taken from the photo's EXIF unless you pass them.
 
             This is a write tool and requires the Agent API token.
@@ -1907,8 +1912,9 @@ def build_server(
 
             Refused, leaving plan and undo stack untouched: plan not
             georeferenced, no position, no species match, the record is already
-            placed (unless allow_duplicate), the active layer is locked, or the
-            point is off the canvas.
+            placed (unless allow_duplicate) or the active layer is locked. A
+            point just off the canvas is moved inside it (like create_object) and
+            ``warnings`` says so.
 
             This is a write tool and requires the Agent API token.
 
