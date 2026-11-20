@@ -22,6 +22,8 @@ from scripts.translation_gate_translations import TRANSLATIONS as _GATE_TRANSLAT
 from scripts.translations_examples import DE as _EXAMPLES_TRANSLATIONS
 from scripts.translations_exports import DE as _EXPORTS_TRANSLATIONS
 from scripts.translations_f4 import DE as _F4_TRANSLATIONS
+from scripts.translations_field_records import DE as _FIELD_RECORDS_TRANSLATIONS
+from scripts.translations_field_remote import DE as _FIELD_REMOTE_TRANSLATIONS
 from scripts.translations_l2 import DE as _L2_TRANSLATIONS
 from scripts.translations_l4 import DE as _L4_TRANSLATIONS
 from scripts.translations_l5 import DE as _L5_TRANSLATIONS
@@ -3575,6 +3577,14 @@ for _ctx, _strings in _L7_TRANSLATIONS.items():
 
 # ── Arizona lower-desert species names ──
 for _ctx, _strings in _SPECIES_AZ_TRANSLATIONS.items():
+    TRANSLATIONS.setdefault(_ctx, {}).update(_strings)
+
+# ── Field Remote preferences, pairing dialog and status (ADR-081) ──
+for _ctx, _strings in _FIELD_REMOTE_TRANSLATIONS.items():
+    TRANSLATIONS.setdefault(_ctx, {}).update(_strings)
+
+# ── Field records review panel (WP-R) ──
+for _ctx, _strings in _FIELD_RECORDS_TRANSLATIONS.items():
     TRANSLATIONS.setdefault(_ctx, {}).update(_strings)
 
 # ── Export fixes: PDF report pages and legend (#787, #788, #789) ──

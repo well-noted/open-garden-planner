@@ -266,6 +266,55 @@ def georeference_from_plan(value: object) -> PlanGeoreference | None:
         return None
 
 
+def georeference_from_legacy_block(raw: object, north_angle_deg: float = 0.0) -> dict[str, Any] | None:
+    """The ``metadata.georeference`` dict for a plan saved with the older top-level ``georef`` key.
+
+    That key came from a parallel georeference that never shipped (``origin_lat``/``origin_lon``
+    at scene (0, 0), ``scale_meters_per_unit``, optional ``reference_points`` with ``x``/``y`` in
+    scene units; its rotation was the plan's north, stored separately). Read once on load so a
+    plan georeferenced by that build keeps its place; the next save writes the record's key
+    only. Surveyed reference points are fitted back in (as a calibration locked to the plan's
+    north) so they land where they were measured. ``None`` for anything unusable.
+    """
+    if not isinstance(raw, Mapping):
+        return None
+    try:
+        scale = _require_finite(raw.get("scale_meters_per_unit", 0.01), "scale_meters_per_unit")
+        if scale <= 0.0:
+            return None
+        per_meter = 1.0 / scale
+        base = PlanGeoreference(
+            origin_lat=_require_finite(raw.get("origin_lat"), "origin_lat"),
+            origin_lon=_require_finite(raw.get("origin_lon"), "origin_lon"),
+            cm_per_meter_x=per_meter,
+            cm_per_meter_y=per_meter,
+        )
+        points: list[ControlPoint] = []
+        raw_points = raw.get("reference_points")
+        if isinstance(raw_points, (list, tuple)):
+            for item in raw_points[:MAX_CONTROL_POINTS]:
+                try:
+                    points.append(
+                        ControlPoint(
+                            lat=_require_finite(item.get("lat"), "lat"),
+                            lon=_require_finite(item.get("lon"), "lon"),
+                            x_cm=_require_finite(item.get("x"), "x"),
+                            y_cm=_require_finite(item.get("y"), "y"),
+                            label=item.get("name") if isinstance(item.get("name"), str) else "",
+                        )
+                    )
+                except (GeoreferenceError, AttributeError):
+                    continue
+        if points:
+            try:
+                return fit_affine_calibration(base, points, north_angle_deg).georeference.to_dict()
+            except GeoreferenceError:
+                pass  # degenerate points: keep the anchor alone
+        return base.to_dict()
+    except GeoreferenceError:
+        return None
+
+
 def _base_gps_to_scene(
     lat: float, lon: float, georef: PlanGeoreference, north_angle_deg: float
 ) -> tuple[float, float]:
@@ -513,6 +562,7 @@ __all__ = [
     "PlanGeoreference",
     "fit_affine_calibration",
     "georeference_bounds",
+    "georeference_from_legacy_block",
     "georeference_from_plan",
     "georeference_from_satellite",
     "gps_to_scene",

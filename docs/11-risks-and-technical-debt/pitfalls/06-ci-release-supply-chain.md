@@ -282,3 +282,14 @@ The developer machine never showed it: Git Bash spawned `powershell` with the ma
 and the first `msix-store-verify.yml` run died in the signing step before any of the install
 measurement it exists for. The pinned test asserts that the child environment holds no
 `PSModulePath` under any casing and that a sentinel variable survives the scrub.
+
+### PF-CI-22
+
+- **Rule:** PyInstaller resolves `_ssl.pyd`'s `libssl-3-x64.dll` / `libcrypto-3-x64.dll` through `PATH` before the interpreter's own `DLLs` folder. A build started from Git Bash (Git's `mingw64/bin` is on `PATH`) bundled Git's OpenSSL 3.2.3 next to a `_ssl.pyd` built for 3.5.x, and `import ssl` in the frozen exe died with Windows fatal exception `0xc0000139` (entry point not found). That also killed the embedded Agent API server and the frozen-exe self-test (the gate commands are in `ogp-change-control` §2.8) while the 8-second smoke stayed green. `installer/ogp.spec` now bundles the pair that sits beside `_ssl.pyd`, whatever `PATH` holds. Diagnose with the version of `dist/OpenGardenPlanner/_internal/libssl-3-x64.dll` against `ssl.OPENSSL_VERSION` of the build interpreter.
+- **Pinned by:** `tests/unit/test_packaging_metadata.py::test_the_spec_bundles_the_openssl_pair_beside_the_ssl_extension`
+- **Source:** WP-0 of `docs/design/field-remote-design.md`, 2026-11-19 (Git 3.2.3 and Poppler 3.5.2 copies on the dev box `PATH`; swapping in the interpreter's 3.5.9 pair took `--selftest` from exit 1 to exit 0)
+- **Status:** standing
+- **Legacy:** none (new entry)
+
+Nothing was wrong at run time: the bundle itself was mismatched. Bisecting `PATH` at run time
+is the wrong experiment, because a frozen exe loads its own `_internal` copy first.

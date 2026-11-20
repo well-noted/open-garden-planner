@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<title>Field Remote</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<header id="bar">
+  <span id="plan-name">Field Remote</span>
+  <span id="conn" class="badge">connecting</span>
+</header>
+<div id="banner" class="banner" hidden></div>
+<div id="outbox" class="banner" hidden><span id="outbox-text"></span>
+  <button id="btn-outbox-retry" type="button">Send now</button>
+  <button id="btn-outbox-discard" type="button" hidden>Dismiss refused</button></div>
+<main>
+  <section id="screen-map" class="screen">
+    <canvas id="map"></canvas>
+    <div id="fixbadge" class="overlay badge">no position</div>
+    <div class="overlay side">
+      <button id="btn-follow" class="round" type="button" aria-label="Follow my position">&#9678;</button>
+      <button id="btn-locate" class="round" type="button" aria-label="Start position">GPS</button>
+      <button id="btn-layers" class="round" type="button" aria-label="Layers">&#9776;</button>
+    </div>
+    <div id="layers" class="sheet" hidden></div>
+    <div id="target-bar" class="overlay bottom" hidden>
+      <div class="row">
+        <button class="nudge" data-dx="-1" data-dy="0" type="button" aria-label="West">&#8592;</button>
+        <button class="nudge" data-dx="0" data-dy="1" type="button" aria-label="North">&#8593;</button>
+        <button class="nudge" data-dx="0" data-dy="-1" type="button" aria-label="South">&#8595;</button>
+        <button class="nudge" data-dx="1" data-dy="0" type="button" aria-label="East">&#8594;</button>
+        <button id="nudge-step" type="button">5 cm</button>
+      </div>
+      <div class="row">
+        <button id="btn-here" type="button">Use my position</button>
+        <button id="btn-mark" class="primary" type="button">Mark here</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="screen-add" class="screen scroll" hidden>
+    <h2 id="add-title">New record</h2>
+    <div class="row">
+      <button id="kind-plant" class="seg on" type="button">Plant</button>
+      <button id="kind-note" class="seg" type="button">Note</button>
+      <button id="kind-wish" class="seg" type="button">Client wish</button>
+    </div>
+    <p id="add-where" class="hint">No spot chosen yet. Tap the map, then "Mark here".</p>
+    <label class="field">Photo
+      <input id="photo" type="file" accept="image/*" capture="environment">
+    </label>
+    <label class="field" id="f-name">Name
+      <input id="plant-name" type="text" maxlength="120" autocomplete="off">
+    </label>
+    <label class="field" id="f-species">Species
+      <input id="species-q" type="search" maxlength="80" autocomplete="off" placeholder="Search, or leave empty">
+    </label>
+    <ul id="species-list" class="list"></ul>
+    <label class="field" id="f-age">Age
+      <input id="age" type="text" maxlength="120" autocomplete="off">
+    </label>
+    <label class="field" id="f-what" hidden>What does the client want?
+      <textarea id="what" rows="3" maxlength="2000"></textarea>
+    </label>
+    <label class="field" id="f-requester" hidden>Requested by
+      <input id="requester" type="text" maxlength="120" autocomplete="off">
+    </label>
+    <label class="field">Notes
+      <textarea id="notes" rows="3" maxlength="2000"></textarea>
+    </label>
+    <p id="wish-hint" class="hint" hidden>If the exact spot matters, use Survey-In, plan-lock or a tape measurement and save from that spot.</p>
+    <ul id="candidates" class="list"></ul>
+    <div class="row">
+      <button id="btn-candidate" type="button" hidden>Add another candidate</button>
+      <button id="btn-save" class="primary" type="button">Save as pending</button>
+    </div>
+  </section>
+
+  <section id="screen-measure" class="screen scroll" hidden>
+    <h2>Measure from points</h2>
+    <p class="hint">Pick 2 or 3 known spots on the map, then enter the tape distance in metres from each to the new spot.</p>
+    <button id="btn-pick" type="button">Pick a known spot on the map</button>
+    <ul id="anchors" class="list"></ul>
+    <div class="row" id="side-row" hidden>
+      <button id="side-a" class="seg on" type="button">Side A</button>
+      <button id="side-b" class="seg" type="button">Side B</button>
+    </div>
+    <div id="measure-result" class="card" hidden></div>
+    <div class="row">
+      <button id="btn-measure-use" class="primary" type="button" hidden>Use this spot</button>
+    </div>
+  </section>
+
+  <section id="screen-field" class="screen scroll" hidden>
+    <h2>Position tools</h2>
+    <div class="card">
+      <h3>Survey-In and calibration</h3>
+      <p class="hint">Stand still on a spot whose place on the plan you know. Tap that spot on the map first.</p>
+      <button id="btn-survey" type="button">Survey here (5 s)</button>
+      <div id="survey-result" class="card" hidden></div>
+      <div id="survey-actions" hidden>
+        <p id="target-state" class="hint"></p>
+        <div class="row">
+          <button id="btn-fix-today" type="button">Fix my position today</button>
+          <button id="btn-add-point" type="button">Add as calibration point</button>
+        </div>
+        <label class="field">Name for a corner recording
+          <input id="corner-name" type="text" maxlength="120" autocomplete="off" placeholder="NE corner">
+        </label>
+        <button id="btn-corner" type="button">Send corner recording for review</button>
+      </div>
+      <ul id="cal-points" class="list"></ul>
+      <button id="btn-fit" type="button" hidden>Fit calibration</button>
+      <div id="cal-result" class="card" hidden></div>
+      <button id="btn-uncal" type="button" hidden>Remove correction</button>
+    </div>
+    <div class="card" id="xr-card" hidden>
+      <h3>AR lock (experimental)</h3>
+      <p class="hint">Uses the camera to track movement; no images leave the phone. Tap a known spot on the map, start AR, stand on that spot and lock A; walk to a second known spot, tap it on the map and lock B.</p>
+      <button id="xr-start" type="button">Start AR lock</button>
+      <p id="xr-status" class="hint"></p>
+    </div>
+    <div class="card" id="th-card">
+      <h3>Tree height</h3>
+      <p class="hint">Stand a few metres from the tree. Tap once on the foot of the trunk, then once aiming at the top of the crown. Keep the phone upright and steady.</p>
+      <label class="field check"><input id="th-use-tape" type="checkbox"> Use tape distance</label>
+      <label class="field">Distance to the trunk (metres) <input id="th-dist" type="text" inputmode="decimal" maxlength="6" autocomplete="off"></label>
+      <button id="th-ar" type="button" hidden>Start AR tree height</button>
+      <div id="th-tilt-box">
+        <p class="hint">Without AR, use the phone's tilt (coarser; needs the tape distance).</p>
+        <button id="th-tilt-base" type="button">Tilt reading: aimed at the trunk base</button>
+        <button id="th-tilt-crown" type="button">Tilt reading: aimed at the crown top</button>
+      </div>
+      <p id="th-status" class="hint"></p>
+      <div id="th-result" class="card" hidden></div>
+      <div id="th-save-box" hidden>
+        <label class="field">Tree (name or species)
+          <input id="th-name" type="text" maxlength="120" autocomplete="off">
+        </label>
+        <label class="field">Plan object id (optional)
+          <input id="th-link" type="text" maxlength="64" autocomplete="off">
+        </label>
+        <div class="row">
+          <button id="th-retake" type="button">Retake</button>
+          <button id="th-save" class="primary" type="button">Save as pending</button>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Record an irrigation line</h3>
+      <div id="rec-idle">
+        <p class="hint">Walk along the line. Short stops are fine; the computer filters the walk.</p>
+        <button id="btn-rec-start" class="primary" type="button">Start recording</button>
+      </div>
+      <div id="rec-live-box" hidden>
+        <p id="rec-live" class="hint">Recording</p>
+        <label class="field check"><input id="rec-close" type="checkbox"> The line is a closed loop</label>
+        <button id="btn-rec-stop" class="primary" type="button">Stop</button>
+      </div>
+      <div id="rec-done" hidden>
+        <div id="rec-summary" class="card"></div>
+        <label class="field">Name <input id="rec-name" type="text" maxlength="120" autocomplete="off"></label>
+        <label class="field">Pipe diameter (mm) <input id="rec-diameter" type="text" inputmode="decimal" maxlength="8"></label>
+        <label class="field">Flow (litres per hour) <input id="rec-flow" type="text" inputmode="decimal" maxlength="8"></label>
+        <label class="field">Emitter spacing (cm) <input id="rec-spacing" type="text" inputmode="decimal" maxlength="8"></label>
+        <div class="row">
+          <button id="btn-rec-discard" type="button">Discard</button>
+          <button id="btn-rec-save" class="primary" type="button">Save as pending</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="screen-records" class="screen scroll" hidden>
+    <h2>Saved records</h2>
+    <div id="status" class="card"></div>
+    <button id="btn-reload" type="button">Refresh</button>
+    <ul id="records" class="list"></ul>
+  </section>
+</main>
+<div id="xr-overlay" hidden>
+  <div id="xr-banner" class="banner" hidden></div>
+  <div id="xr-cross" data-for="height" hidden></div>
+  <div id="xr-th-panel" data-for="height" hidden>
+    <p id="xr-th-prompt"></p>
+    <div id="xr-th-read"></div>
+    <button id="xr-tap" type="button" disabled>Tap: trunk base</button>
+    <div class="row">
+      <button id="xr-th-retake" type="button">Retake</button>
+      <button id="xr-th-save" class="primary" type="button" disabled>Save</button>
+    </div>
+  </div>
+  <div id="xr-bar" class="row">
+    <button id="xr-a" data-for="lock" type="button" disabled>Lock A</button>
+    <button id="xr-b" data-for="lock" type="button" disabled>Lock B</button>
+    <button id="xr-c" data-for="lock" type="button" disabled>Check C</button>
+    <button id="xr-unlock" data-for="lock" type="button" disabled>Unlock</button>
+    <button id="xr-th" type="button">Tree height</button>
+    <button id="xr-end" type="button">End AR</button>
+  </div>
+</div>
+<div id="toast" class="toast" hidden></div>
+<nav id="tabs">
+  <button data-screen="map" class="tab on" type="button">Map</button>
+  <button data-screen="add" class="tab" type="button">Add</button>
+  <button data-screen="measure" class="tab" type="button">Measure</button>
+  <button data-screen="field" class="tab" type="button">Field</button>
+  <button data-screen="records" class="tab" type="button">Records</button>
+</nav>
+<script type="module" src="/static/app.js"></script>
+</body>
+</html>

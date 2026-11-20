@@ -28,6 +28,8 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
+from open_garden_planner.core.geo_frame import GeoFrame, frame_from_snapshot
+
 Pt = tuple[float, float]
 
 #: Coordinates beyond +-100 km are a mistake or an attack, not a garden.
@@ -40,8 +42,6 @@ CURVE_SEGMENTS = 360
 BEZIER_STEPS = 64
 #: Below this (cm) two shapes are said to touch.
 TOUCH_TOLERANCE_CM = 1e-6
-#: Mean Earth radius (IUGG), metres, as ``core.georef`` uses.
-EARTH_RADIUS_M = 6371008.8
 
 
 # --- validation -------------------------------------------------------------
@@ -514,39 +514,20 @@ def compass_bearing_deg(a: Pt, b: Pt, north_angle_deg: float) -> float | None:
 
 @dataclass(frozen=True)
 class GeoLink:
-    """A plan's georeference: scene origin (0, 0) is at (origin_lat, origin_lon)."""
+    """A plan's georeference of record (``core/georeference.py``) as a GPS -> scene link."""
 
-    origin_lat: float
-    origin_lon: float
-    scale_m_per_unit: float = 0.01
-    north_angle_deg: float = 0.0
+    frame: GeoFrame
 
     @classmethod
     def from_snapshot(cls, snapshot: Mapping[str, Any]) -> GeoLink | None:
-        raw = snapshot.get("georef")
-        if not isinstance(raw, Mapping):
-            return None
-        try:
-            lat, lon = float(raw["origin_lat"]), float(raw["origin_lon"])
-            scale = float(raw.get("scale_meters_per_unit", 0.01))
-            north = float(snapshot.get("north_angle_deg") or 0.0)
-        except (KeyError, TypeError, ValueError):
-            return None
-        if not all(math.isfinite(v) for v in (lat, lon, scale, north)) or scale <= 0.0:
-            return None
-        return cls(lat, lon, scale, north % 360.0)
+        frame = frame_from_snapshot(snapshot)
+        return None if frame is None else cls(frame)
 
     def to_plan(self, lat: float, lon: float) -> Pt:
-        """Scene point of a WGS-84 position (local equirectangular, as ``core.georef``)."""
+        """Scene point (cm) of a WGS-84 position, through the plan's own georeference."""
         if not (-90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0):
             raise ValueError("lat must be within [-90, 90] and lon within [-180, 180]")
-        n = EARTH_RADIUS_M * math.radians(lat - self.origin_lat)
-        dlon = (lon - self.origin_lon + 180.0) % 360.0 - 180.0
-        e = EARTH_RADIUS_M * math.radians(dlon) * math.cos(math.radians(self.origin_lat))
-        a = math.radians(self.north_angle_deg)
-        x_m = e * math.cos(a) + n * math.sin(a)
-        y_m = -e * math.sin(a) + n * math.cos(a)
-        return x_m / self.scale_m_per_unit, y_m / self.scale_m_per_unit
+        return self.frame.gps_to_canvas(lat, lon)
 
 
 def convex_extent(shapes: Sequence[Shape]) -> tuple[float, float, float, float] | None:

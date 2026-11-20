@@ -5,7 +5,7 @@ Agent API thread "did not stop within 5.0s", then an ERROR that it was "STILL RU
 5.0s + 5.0s". Intermittent - it did not happen every time the app closed.
 
 **Wrong theories**. (1) The app wiring missing `MainThreadBridge.abort_pending()` before
-`stop()` - that is exactly what the `server.py:269` `_STOP_TIMEOUT_S` comment says callers must do. Falsified
+`stop()` - that is exactly what the `server.py:284` `_STOP_TIMEOUT_S` comment says callers must do. Falsified
 by reading the code: `application._stop_agent_api` already calls `abort_pending()` first.
 (2) uvicorn's `force_exit` needing to be set - plausible from uvicorn's docs, and the obvious
 first fix. **Measured and falsified**: `force_exit = True` alone left the shutdown at 10.01 s.

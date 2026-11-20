@@ -25,6 +25,7 @@ from open_garden_planner.core.fill_patterns import FillPattern
 from open_garden_planner.core.georeference import (
     GeoreferenceError,
     PlanGeoreference,
+    georeference_from_legacy_block,
     georeference_from_plan,
 )
 from open_garden_planner.core.item_look import (
@@ -244,6 +245,10 @@ class ProjectData:
             georeference=(
                 meta.get("georeference") or None if isinstance(meta := data.get("metadata"), dict)
                 else None
+            )
+            # A plan saved by the older parallel build carries a top-level ``georef`` key.
+            or georeference_from_legacy_block(
+                data.get("georef"), north_angle_from_plan(data.get("north_angle_deg"))
             ),
             task_completions=data.get("task_completions", []),
             seed_inventory=data.get("seed_inventory", []),

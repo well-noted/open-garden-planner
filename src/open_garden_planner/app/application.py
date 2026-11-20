@@ -265,6 +265,37 @@ class GardenPlannerApp(QMainWindow):
         # Auto-start shortly after launch (when enabled in Preferences).
         QTimer.singleShot(1500, self._maybe_start_agent_api)
 
+        # Field Remote (ADR-081): off by default, a separate listener from the Agent API.
+        from open_garden_planner.app.field_remote_host import FieldRemoteHost
+
+        self.field_remote_host = FieldRemoteHost(
+            self,
+            plan_path=self._saved_plan_path,
+            snapshot=self._agent_snapshot,
+            plan_name=self._field_remote_plan_name,
+        )
+        self.field_remote_host.status_changed.connect(self._on_field_remote_status)
+        self.field_remote_host.position_received.connect(self._on_field_remote_position)
+        QTimer.singleShot(1500, self.field_remote_host.maybe_start)
+
+    def _field_remote_plan_name(self) -> str | None:
+        """The open plan's file name for the phone (any thread; a plain attribute read)."""
+        current = self._project_manager.current_file
+        return Path(current).stem if current is not None else None
+
+    def _on_toggle_phone_position(self, checked: bool) -> None:
+        """View > Show Phone Position: hide or show the puck (the scene remembers the choice)."""
+        self.canvas_scene.set_position_puck_enabled(checked)
+
+    def _on_field_remote_position(self, telemetry: Any) -> None:
+        """Show the phone's position as a canvas overlay (not saved, not in undo)."""
+        self.canvas_scene.show_position(telemetry)
+
+    def _saved_plan_path(self) -> str | None:
+        """The open plan's saved path for the Field Remote's record routes (any thread)."""
+        current = self._project_manager.current_file
+        return str(current) if current is not None else None
+
     def _agent_snapshot(self) -> dict[str, Any]:
         return self._agent_host._agent_snapshot()
 
@@ -1262,6 +1293,15 @@ class GardenPlannerApp(QMainWindow):
         self._set_action_icon(north_action, "sun_sim")
         menu.addAction(north_action)
 
+        # Field records review (WP-R): approve what the phone or the agent recorded
+        field_records_action = QAction(self.tr("Field Records..."), self)
+        field_records_action.setStatusTip(
+            self.tr("Review field records and place them on the plan")
+        )
+        field_records_action.triggered.connect(self._on_show_field_records)
+        self._set_action_icon(field_records_action, "journal_pin")
+        menu.addAction(field_records_action)
+
         menu.addSeparator()
 
         # Export submenu
@@ -1818,6 +1858,17 @@ class GardenPlannerApp(QMainWindow):
         overlays_menu.addAction(self._compare_overlay_action)
 
         menu.addSeparator()
+
+        # Field Remote: the phone's position on the canvas (shown only while positions arrive)
+        self._phone_position_action = QAction(self.tr("Show Pho&ne Position"), self)
+        self._phone_position_action.setCheckable(True)
+        self._phone_position_action.setChecked(True)
+        self._phone_position_action.setStatusTip(
+            self.tr("Show the position a paired phone reports (not saved with the plan)")
+        )
+        self._phone_position_action.toggled.connect(self._on_toggle_phone_position)
+        self._set_action_icon(self._phone_position_action, "location")
+        menu.addAction(self._phone_position_action)
 
         # Fullscreen Preview
         self._preview_action = QAction(self.tr("Fullscreen &Preview"), self)
@@ -2455,6 +2506,8 @@ class GardenPlannerApp(QMainWindow):
         # command_executed only fires on execute, so wiring mark_dirty there left
         # undo/redo silently "clean" (issue #209). stack_changed covers all three.
         cmd_mgr.stack_changed.connect(self._project_manager.mark_dirty)
+        # Field Remote: connected phones learn the plan changed (coalesced; no-op while off).
+        cmd_mgr.stack_changed.connect(lambda: self.field_remote_host.notify("plan_changed"))
 
         # Refresh dependent panels after any stack mutation (add/remove/edit/
         # undo/redo). stack_changed fires exactly once per execute/register_applied
@@ -4143,6 +4196,7 @@ class GardenPlannerApp(QMainWindow):
         if self._confirm_discard_changes():
             # Stop the Agent API server first, while the scene/bridge still exist.
             self._stop_agent_api()
+            self.field_remote_host.stop()
             # Join a running heatmap worker — a QThread destroyed while
             # running aborts the process (the #230 class).
             self._live_sun_map.shutdown()
@@ -5763,9 +5817,21 @@ class GardenPlannerApp(QMainWindow):
                 settings.agent_api_token if settings.agent_api_writes_enabled else "",
             )
 
+        def _field_remote_state() -> tuple[bool, str, int]:
+            return (
+                settings.field_remote_enabled,
+                settings.field_remote_bind,
+                settings.field_remote_port,
+            )
+
         before = _agent_api_state()
+        remote_before = _field_remote_state()
         dialog = PreferencesDialog(self)
         if dialog.exec():
+            # The phone-save toggle applies live; enable, address and port need a restart.
+            self.field_remote_host.set_records_enabled(settings.field_remote_records)
+            if _field_remote_state() != remote_before:
+                self.field_remote_host.restart()
             self._apply_unit_setting()
             self._update_satellite_menu_state()
             self._workspace.apply_look_settings()  # 3D quality, reduced motion (L1.4), sky (L7)
@@ -5777,6 +5843,16 @@ class GardenPlannerApp(QMainWindow):
                 self._stop_agent_api()
                 if after[0]:
                     self._start_agent_api()
+
+    def _on_field_remote_status(self, status: Any) -> None:
+        """Say in the status bar when Field Remote starts, stops or fails."""
+        if status.state == "running":
+            text = self.tr("Field Remote running at {url}").format(url=status.base_url)
+        elif status.state == "error":
+            text = self.tr("Field Remote: {reason}").format(reason=status.message)
+        else:
+            return
+        self.statusBar().showMessage(text, 8000)
 
     def _on_insert_guild(self) -> None:
         from open_garden_planner.ui.dialogs.insert_guild_dialog import InsertGuildDialog
@@ -6294,6 +6370,26 @@ class GardenPlannerApp(QMainWindow):
                 )
                 + undo_note
             )
+
+    def _field_record_approver(self) -> Any:
+        """The shared approver behind the review panel and the agent (one code path)."""
+        if getattr(self, "_field_approver", None) is None:
+            from open_garden_planner.app.field_record_approver import FieldRecordApprover
+
+            self._field_approver = FieldRecordApprover(self)
+        return self._field_approver
+
+    def _on_show_field_records(self) -> None:
+        """Open the non-modal Field records review window (WP-R)."""
+        from open_garden_planner.ui.panels.field_records_panel import FieldRecordsDialog
+
+        dialog = getattr(self, "_field_records_dialog", None)
+        if dialog is None:
+            dialog = FieldRecordsDialog(self._field_record_approver(), self)
+            self._field_records_dialog = dialog
+        dialog.show()
+        dialog.raise_()
+        dialog.panel.refresh()
 
     def _bind_satellite_georeference(self, image_item: Any) -> bool:
         """Bind the plan's georeference to a freshly imported satellite picture.

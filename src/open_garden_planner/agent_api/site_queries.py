@@ -67,17 +67,10 @@ def _is_boundary(obj: Mapping[str, Any]) -> bool:
 
 def _boundary_shape(snapshot: dict[str, Any]) -> tuple[dict[str, Any] | None, sm.Shape | None, str]:
     """``(object, shape, origin)`` of the plan's boundary: a named boundary
-    wall/line object first, else the georeference's parcel ring."""
+    wall/line object. (The georeference of record keeps no parcel outline.)"""
     for obj in snapshot.get("objects") or []:
         if _is_boundary(obj):
             return obj, sm.shape_from_object(obj), "object"
-    raw = (snapshot.get("georef") or {}).get("parcel_boundary") if isinstance(
-        snapshot.get("georef"), Mapping) else None
-    link = sm.GeoLink.from_snapshot(snapshot)
-    if raw and link is not None:
-        ring = tuple(link.to_plan(float(p[0]), float(p[1])) for p in raw)
-        if len(ring) >= 3:
-            return None, sm._make_shape("polygon", [sm.Part("ring", ring)], len(ring)), "georef"
     return None, None, "object"
 
 

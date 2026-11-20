@@ -24,6 +24,7 @@ LAYERS = {
     "core": {"core", "models", "config"},
     "services": {"services", "core", "models", "config"},
     "agent_api": {"agent_api", "services", "core", "models", "config"},
+    "field_remote": {"field_remote", "services", "core", "models", "config"},
     "ui": {"ui", "services", "core", "models", "config"},
 }
 # Compatibility paths are part of the same leaf, not an app dependency.

@@ -421,6 +421,14 @@ class AgentProviders:
     render_3d: Callable[..., dict[str, Any]] | None = None
     # The user's current render style id, for ``list_render_styles`` (None: not known).
     render_style: Callable[[], str] | None = None
+    # ADR-080 field photos: a read of the plan's sidecar, a sidecar write and a
+    # placement (one undoable command). ``extract_photo_geotag`` needs no provider.
+    list_field_records: Callable[..., dict[str, Any]] | None = None
+    ingest_site_photo: Callable[..., dict[str, Any]] | None = None
+    place_geotagged_feature: Callable[..., dict[str, Any]] | None = None
+    # WP-R: approve / reject a field record (any kind) through the desktop approver.
+    place_field_record: Callable[..., dict[str, Any]] | None = None
+    reject_field_record: Callable[..., dict[str, Any]] | None = None
     plan_date: Callable[[], str] | None = None
     # Georeference (WGS84 <-> scene cm) and custom plant recipes. Optional so a bundle built
     # without them still serves everything else; a tool whose provider is None says so.

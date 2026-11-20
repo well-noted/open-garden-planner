@@ -109,6 +109,7 @@ class ExportService:
             LockBadgeItem,
             SunBadgeItem,
         )
+        from open_garden_planner.ui.canvas.items.position_puck import PositionPuckItem
         from open_garden_planner.ui.canvas.items.resize_handle import (
             MidpointHandle,
             RectCornerHandle,
@@ -130,6 +131,7 @@ class ExportService:
             LockBadgeItem,
             SunBadgeItem,
             GuildBadgeItem,
+            PositionPuckItem,
         )
         from open_garden_planner.ui.canvas.sun_legend import SunMapLegendItem
 

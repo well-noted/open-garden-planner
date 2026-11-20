@@ -393,7 +393,7 @@
         {
           "path": ".agents/skills/debug-verbose/references/077-case-study-10-second-shutdown-that-only-happened-with-a-client-attached-issue-373-fix.md",
           "sha256": "1d43b45766d4feaf86a6c338b4ae329ee3c677eae5f047d1e96f6d23d0bc8886",
-          "current_sha256": "1d43b45766d4feaf86a6c338b4ae329ee3c677eae5f047d1e96f6d23d0bc8886"
+          "current_sha256": "74cff22a8c2c03c21183706700f05a7e34e8feaa0d91936702134362745e587b"
         },
         {
           "path": ".agents/skills/debug-verbose/references/078-case-study-six-defects-where-a-plausible-value-was-not-the-value-the-engine-means-iss.md",
@@ -1058,7 +1058,7 @@
         {
           "path": ".agents/skills/ogp-architecture-contract/references/003-1-invariants-the-heart-of-this-skill.md",
           "sha256": "e465ebd6f8c9ad9470cff566901ec5795418fac90aeac5373e7d72d6034c8944",
-          "current_sha256": "190201fc0ed1e16f8cf17dcd2cb7ad0cda47c72551f91fa2cac369fb5dbee8a9"
+          "current_sha256": "ac8ad4a17bdafad34078bc596b81e8431bbc9d7a17e1c84c6152b597fcb72089"
         },
         {
           "path": ".agents/skills/ogp-architecture-contract/references/004-2-module-map-and-dependency-rules.md",
@@ -1793,7 +1793,7 @@
         {
           "path": ".claude/skills/debug-verbose/references/077-case-study-10-second-shutdown-that-only-happened-with-a-client-attached-issue-373-fix.md",
           "sha256": "1d43b45766d4feaf86a6c338b4ae329ee3c677eae5f047d1e96f6d23d0bc8886",
-          "current_sha256": "1d43b45766d4feaf86a6c338b4ae329ee3c677eae5f047d1e96f6d23d0bc8886"
+          "current_sha256": "74cff22a8c2c03c21183706700f05a7e34e8feaa0d91936702134362745e587b"
         },
         {
           "path": ".claude/skills/debug-verbose/references/078-case-study-six-defects-where-a-plausible-value-was-not-the-value-the-engine-means-iss.md",
@@ -2458,7 +2458,7 @@
         {
           "path": ".claude/skills/ogp-architecture-contract/references/003-1-invariants-the-heart-of-this-skill.md",
           "sha256": "e465ebd6f8c9ad9470cff566901ec5795418fac90aeac5373e7d72d6034c8944",
-          "current_sha256": "190201fc0ed1e16f8cf17dcd2cb7ad0cda47c72551f91fa2cac369fb5dbee8a9"
+          "current_sha256": "ac8ad4a17bdafad34078bc596b81e8431bbc9d7a17e1c84c6152b597fcb72089"
         },
         {
           "path": ".claude/skills/ogp-architecture-contract/references/004-2-module-map-and-dependency-rules.md",

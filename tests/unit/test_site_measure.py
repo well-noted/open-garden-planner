@@ -10,6 +10,7 @@ import pytest
 from open_garden_planner.agent_api import site_queries as q
 from open_garden_planner.core import object_height as oh
 from open_garden_planner.core import site_measure as sm
+from open_garden_planner.core.georeference import meters_per_degree
 
 
 def _poly(points: list[tuple[float, float]], **extra: Any) -> dict[str, Any]:
@@ -206,7 +207,7 @@ class TestBearing:
 
 
 class TestGeoLink:
-    SNAP = {"georef": {"origin_lat": 33.0, "origin_lon": -111.0, "scale_meters_per_unit": 0.01},
+    SNAP = {"metadata": {"georeference": {"origin_lat": 33.0, "origin_lon": -111.0}},
             "north_angle_deg": 0.0}
 
     def test_north_offset_maps_to_plus_y(self) -> None:
@@ -214,7 +215,7 @@ class TestGeoLink:
         assert link is not None
         x, y = link.to_plan(33.0 + 1e-4, -111.0)
         assert x == pytest.approx(0.0, abs=1e-6)
-        assert y == pytest.approx(math.radians(1e-4) * sm.EARTH_RADIUS_M * 100.0)
+        assert y == pytest.approx(1e-4 * meters_per_degree(33.0)[0] * 100.0)
 
     def test_east_offset_follows_the_plan_north_angle(self) -> None:
         snap = {**self.SNAP, "north_angle_deg": 90.0}
@@ -287,7 +288,7 @@ class TestQueries:
     def test_geographic_point_needs_a_georeference(self) -> None:
         with pytest.raises(ValueError, match="no georeference"):
             q.measure_points(_snapshot(), {"lat": 33.0, "lon": -111.0}, {"x_cm": 0, "y_cm": 0})
-        snap = {**_snapshot(), "georef": {"origin_lat": 33.0, "origin_lon": -111.0}, "north_angle_deg": 0.0}
+        snap = {**_snapshot(), "metadata": {"georeference": {"origin_lat": 33.0, "origin_lon": -111.0}}, "north_angle_deg": 0.0}
         res = q.measure_points(snap, {"lat": 33.0, "lon": -111.0}, {"x_cm": 300, "y_cm": 400})
         assert res.distance_cm == pytest.approx(500.0, abs=1e-6)
 
@@ -297,7 +298,7 @@ class TestQueries:
          {"x_cm": 1}, {"foo": 1}, 5, "missing-id", {"lat": 95.0, "lon": 0.0}],
     )
     def test_untrusted_points_are_refused(self, bad: object) -> None:
-        snap = {**_snapshot(), "georef": {"origin_lat": 33.0, "origin_lon": -111.0}}
+        snap = {**_snapshot(), "metadata": {"georeference": {"origin_lat": 33.0, "origin_lon": -111.0}}}
         with pytest.raises(ValueError):
             q.measure_points(snap, bad, {"x_cm": 0, "y_cm": 0})
 

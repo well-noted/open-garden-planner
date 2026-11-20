@@ -432,7 +432,7 @@ class ObjectHeightSummary(BaseModel):
 class SiteBoundary(BaseModel):
     item_id: str | None = None
     name: str | None = None
-    origin: str = Field(description="'object' (a boundary wall/line) or 'georef' (parcel boundary).")
+    origin: str = Field(description="'object' (a boundary wall/line); a georeference parcel is not stored.")
     area_cm2: float
     area_m2: float
     perimeter_cm: float
@@ -1538,3 +1538,182 @@ class SoilMismatchBedsView(BaseModel):
         description="Per-bed results keyed by bed UUID; each carries its own "
         "coverage, total and mismatches. Sorted by bed UUID.",
     )
+
+
+# --- ADR-079: pure GPS <-> scene conversions ---------------------------------
+
+
+class GeoPointResult(BaseModel):
+    """A converted position: either (lat, lon) or canvas (x, y), per the tool."""
+
+    lat: float | None = Field(default=None, description="Latitude, degrees.")
+    lon: float | None = Field(default=None, description="Longitude, degrees.")
+    x: float | None = Field(default=None, description="Canvas X, scene cm.")
+    y: float | None = Field(default=None, description="Canvas Y, scene cm (Y-up).")
+
+
+# --- ADR-080: field photos and records ---------------------------------------
+
+
+class DirectionVector(BaseModel):
+    """A unit direction on the canvas (Y-up): +dx is east on a north-up plan, +dy plan-up."""
+
+    dx: float
+    dy: float
+
+
+class PhotoGeotagResult(BaseModel):
+    """What a photo's EXIF says, plus the camera and sightline on the plan.
+
+    Every EXIF field may be null (photos from some apps carry no GPS or no
+    compass). ``warnings`` explains each gap. The field of view is always an
+    ESTIMATE (``hfov_is_estimate`` is true); ``hfov_source`` says how rough.
+    """
+
+    lat: float | None = Field(default=None, description="Camera latitude, WGS-84 degrees.")
+    lon: float | None = Field(default=None, description="Camera longitude, WGS-84 degrees.")
+    altitude_m: float | None = None
+    gps_accuracy_m: float | None = Field(
+        default=None, description="Rough accuracy derived from GPS DOP (about 5 m per DOP unit)."
+    )
+    bearing_deg: float | None = Field(
+        default=None, description="Compass direction the camera faced, as the photo stored it."
+    )
+    bearing_reference: Literal["true", "magnetic"] | None = None
+    true_bearing_deg: float | None = Field(
+        default=None,
+        description="The bearing converted to TRUE north (magnetic needs magnetic_declination_deg).",
+    )
+    focal_length_mm: float | None = None
+    focal_length_35mm: float | None = None
+    taken_at: str | None = Field(
+        default=None, description="Camera-local ISO time 'YYYY-MM-DDTHH:MM:SS' (no time zone in EXIF)."
+    )
+    width_px: int | None = None
+    height_px: int | None = None
+    georeferenced: bool = Field(description="False when the plan has no georeference.")
+    hfov_deg: float = Field(description="ESTIMATED horizontal field of view, degrees.")
+    hfov_source: str = Field(
+        description="'exif_35mm', 'exif_focal_length_assumed_sensor' or 'default_estimate'."
+    )
+    hfov_is_estimate: bool = True
+    camera_x_cm: float | None = Field(default=None, description="Camera X, scene cm.")
+    camera_y_cm: float | None = Field(default=None, description="Camera Y, scene cm (Y-up).")
+    sightline: DirectionVector | None = Field(
+        default=None, description="Unit canvas vector the camera faced (honours the plan's north)."
+    )
+    fov_left: DirectionVector | None = Field(default=None, description="Left edge of the view cone.")
+    fov_right: DirectionVector | None = Field(default=None, description="Right edge of the view cone.")
+    target_x_cm: float | None = Field(
+        default=None, description="Point distance_m along the sightline (only when distance_m given)."
+    )
+    target_y_cm: float | None = None
+    warnings: list[str] = Field(default_factory=list)
+
+
+class FieldRecordView(BaseModel):
+    """One field observation from the plan's sidecar file (``<plan>.fieldnotes.json``)."""
+
+    id: str
+    plant_name: str | None = None
+    species_key: str | None = None
+    age: str | None = None
+    notes: str | None = None
+    photo: str | None = Field(default=None, description="Photo path relative to the .fieldnotes folder.")
+    photo_path: str | None = Field(
+        default=None, description="Absolute path of the stored photo; pass it to extract_photo_geotag."
+    )
+    lat: float | None = None
+    lon: float | None = None
+    accuracy_m: float | None = None
+    bearing_deg: float | None = Field(default=None, description="Camera direction, TRUE north.")
+    fix_mode: str | None = Field(
+        default=None, description="'gps', 'exif', 'map_tap', 'manual', 'remote_position' or a Field Remote fix mode."
+    )
+    timestamp: str
+    placed_object_id: str | None = Field(
+        default=None, description="UUID of the plan object this record was placed as, if any."
+    )
+    canvas_x_cm: float | None = Field(
+        default=None, description="The record's position on the canvas (needs a georeference)."
+    )
+    canvas_y_cm: float | None = None
+    kind: str = Field(
+        default="plant",
+        description="plant, irrigation_path, reference_point, note, measurement or placement_request.",
+    )
+    status: str = Field(
+        default="pending", description="pending, approved, rejected, placed or superseded."
+    )
+    geometry: dict[str, Any] | None = Field(
+        default=None, description="A point or polyline captured on the phone (lat/lon plus plan cm)."
+    )
+    group_id: str | None = Field(
+        default=None, description="Placement-request candidates share a group_id."
+    )
+    what: str | None = Field(default=None, description="Free text: what the requester wants here.")
+    source: str | None = None
+
+
+class FieldRecordGroup(BaseModel):
+    """Placement-request candidates sharing a ``group_id``."""
+
+    group_id: str
+    what: str | None = None
+    record_ids: list[str] = Field(description="Every candidate returned, newest first.")
+    open_ids: list[str] = Field(description="Candidates still pending or approved.")
+
+
+class FieldRecordList(BaseModel):
+    """Result of ``list_field_records``."""
+
+    total: int = Field(description="Records stored for the plan.")
+    returned: int
+    records: list[FieldRecordView]
+    groups: list[FieldRecordGroup] = Field(
+        default_factory=list, description="The returned records that share a group_id, grouped."
+    )
+    warnings: list[str] = Field(default_factory=list)
+
+
+class IngestPhotoResult(BaseModel):
+    """Result of ``ingest_site_photo``: the stored record and what the photo said."""
+
+    record: FieldRecordView
+    geotag: PhotoGeotagResult
+    warnings: list[str] = Field(default_factory=list)
+
+
+class PlaceRecordResult(BaseModel):
+    """Result of ``place_field_record`` (ONE undoable step for objects and lines)."""
+
+    record_id: str
+    kind: str
+    item_id: str | None = Field(default=None, description="The created object (none for a reference point).")
+    undo_description: str | None = None
+    superseded: list[str] = Field(default_factory=list, description="Sibling candidates now superseded.")
+    georef_updated: bool = False
+    fit_rms_m: float | None = Field(default=None, description="Fit RMS after a reference point, metres.")
+    warnings: list[str] = Field(default_factory=list)
+
+
+class RejectRecordResult(BaseModel):
+    """Result of ``reject_field_record``."""
+
+    rejected: list[str] = Field(description="Ids that are now rejected.")
+
+
+class PlaceFeatureResult(BaseModel):
+    """Result of ``place_geotagged_feature`` (ONE undoable step)."""
+
+    item_id: str = Field(description="UUID of the plant that was created.")
+    object_type: str
+    species: str = Field(description="Scientific name of the matched species.")
+    x: float = Field(description="Centre X, scene cm.")
+    y: float = Field(description="Centre Y, scene cm (Y-up).")
+    radius_cm: float = Field(description="Mature canopy radius used for the drawn footprint.")
+    true_bearing_deg: float | None = None
+    record_id: str | None = Field(default=None, description="The field record that was linked.")
+    undo_description: str
+    new_parent_bed_id: str | None = None
+    warnings: list[str] = Field(default_factory=list)

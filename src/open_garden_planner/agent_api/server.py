@@ -70,7 +70,7 @@ from mcp.server.fastmcp.utilities.types import Image
 from pydantic import Field, StrictFloat, StrictInt
 
 from open_garden_planner.agent_api import creates as agent_creates
-from open_garden_planner.agent_api import geo_recipes, queries, site_queries
+from open_garden_planner.agent_api import field_tools, geo_recipes, queries, site_queries
 from open_garden_planner.agent_api import prompts as agent_prompts
 from open_garden_planner.agent_api.diagnostics import diagnostics_from_records
 from open_garden_planner.agent_api.geo_recipes import RecipeTarget
@@ -92,10 +92,13 @@ from open_garden_planner.agent_api.schema import (
     CompatibleSet,
     Diagnostic,
     ExportResult,
+    FieldRecordList,
     GeometryResult,
+    GeoPointResult,
     GeoreferenceResult,
     HistoryResult,
     HistoryState,
+    IngestPhotoResult,
     Layer,
     LengthMeasurement,
     ManualTaskResult,
@@ -105,11 +108,15 @@ from open_garden_planner.agent_api.schema import (
     ObjectHeightRow,
     ObjectRef,
     PathMeasurement,
+    PhotoGeotagResult,
+    PlaceFeatureResult,
     PlacementCheck,
+    PlaceRecordResult,
     PlanLifecycleResult,
     PlanSummary,
     PointMeasurement,
     PointToObject,
+    RejectRecordResult,
     Render3DMeta,
     RenderMeta,
     SetObjectHeightResult,
@@ -123,6 +130,7 @@ from open_garden_planner.agent_api.schema import (
     TaskListView,
     WriteResult,
 )
+from open_garden_planner.core.geo_frame import frame_from_snapshot
 from open_garden_planner.core.render_style import (
     RENDER_STYLES,
     parse_render_style,
@@ -434,6 +442,120 @@ def build_server(
         """
         snapshot = await anyio.to_thread.run_sync(providers.snapshot)
         return plan_summary_from_snapshot(snapshot)
+
+    # --- ADR-079: pure GPS <-> scene conversions (derive from the snapshot) ----
+
+    @mcp.tool()
+    async def canvas_to_gps(x: float, y: float) -> GeoPointResult:
+        """Convert a canvas point (scene cm, Y-up) to latitude/longitude.
+
+        Pure conversion; changes nothing. Raises when the plan is not
+        georeferenced (set one with set_georeference or calibrate_georeference,
+        or import a satellite background).
+        """
+        snapshot = await anyio.to_thread.run_sync(providers.snapshot)
+        geo = frame_from_snapshot(snapshot)
+        if geo is None:
+            raise ValueError("The plan is not georeferenced.")
+        lat, lon = geo.canvas_to_gps(x, y)
+        return GeoPointResult(lat=lat, lon=lon)
+
+    @mcp.tool()
+    async def gps_to_canvas(lat: float, lon: float) -> GeoPointResult:
+        """Convert latitude/longitude (WGS-84 degrees) to a canvas point.
+
+        Returns x/y in scene cm (Y-up: a larger y is further plan-up). Pure
+        conversion; changes nothing. Raises when the plan is not georeferenced.
+        """
+        snapshot = await anyio.to_thread.run_sync(providers.snapshot)
+        geo = frame_from_snapshot(snapshot)
+        if geo is None:
+            raise ValueError("The plan is not georeferenced.")
+        x, y = geo.gps_to_canvas(lat, lon)
+        return GeoPointResult(x=x, y=y)
+
+    # --- ADR-080: field photos (reads) -----------------------------------------
+
+    @mcp.tool()
+    async def extract_photo_geotag(
+        path: str | None = None,
+        data_base64: str | None = None,
+        magnetic_declination_deg: float | None = None,
+        distance_m: float | None = None,
+    ) -> PhotoGeotagResult:
+        """Read a photo's EXIF geotag and place the camera and its sightline on the plan.
+
+        Give EITHER ``path`` (a local image file; its metadata is read, nothing
+        is stored) OR ``data_base64`` (the image bytes, optionally a data URL).
+        Returns GPS latitude/longitude/altitude, the compass direction the
+        camera faced, the focal length, the capture time and, when the plan is
+        georeferenced, the camera position in scene cm and the sightline as a
+        unit canvas vector that honours the plan's north angle. The horizontal
+        field of view is an ESTIMATE (see hfov_source). Missing or damaged EXIF
+        gives a partial result with ``warnings``, never an error. Changes nothing.
+
+        Args:
+            path: Local image file (jpg, png, webp, tiff), at most 25 MB. Needs the
+                Agent API token (and AI editing on); network paths are refused.
+                data_base64 needs neither.
+            data_base64: The image bytes, base64 (a data: URL is accepted).
+            magnetic_declination_deg: Degrees EAST of true north; converts a
+                magnetic compass bearing to true. Without it a magnetic bearing
+                is used as true and a warning says so.
+            distance_m: When given, also return the point this far (metres)
+                along the sightline as target_x_cm/target_y_cm.
+        """
+        if path is not None:
+            # A local file path lets the caller probe the user's disk: same gate as a write.
+            _require_write_auth(write_token)
+        snapshot = await anyio.to_thread.run_sync(providers.snapshot)
+        geo = frame_from_snapshot(snapshot)
+        result = await anyio.to_thread.run_sync(
+            lambda: field_tools.extract_geotag(
+                geo,
+                path=path,
+                data_base64=data_base64,
+                magnetic_declination_deg=magnetic_declination_deg,
+                distance_m=distance_m,
+            )
+        )
+        return PhotoGeotagResult(**result)
+
+    @mcp.tool()
+    async def list_field_records(
+        only_unplaced: bool = False,
+        limit: int = 200,
+        status: str | None = None,
+        kind: str | None = None,
+        group_id: str | None = None,
+    ) -> FieldRecordList:
+        """List the field records stored beside the plan (newest first).
+
+        Field records are plant observations (name, age, notes, photo, GPS fix,
+        bearing) written from the phone UI or by ingest_site_photo into the
+        plan's ``.fieldnotes.json`` sidecar. They are not part of the .ogp file.
+        Each has a ``kind`` and a ``status`` (pending until approved or placed) and
+        carries ``placed_object_id`` once it was placed on the plan with
+        place_geotagged_feature. Read-only; an unsaved plan has no records.
+
+        Args:
+            only_unplaced: Only records still waiting (pending or approved), not placed.
+            limit: Maximum records returned (1-500).
+            status: Only this status (pending, approved, rejected, placed, superseded).
+            kind: Only this kind (plant, irrigation_path, reference_point, note,
+                measurement, placement_request).
+            group_id: Only the candidates of one placement-request group. ``groups``
+                in the result lists the returned records that share a group_id.
+        """
+        if providers.list_field_records is None:
+            raise ValueError("list_field_records is not available in this build.")
+        fn = providers.list_field_records
+        result = await anyio.to_thread.run_sync(
+            lambda: fn(
+                only_unplaced=only_unplaced, limit=limit, status=status, kind=kind, group_id=group_id
+            )
+        )
+        return FieldRecordList(**result)
 
     @mcp.tool()
     async def list_objects(
@@ -1838,6 +1960,188 @@ def build_server(
             _require_write_auth(write_token)
             result = await anyio.to_thread.run_sync(providers.redo)
             return HistoryResult(**result)
+
+        # --- ADR-080: field photos (sidecar write + placement) ------------------
+
+        @mcp.tool()
+        async def ingest_site_photo(
+            path: str | None = None,
+            data_base64: str | None = None,
+            plant_name: str | None = None,
+            species_key: str | None = None,
+            age: str | None = None,
+            notes: str | None = None,
+            lat: float | None = None,
+            lon: float | None = None,
+            accuracy_m: float | None = None,
+            bearing_deg: float | None = None,
+            fix_mode: str | None = None,
+            magnetic_declination_deg: float | None = None,
+        ) -> IngestPhotoResult:
+            """Store a site photo beside the plan and create a field record for it.
+
+            Writes ONLY the plan's sidecar files (``<plan>.fieldnotes.json`` and
+            ``<plan>.fieldnotes/photos/``), not the plan: it is not an undo step
+            and the plan is untouched. The plan must have been saved once. The
+            photo is validated as a real image (jpg, png, webp, tiff; at most
+            25 MB; a ``path`` must be a local file, not a network share) and stored under a generated name. GPS position and compass
+            bearing are taken from the photo's EXIF unless you pass them.
+
+            This is a write tool and requires the Agent API token.
+
+            Args:
+                path: Local image file. Give this OR data_base64.
+                data_base64: The image bytes, base64 (a data: URL is accepted).
+                plant_name: What the plant is called, free text.
+                species_key: Scientific/common name matching the species database.
+                age: Free text, e.g. "3 years".
+                notes: Free text observations (at most 4000 characters).
+                lat: Camera latitude; overrides the EXIF position.
+                lon: Camera longitude; overrides the EXIF position.
+                accuracy_m: Position accuracy in metres.
+                bearing_deg: Camera direction, TRUE north; overrides the EXIF one.
+                fix_mode: 'gps', 'exif', 'map_tap', 'manual' or 'remote_position'.
+                magnetic_declination_deg: Degrees east of true north; converts a
+                    magnetic EXIF bearing to true.
+            """
+            _require_write_auth(write_token)
+            if providers.ingest_site_photo is None:
+                raise ValueError("ingest_site_photo is not available in this build.")
+            fn = providers.ingest_site_photo
+            result = await anyio.to_thread.run_sync(
+                lambda: fn(
+                    path=path,
+                    data_base64=data_base64,
+                    plant_name=plant_name,
+                    species_key=species_key,
+                    age=age,
+                    notes=notes,
+                    lat=lat,
+                    lon=lon,
+                    accuracy_m=accuracy_m,
+                    bearing_deg=bearing_deg,
+                    fix_mode=fix_mode,
+                    magnetic_declination_deg=magnetic_declination_deg,
+                )
+            )
+            return IngestPhotoResult(**result)
+
+        @mcp.tool()
+        async def place_geotagged_feature(
+            record_id: str | None = None,
+            species: str | None = None,
+            lat: float | None = None,
+            lon: float | None = None,
+            bearing_deg: float | None = None,
+            distance_m: float | None = None,
+            name: str | None = None,
+            object_type: str | None = None,
+            allow_duplicate: bool = False,
+        ) -> PlaceFeatureResult:
+            """Place a plant on the plan from a field record or a GPS position. ONE undo step.
+
+            The plan must be georeferenced. The position is the record's GPS fix
+            (or the lat/lon you pass); with ``distance_m`` and a bearing the
+            plant is placed that far from the camera along the sightline (the
+            plant is what the photo shows, not the photographer). The species is
+            matched in the bundled database (``species``, else the record's
+            species_key, else its plant_name); no match is refused. The drawn
+            footprint uses the species' MATURE canopy radius. The photo
+            reference, bearing, age and notes are stored in the object's
+            metadata ('field_record') and the record's placed_object_id is set
+            (the sidecar link is not part of the undo step).
+
+            Refused, leaving plan and undo stack untouched: plan not
+            georeferenced, no position, no species match, the record is already
+            placed (unless allow_duplicate) or the active layer is locked. A
+            point just off the canvas is moved inside it (like create_object) and
+            ``warnings`` says so.
+
+            This is a write tool and requires the Agent API token.
+
+            Args:
+                record_id: A field record id from list_field_records.
+                species: Species name to use instead of the record's.
+                lat: Camera latitude (overrides the record's).
+                lon: Camera longitude (overrides the record's).
+                bearing_deg: Camera direction, TRUE north, 0-360 (overrides the record's).
+                distance_m: Metres from the camera to the plant along the bearing (0-500).
+                name: Display name of the new plant.
+                object_type: 'TREE', 'SHRUB' or 'PERENNIAL'; default from the species.
+                allow_duplicate: Place even when the record is already placed.
+            """
+            _require_write_auth(write_token)
+            if providers.place_geotagged_feature is None:
+                raise ValueError("place_geotagged_feature is not available in this build.")
+            fn = providers.place_geotagged_feature
+            result = await anyio.to_thread.run_sync(
+                lambda: fn(
+                    record_id=record_id,
+                    species=species,
+                    lat=lat,
+                    lon=lon,
+                    bearing_deg=bearing_deg,
+                    distance_m=distance_m,
+                    name=name,
+                    object_type=object_type,
+                    allow_duplicate=allow_duplicate,
+                )
+            )
+            return PlaceFeatureResult(**result)
+
+        @mcp.tool()
+        async def place_field_record(
+            record_id: str, allow_duplicate: bool = False
+        ) -> PlaceRecordResult:
+            """Approve one field record: place it on the plan exactly as the desktop panel does.
+
+            By kind: a plant, note, measurement or placement_request becomes a plant or a
+            callout (ONE undo step); an irrigation_path becomes one polyline on the
+            "Irrigation" layer, which is created if absent, in ONE undo step (an existing
+            locked Irrigation layer is refused, never unlocked); a reference_point is fitted
+            into the georeference with the plan's other reference points (ONE undo step,
+            at least two points in all; the fit RMS is returned). Approving one candidate of
+            a placement-request group marks its siblings ``superseded``.
+
+            Refused, leaving plan and undo stack untouched: the record is already decided or
+            placed (unless allow_duplicate), no position, no georeference when the record
+            needs one, no species match for a plant, a locked layer. The sidecar update
+            (``status=placed``) is not part of the undo step.
+
+            This is a write tool and requires the Agent API token.
+
+            Args:
+                record_id: A field record id from list_field_records.
+                allow_duplicate: Place even when the record is already placed.
+            """
+            _require_write_auth(write_token)
+            if providers.place_field_record is None:
+                raise ValueError("place_field_record is not available in this build.")
+            fn = providers.place_field_record
+            result = await anyio.to_thread.run_sync(
+                lambda: fn(record_id=record_id, allow_duplicate=allow_duplicate)
+            )
+            return PlaceRecordResult(**result)
+
+        @mcp.tool()
+        async def reject_field_record(
+            record_id: str | None = None, group_id: str | None = None
+        ) -> RejectRecordResult:
+            """Reject a field record, or every open candidate of a placement-request group.
+
+            Sets ``status=rejected`` (the record is kept). A placed record is refused. Changes
+            no plan object and no undo step. Give exactly one of ``record_id`` or ``group_id``.
+
+            This is a write tool and requires the Agent API token.
+            """
+            _require_write_auth(write_token)
+            if providers.reject_field_record is None:
+                raise ValueError("reject_field_record is not available in this build.")
+            fn = providers.reject_field_record
+            result = await anyio.to_thread.run_sync(
+                lambda: fn(record_id=record_id, group_id=group_id)
+            )
+            return RejectRecordResult(**result)
 
         # --- US-D3.2: succession write --------------------------------------
 

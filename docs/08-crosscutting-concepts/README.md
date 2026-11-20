@@ -10121,3 +10121,11 @@ A callout names a plant (common name, else the object name, else "Tree" / "Shrub
   (`scripts/make_sprite_resolution_golden.py`), the counts in `test_plant_art.py` and the
   harness figures quoted in the ADR and pitfall docs (`test_retracted_figures.py`) all
   derive from the species count; regenerate or update them in the same change.
+## 8.40 Field work frame: GPS, ENU metres and the compass (ADR-079, ADR-080)
+
+- **One record.** The plan's georeference is `core/georeference.py` (`PlanGeoreference`, `metadata.georeference`). Field Remote, the photo tools, the records window and the positioning engine never hold a second one: they ask `core/geo_frame.py` (`GeoFrame`), rebuilt from the record and the plan's north on every use (`frame_from_project` on the main thread, `frame_from_snapshot` anywhere).
+- **Conversions.** `gps_to_canvas` / `canvas_to_gps` ARE `gps_to_scene` / `scene_to_gps` (calibration and the fit-time north lock included). ENU metres are measured from `(origin_lat, origin_lon)` on the same WGS84 tangent plane (`meters_per_degree`). `rotation_deg` (true north on the canvas, clockwise from plan-up) and `scale_meters_per_unit` are measured through the real mapping, so a calibrated georeference reports what it applies; use them for headings and distances, never `PlanGeoreference.rotation_deg` (that is only the extra turn).
+- **Phone anchor.** `core/positioning/calibration.py` fits the phone's raw ENU to the plan's ENU as a session similarity; it never writes the plan. A `reference_point` record is the only field path that writes the georeference, through `calibrate_georeference`'s fit and one `SetGeoreferenceCommand`.
+- **Phone summary.** `georef_summary` sends the ENU origin, where it sits on the canvas (`origin_x_cm`, `origin_y_cm`), the measured rotation and scale and the ellipsoidal metres per degree; `static/geo.js` inverts with those. Exact for similarity-like georeferences, approximate about the origin for a calibration with shear.
+- **Tests.** `tests/unit/test_geo_frame.py` (the frame is the record; old files; the legacy `georef` key), `tests/unit/test_field_remote_projection.py`, `tests/unit/test_field_remote_static_js.py` (the JS and Python conversions agree), the positioning and field-record suites.
+

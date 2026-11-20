@@ -137,6 +137,13 @@ WRITE_TOOL_NAMES = frozenset(
         "edit_manual_task",
         "delete_manual_task",
         "record_soil_test",
+        # ADR-080: field photos. ingest_site_photo writes the sidecar (no undo step),
+        # place_geotagged_feature is one create command.
+        "ingest_site_photo",
+        "place_geotagged_feature",
+        # WP-R: approve or reject a field record through the desktop approver.
+        "place_field_record",
+        "reject_field_record",
         # US-D2.4: layer write tools.
         "set_object_layer",
         "create_layer",
