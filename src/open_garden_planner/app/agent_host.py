@@ -2902,6 +2902,177 @@ class AgentHost:
         }
 
 
+    # --- custom 3D plant recipes ---------------------------------------------
+
+    def _agent_set_plant_recipe(
+        self, item_id: str, recipe: dict[str, Any] | None, target: str
+    ) -> dict[str, Any]:
+        """Set a plant's custom 3D recipe ON the Qt main thread (for the server)."""
+        host = self._host
+        return host._agent_bridge.run_on_main(
+            lambda: host._do_agent_set_plant_recipe(item_id, recipe, target)
+        )
+
+    def _do_agent_set_plant_recipe(
+        self, item_id: str, recipe: dict[str, Any] | None, target: str
+    ) -> dict[str, Any]:
+        """Main-thread body of ``set_plant_recipe`` - ONE undoable ``SetPlantRecipeCommand``.
+
+        The recipe is validated strictly (``traits3d.validate_traits3d_override``) before
+        any state is touched. It is an appearance edit: it changes no footprint, so unlike
+        ``set_species`` it needs no ``_agent_require_unconstrained`` - but it shares the
+        ``_agent_resolve_plant`` chokepoint, which refuses a non-plant, a group member, a
+        journal pin and an item on a locked layer. ``library`` additionally mirrors the
+        recipe into the matching custom-library species inside the same command, so Ctrl+Z
+        restores both.
+        """
+        host = self._host
+        from open_garden_planner.agent_api.geo_recipes import RECIPE_TARGETS
+        from open_garden_planner.core.commands import SetPlantRecipeCommand
+        from open_garden_planner.core.plant_art.traits3d import validate_traits3d_override
+
+        if target not in RECIPE_TARGETS:
+            raise ValueError(f"target must be one of {list(RECIPE_TARGETS)}, got {target!r}")
+        clean = validate_traits3d_override(recipe)  # ValueError names the offending field
+        item = host._agent_resolve_plant(item_id, "set_plant_recipe")
+
+        command_target = "instance" if target == "instance" else "species"
+        if command_target == "species" and not isinstance(item.metadata.get("plant_species"), dict):
+            raise ValueError(
+                f"{item_id} has no species record to hold a recipe; call set_species first "
+                "or use target='instance'."
+            )
+        container = item.metadata.get(
+            "plant_instance" if command_target == "instance" else "plant_species"
+        )
+        current = container.get("traits3d_override") if isinstance(container, dict) else None
+        on_apply = (
+            host._agent_library_recipe_writer(item.metadata["plant_species"])
+            if target == "library"
+            else None
+        )
+        if clean == (current or None) and target != "library":
+            raise ValueError(f"{item_id} already has this recipe; nothing to change.")
+        cmd = SetPlantRecipeCommand(item, clean, target=command_target, on_apply=on_apply)
+        host.canvas_view.command_manager.execute(cmd)
+        cx, cy = host._agent_item_center(item)
+        return {
+            "item_id": item_id,
+            "action": "set_plant_recipe",
+            "undo_description": cmd.description,
+            "x": cx,
+            "y": cy,
+        }
+
+    def _agent_library_recipe_writer(self, species: dict[str, Any]) -> Any:
+        """A callback that mirrors a recipe into the custom-library species matching ``species``.
+
+        Raises ``ValueError`` now (before any change) when the library has no such species.
+        """
+        from open_garden_planner.services.plant_library import get_plant_library
+
+        def names(data: Any) -> tuple[str, str]:
+            get = data.get if isinstance(data, dict) else lambda k, d="": getattr(data, k, d)
+            return (
+                str(get("scientific_name", "") or "").strip().lower(),
+                str(get("common_name", "") or "").strip().lower(),
+            )
+
+        # The library keys its entries by their own id (``source_id``), so a species is
+        # matched by name: the scientific name when both have one, else the common name.
+        wanted_sci, wanted_common = names(species)
+        library = get_plant_library()
+        match = next(
+            (
+                (plant_id, plant)
+                for plant_id, plant in library.get_all_plants()
+                if (
+                    names(plant)[0] == wanted_sci
+                    if wanted_sci and names(plant)[0]
+                    else names(plant)[1] == wanted_common
+                )
+            ),
+            None,
+        )
+        if match is None:
+            raise ValueError(
+                f"no species named {wanted_sci or wanted_common!r} is in the custom plant "
+                "library; add it there first or use target='species'."
+            )
+        plant_id, plant = match
+
+        def write(value: dict[str, Any] | None) -> None:
+            plant.traits3d_override = None if value is None else dict(value)
+            library.update_plant(plant_id, plant)
+
+        return write
+
+    # --- georeference ----------------------------------------------------------
+
+    def _agent_get_georeference(self) -> dict[str, Any]:
+        """The georeference read view ON the Qt main thread (for the server)."""
+        host = self._host
+        return host._agent_bridge.run_on_main(host._do_agent_get_georeference)
+
+    def _do_agent_get_georeference(self) -> dict[str, Any]:
+        host = self._host
+        from open_garden_planner.agent_api.geo_recipes import georeference_view
+
+        pm = host._project_manager
+        rect = host.canvas_scene.canvas_rect
+        return georeference_view(pm.georeference, pm.north_angle_deg, rect.width(), rect.height())
+
+    def _agent_set_georeference(self, georef: dict[str, Any] | None) -> dict[str, Any]:
+        """Set/clear the georeference ON the Qt main thread (for the server)."""
+        host = self._host
+        return host._agent_bridge.run_on_main(lambda: host._do_agent_set_georeference(georef))
+
+    def _do_agent_set_georeference(self, georef: dict[str, Any] | None) -> dict[str, Any]:
+        """Main-thread body of ``set_georeference`` - ONE undoable ``SetGeoreferenceCommand``."""
+        host = self._host
+        from open_garden_planner.core.commands import SetGeoreferenceCommand
+
+        pm = host._project_manager
+        cmd = SetGeoreferenceCommand(pm, georef)  # validates before anything is touched
+        if pm.georeference == cmd._new:
+            raise ValueError("the plan already has this georeference; nothing to change.")
+        host.canvas_view.command_manager.execute(cmd)
+        return {
+            "action": "clear_georeference" if georef is None else "set_georeference",
+            "undo_description": cmd.description,
+            "georeference": None if pm.georeference is None else pm.georeference.to_dict(),
+        }
+
+    def _agent_calibrate_georeference(
+        self, control_points: list[dict[str, Any]], append: bool
+    ) -> dict[str, Any]:
+        """Calibrate the georeference ON the Qt main thread (for the server)."""
+        host = self._host
+        return host._agent_bridge.run_on_main(
+            lambda: host._do_agent_calibrate_georeference(control_points, append)
+        )
+
+    def _do_agent_calibrate_georeference(
+        self, control_points: list[dict[str, Any]], append: bool
+    ) -> dict[str, Any]:
+        """Main-thread body of ``calibrate_georeference`` - ONE undoable command."""
+        host = self._host
+        from open_garden_planner.agent_api.geo_recipes import calibrate
+        from open_garden_planner.core.commands import SetGeoreferenceCommand
+
+        pm = host._project_manager
+        calibrated, report = calibrate(
+            pm.georeference, control_points, pm.north_angle_deg, append=append
+        )
+        cmd = SetGeoreferenceCommand(pm, calibrated)
+        host.canvas_view.command_manager.execute(cmd)
+        return {
+            "action": "calibrate_georeference",
+            "undo_description": cmd.description,
+            "georeference": calibrated.to_dict(),
+            "calibration": report,
+        }
+
     def _agent_set_parent_bed(self, item_id: str, bed_id: str | None) -> dict[str, Any]:
         """Link/unlink a plant to a bed ON the Qt main thread (for the server)."""
         host = self._host
@@ -3758,6 +3929,10 @@ class AgentHost:
             record_soil_test=host._agent_record_soil_test,
             get_plant_lists=host._agent_get_plant_lists,
             plan_date=lambda: self._agent_plan_date().isoformat(),
+            get_georeference=host._agent_get_georeference,
+            set_georeference=host._agent_set_georeference,
+            calibrate_georeference=host._agent_calibrate_georeference,
+            set_plant_recipe=host._agent_set_plant_recipe,
         )
 
 

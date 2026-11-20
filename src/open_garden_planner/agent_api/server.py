@@ -70,8 +70,8 @@ from mcp.server.fastmcp.utilities.types import Image
 from pydantic import Field, StrictFloat, StrictInt
 
 from open_garden_planner.agent_api import creates as agent_creates
+from open_garden_planner.agent_api import geo_recipes, queries
 from open_garden_planner.agent_api import prompts as agent_prompts
-from open_garden_planner.agent_api import queries
 from open_garden_planner.agent_api.diagnostics import diagnostics_from_records
 from open_garden_planner.agent_api.mapping import (
     layers_from_snapshot,
@@ -90,6 +90,7 @@ from open_garden_planner.agent_api.schema import (
     Diagnostic,
     ExportResult,
     GeometryResult,
+    GeoreferenceResult,
     HistoryResult,
     HistoryState,
     Layer,
@@ -1151,6 +1152,34 @@ def build_server(
         return agent_creates.list_creatable_types()
 
     @mcp.tool()
+    async def list_plant_archetypes() -> dict[str, Any]:
+        """List what a custom 3D plant recipe may contain (read-only).
+
+        Returns the plant archetypes (canopy tree, mound bush, conifer, palm, ...),
+        the valid palette / blossom / bark / crown-shape / leaf-shape keys, and the
+        field schema with min, max and default for every numeric recipe field
+        (crown, branching including multi-stem and fork settings, leaf), plus worked
+        examples (a V-forked leaning tree; a bush-form citrus). Use it to write a valid
+        ``recipe`` for set_plant_recipe after studying a photo or botanical description.
+        """
+        return geo_recipes.plant_archetype_catalogue()
+
+    @mcp.tool()
+    async def get_georeference() -> dict[str, Any]:
+        """Report the plan's georeference: how scene cm map to latitude/longitude.
+
+        Returns ``configured`` (false when the plan was never georeferenced), the stored
+        anchor (origin lat/lon at origin x/y cm, scale, rotation, ground-control points,
+        the calibration affine), the plan's north angle, the canvas corners and extent in
+        (lat, lon), and the conversion status. Importing a satellite background sets the
+        anchor automatically; set_georeference / calibrate_georeference set it by hand.
+        """
+        provider = providers.get_georeference
+        if provider is None:
+            raise ValueError("this build does not expose the georeference")
+        return await anyio.to_thread.run_sync(provider)
+
+    @mcp.tool()
     async def list_render_styles() -> dict[str, Any]:
         """List the drawing styles render_canvas_image and render_3d_view accept.
 
@@ -2078,6 +2107,125 @@ def build_server(
                 lambda: providers.set_species(item_id, species, apply_database_size)
             )
             return WriteResult(**result)
+
+        # --- Custom 3D plant recipes + georeference ---------------------------
+
+        @mcp.tool()
+        async def set_plant_recipe(
+            item_id: str,
+            recipe: dict[str, Any] | None = None,
+            target: Literal["instance", "species", "library"] = "instance",
+        ) -> WriteResult:
+            """Set (or clear) the custom 3D model recipe of one plant.
+
+            Lets you describe a specimen from a photo or a botanical description -- a
+            V-forked mesquite, a bush-form citrus instead of a lollipop standard, a
+            canopy leaning away from a wall -- and have the 3D view grow it. Call
+            list_plant_archetypes first for the valid values and bounds. Send only the
+            fields that differ from the species default; crown / branching / leaf merge
+            field by field. The recipe is validated strictly (unknown fields, out-of-range
+            numbers, NaN/Inf and booleans-as-numbers are rejected) before anything changes.
+
+            target: 'instance' = this plant only; 'species' = this plant's own species
+            record on the plan; 'library' = that, and also the matching species in the
+            local custom plant library. recipe=null clears the target's recipe.
+
+            One undoable step (Ctrl+Z reverses it). Fails if the object is not a plant,
+            is on a locked layer, is a group member or journal pin, or if the recipe is
+            invalid.
+
+            Args:
+                item_id: The plant's stable UUID (from list_objects/get_object).
+                recipe: The recipe object, or null to clear.
+                target: Where to store it, as described above.
+            """
+            _require_write_auth(write_token)
+            provider = providers.set_plant_recipe
+            if provider is None:
+                raise ValueError("this build does not support set_plant_recipe")
+            result = await anyio.to_thread.run_sync(lambda: provider(item_id, recipe, target))
+            return WriteResult(**result)
+
+        @mcp.tool()
+        async def set_georeference(
+            origin_lat: StrictFloat | StrictInt | None = None,
+            origin_lon: StrictFloat | StrictInt | None = None,
+            origin_x_cm: StrictFloat | StrictInt = 0.0,
+            origin_y_cm: StrictFloat | StrictInt = 0.0,
+            cm_per_meter_x: StrictFloat | StrictInt = 100.0,
+            cm_per_meter_y: StrictFloat | StrictInt | None = None,
+            rotation_deg: StrictFloat | StrictInt = 0.0,
+            clear: bool = False,
+        ) -> GeoreferenceResult:
+            """Set (or clear) the plan's georeference: the anchor between GPS and scene cm.
+
+            The WGS84 point (origin_lat, origin_lon) sits at scene (origin_x_cm,
+            origin_y_cm). cm_per_meter_x/y is the plan scale (100 = true scale; y defaults
+            to x). The plan's own north angle is applied on top, so on a north-up plan
+            +x is east and +y is north; rotation_deg is an extra clockwise turn.
+            Replaces any previous anchor and its calibration. Pass clear=true (and no
+            origin) to remove the georeference. Numbers must be finite; latitude within
+            +-89.9, longitude within +-180. One undoable step.
+
+            Args:
+                origin_lat: Latitude of the anchor point, degrees.
+                origin_lon: Longitude of the anchor point, degrees.
+                origin_x_cm: Scene X of the anchor point, cm.
+                origin_y_cm: Scene Y of the anchor point, cm.
+                cm_per_meter_x: Plan centimetres per ground metre along x.
+                cm_per_meter_y: Same along y (defaults to cm_per_meter_x).
+                rotation_deg: Extra clockwise rotation of the mapping, degrees.
+                clear: Remove the georeference instead of setting one.
+            """
+            _require_write_auth(write_token)
+            provider = providers.set_georeference
+            if provider is None:
+                raise ValueError("this build does not support set_georeference")
+            if clear:
+                if origin_lat is not None or origin_lon is not None:
+                    raise ValueError("clear=true takes no origin_lat/origin_lon")
+                payload: dict[str, Any] | None = None
+            else:
+                if origin_lat is None or origin_lon is None:
+                    raise ValueError("origin_lat and origin_lon are required (or clear=true)")
+                payload = geo_recipes.build_georeference(
+                    origin_lat=origin_lat,
+                    origin_lon=origin_lon,
+                    origin_x_cm=origin_x_cm,
+                    origin_y_cm=origin_y_cm,
+                    cm_per_meter_x=cm_per_meter_x,
+                    cm_per_meter_y=cm_per_meter_y,
+                    rotation_deg=rotation_deg,
+                ).to_dict()
+            result = await anyio.to_thread.run_sync(lambda: provider(payload))
+            return GeoreferenceResult(**result)
+
+        @mcp.tool()
+        async def calibrate_georeference(
+            control_points: list[dict[str, Any]],
+            append: bool = False,
+        ) -> GeoreferenceResult:
+            """Calibrate the georeference with ground-control points and report the error.
+
+            Each control point pairs a GPS position with the scene position it really has:
+            {"lat", "lon", "x_cm", "y_cm", optional "label"}. One point locks the
+            translation; two fit a similarity (translation, rotation, uniform scale); three
+            or more fit a least-squares 2-D affine. The reply lists every point's residual
+            error in cm and the RMS error. With no georeference yet, the first point becomes
+            the origin at true scale. append=false (default) replaces the stored control
+            points; true adds to them. At most 64 points; collinear or duplicate points
+            are rejected. One undoable step.
+
+            Args:
+                control_points: The ground-control pairs.
+                append: Keep the plan's existing control points and add these.
+            """
+            _require_write_auth(write_token)
+            provider = providers.calibrate_georeference
+            if provider is None:
+                raise ValueError("this build does not support calibrate_georeference")
+            result = await anyio.to_thread.run_sync(lambda: provider(control_points, append))
+            return GeoreferenceResult(**result)
 
         @mcp.tool()
         async def set_parent_bed(
