@@ -7,7 +7,7 @@ exception for bad *content* (only for a bad *source*: not an image at all, too
 large, unreadable path).
 
 Then :func:`project_to_plan` turns the camera position into canvas centimetres
-through :class:`~open_garden_planner.core.georef.GeoFrame` and the compass
+through :class:`~open_garden_planner.core.geo_frame.GeoFrame` and the compass
 bearing into a canvas direction. With ``a`` the plan's north angle (clockwise
 from plan-up to true north) a compass bearing ``b`` (clockwise from true north)
 points along canvas ``(sin(a + b), cos(a + b))`` on the Y-up scene.

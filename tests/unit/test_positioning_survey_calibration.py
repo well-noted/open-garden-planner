@@ -131,6 +131,17 @@ def test_calibration_refuses_mistapped_point() -> None:
         calibrate_points(pairs, G, t=0.0)
 
 
+def test_the_affine_diagnostic_never_loosens_the_gate_on_the_applied_similarity() -> None:
+    # Three points: an affine fit is exact there (residual ~0), but the similarity that is
+    # applied is far off, so the calibration must still be refused.
+    plan_enu = [(0.0, 0.0), (20.0, 0.0), (0.0, 15.0)]
+    raw = [(0.0, 0.0), (20.0, 0.0), (0.0, 30.0)]  # the third point is 15 m off
+    pairs = [(G.gps_to_canvas(*G.enu_to_gps(pe, pn)), sv(*r)) for (pe, pn), r in zip(plan_enu, raw, strict=True)]
+    for allow in (False, True):
+        with pytest.raises(CalibrationError):
+            calibrate_points(pairs, G, t=0.0, allow_affine=allow)
+
+
 def test_calibration_point_count_and_collinear_refused() -> None:
     with pytest.raises(CalibrationError):
         calibrate_points([((0.0, 0.0), sv(0, 0))], G, t=0.0)

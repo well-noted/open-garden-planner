@@ -3,8 +3,9 @@
 * 1 point: translation only ("calibrate here"). Session state, never persisted.
 * 2-4 points: a 2-D similarity (rotation, uniform scale, translation) from the raw ENU
   metres to the plan's ENU metres (``GeoFrame``), closed-form (Umeyama in complex form).
-  With ``allow_affine`` and >= 3 points the reported residuals are those of a full affine
-  fit, a diagnostic of shear or anisotropy; the correction applied is still the similarity.
+  With ``allow_affine`` and >= 3 points the residuals of a full affine fit are reported too
+  (``FitResult.affine_residuals_m``, a diagnostic of shear or anisotropy); the gates and the
+  correction applied are always the similarity's.
 
 The anchor is a session correction of the *phone*; it never touches the plan's georeference
 (``core/georeference.py`` stays the record).
@@ -39,7 +40,10 @@ class FitResult:
     rms_m: float
     residuals_m: tuple[float, ...]
     scale_factor: float  # plan metres per raw metre
-    method: str  # "similarity" | "affine"
+    method: str  # "similarity" | "affine" (affine = diagnostic residuals reported too)
+    #: Residuals of a full affine fit (3+ points, ``allow_affine``): a diagnostic only. The
+    #: gates and ``rms_m`` always use the similarity that is actually applied.
+    affine_residuals_m: tuple[float, ...] | None = None
 
 
 @dataclass(frozen=True)
@@ -179,11 +183,12 @@ def calibrate_points(
         abs(rot * complex(*r) + shift - complex(*p)) for r, p in zip(raw, plan, strict=True)
     ]
     method = "similarity"
+    affine: tuple[float, ...] | None = None
     if allow_affine and len(pairs) >= 3:
         method = "affine"
-        residuals = _affine_residuals(raw, plan)
+        affine = tuple(_affine_residuals(raw, plan))
     rms = math.sqrt(sum(r * r for r in residuals) / len(residuals))
-    fit = FitResult(rms, tuple(residuals), abs(rot), method)
+    fit = FitResult(rms, tuple(residuals), abs(rot), method, affine)
     if fit.rms_m > MAX_RMS_M:
         raise CalibrationError(f"calibration residual rms {fit.rms_m:.1f} m is too large")
     if len(pairs) >= 3:
