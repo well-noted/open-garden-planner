@@ -187,7 +187,11 @@ class CommandManager(QObject):
             command.undo()
         except Exception:
             # A command whose undo is refused (e.g. a checked write that failed) must
-            # stay undoable, exactly as redo keeps a refused command redoable.
+            # stay undoable, exactly as redo keeps a refused command redoable. This
+            # applies to every command: a compound whose undo fails halfway stays on the
+            # stack in that half-undone state instead of being dropped, so commands whose
+            # undo can fail must refuse before changing anything (as SetPlantRecipeCommand
+            # does).
             self._undo_stack.append(command)
             raise
         self._redo_stack.append(command)

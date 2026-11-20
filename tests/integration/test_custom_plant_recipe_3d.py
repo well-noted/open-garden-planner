@@ -473,6 +473,29 @@ def test_library_write_is_checked_end_to_end_including_undo(app: Any, tmp_path: 
         library.save_checked()
 
 
+def test_gui_undo_with_a_bad_library_disk_shows_a_status_message(app: Any, tmp_path: Path) -> None:
+    """Ctrl+Z on a recipe whose library write now fails must not escape the slot as an
+    'Unexpected Error' crash (review P2): the command stays undoable and the status bar says so."""
+    item = _tree(app)
+    pid = str(item.item_id)
+    library = plant_library_module.get_plant_library()
+    library.add_plant(PlantSpeciesData.from_dict(item.metadata["plant_species"]))
+    good_path = library._library_path
+    app._do_agent_set_plant_recipe(pid, BUSH, "library")
+    manager = app.canvas_view.command_manager
+    depth = manager.undo_depth
+
+    library._library_path = tmp_path  # a directory: the write raises OSError
+    app._on_undo()  # must not raise
+    assert "Undo refused" in app.statusBar().currentMessage()
+    assert manager.undo_depth == depth
+    assert item.metadata["plant_species"]["traits3d_override"] == BUSH
+
+    library._library_path = good_path
+    app._on_undo()
+    assert "traits3d_override" not in item.metadata["plant_species"]
+
+
 def test_set_plant_recipe_schema_offers_every_target_the_host_accepts(
     app: Any, qtbot: Any
 ) -> None:

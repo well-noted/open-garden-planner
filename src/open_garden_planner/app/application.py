@@ -4230,7 +4230,17 @@ class GardenPlannerApp(QMainWindow):
         cmd_mgr = self.canvas_view.command_manager
         if cmd_mgr.can_undo:
             desc = cmd_mgr.undo_description
-            cmd_mgr.undo()
+            try:
+                cmd_mgr.undo()
+            except (ValueError, OSError):
+                # A refused undo (e.g. the custom plant library cannot be written)
+                # leaves the command on the stack; tell the user instead of crashing.
+                self.statusBar().showMessage(
+                    self.tr("Undo refused: {desc} could not be reverted. Nothing changed.").format(
+                        desc=desc
+                    )
+                )
+                return
             self.statusBar().showMessage(self.tr("Undo: {desc}").format(desc=desc))
         else:
             self.statusBar().showMessage(self.tr("Nothing to undo"))

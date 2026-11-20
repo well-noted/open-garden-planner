@@ -325,5 +325,7 @@ def test_a_legacy_calibration_without_a_stored_north_says_it_follows_the_plans_n
     assert view["calibrated"] is True and view["north_locked"] is False
     assert "older build" in view["calibration_note"]
 
-    plain = georeference_view(replace(cal, affine_matrix=None, fit_north_angle_deg=None), 30.0, 1000.0, 1000.0)
+    plain = georeference_view(
+        replace(cal, affine_matrix=None, fit_north_angle_deg=None), 30.0, 1000.0, 1000.0
+    )
     assert plain["calibration_note"] is None
