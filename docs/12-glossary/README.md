@@ -397,3 +397,6 @@ yearly plan copy and from task reminder reference dates (ADR-062).
 - **LOD band:** The zoom octave `floor(log2(device px per cm))` that derived style geometry is quantised to, so it does not shimmer while zooming.
 - **Style state:** The scene-wide data a render style computes once per `(style, paint revision, band)` (palette, canopy clusters, callout layout), kept in a two-entry LRU and never built inside a paint.
 - **Paper millimetre:** The unit of a style's line weights and dash lengths; on screen 96 dpi cosmetic pixels, in an export `mm x dpi / 25.4`.
+- **Render style controller:** `ui/render_style_controller.RenderStyleController`, the one owner of the chosen style; the View menu radio group, the toolbar combo and the 3D pane's button are views of it.
+- **Follow canvas:** The default of an export dialog's Style combo (`export/render_style_override` = `follow`): the output is drawn in the style the canvas shows.
+- **Paper texture (vector):** The opt-in raster of the Line & Wash paper grain embedded in an SVG or PDF (`PAPER_TEXTURE_IN_VECTOR`); off, vector outputs omit the grain.

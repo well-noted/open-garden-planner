@@ -1364,3 +1364,29 @@ Pins: `tests/unit/test_shape_split.py`, `tests/integration/test_split_shapes.py`
 `tests/integration/test_group_drill_down.py`, `tests/unit/test_project.py::TestItemReferences`,
 `tests/integration/test_tool_switching.py::TestEscapeReturnsToSelect`,
 `tests/unit/test_object_height.py::TestHeightAcrossATypeChange`.
+
+## FR-RS: Render styles, the UI (Package 4, WP7)
+
+- **FR-RS-01:** The plan is drawn in one of three render styles: `tr("Illustrated")`
+  (default), `tr("Architectural CAD")` and `tr("Line & Wash")`. The style is a view
+  preference: not in the `.ogp`, no undo entry, never marks the plan modified.
+- **FR-RS-02:** The View menu has a "Render Style" radio group, a toolbar has a combo
+  and the 3D pane has a button; all three share one state
+  (`ui/render_style_controller.RenderStyleController`). Choosing a style switches the
+  running 2D canvas (`CanvasScene.set_render_style`) and the 3D view
+  (`LookController.set_render_style`: Line & Wash selects the NPR effect, CAD stays
+  plain 3D), stores `appearance/render_style` and is restored on the next start. A
+  style chosen before 3D first opens is used when it does.
+- **FR-RS-03:** The `tr("Leader callouts")` toggle (`appearance/cad_callouts`, default
+  off) is enabled only while the style is CAD. The toggle stores the preference; the
+  CAD callout layer itself is package WP5.
+- **FR-RS-04:** The PNG, SVG, PDF report and print dialogs have a "Style" combo,
+  "Same as canvas (...)" by default, then the three styles; the last choice is stored
+  in `export/render_style_override`. The Paper Space viewport follows the canvas style.
+- **FR-RS-05:** For SVG and PDF the dialog shows a fidelity note under the combo:
+  CAD is fully vector; Line & Wash says "SVG/PDF: washes without paper texture or
+  glazing". The SVG and PDF dialogs offer the opt-in "Include paper texture (raster)"
+  (`export/paper_texture_in_vector`, off), which sets
+  `line_wash.PAPER_TEXTURE_IN_VECTOR` for that export.
+
+Pins: `tests/unit/test_render_style_ui.py`, `tests/integration/test_render_style_ui.py`.

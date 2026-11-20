@@ -14,6 +14,9 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
+from open_garden_planner.core.render_style import RenderStyle
+from open_garden_planner.ui.widgets.export_style_group import FORMAT_PDF, ExportStyleGroup
+
 
 class PdfReportDialog(QDialog):
     """Dialog for configuring the multi-page PDF report.
@@ -27,8 +30,10 @@ class PdfReportDialog(QDialog):
         project_name: str = "Garden Plan",
         author: str = "",
         parent: object = None,
+        canvas_style: RenderStyle = RenderStyle.ILLUSTRATED,
     ) -> None:
         super().__init__(parent)
+        self._canvas_style = canvas_style
         self.setWindowTitle(self.tr("Export PDF Report"))
         self.setModal(True)
         self.setMinimumWidth(440)
@@ -124,6 +129,10 @@ class PdfReportDialog(QDialog):
 
         layout.addWidget(pages_group)
 
+        # Style: the canvas style or an override (WP7)
+        self._style_group = ExportStyleGroup(self._canvas_style, FORMAT_PDF, self)
+        layout.addWidget(self._style_group)
+
         # Info label
         info = QLabel(
             self.tr("A progress dialog will appear during export.")
@@ -139,7 +148,26 @@ class PdfReportDialog(QDialog):
         button_box.rejected.connect(self.reject)
         layout.addWidget(button_box)
 
+    def accept(self) -> None:
+        """Remember the style choice, then close."""
+        self._style_group.commit()
+        super().accept()
+
     # --- Properties ---
+
+    @property
+    def style_group(self) -> ExportStyleGroup:
+        return self._style_group
+
+    @property
+    def render_style_override(self) -> RenderStyle | None:
+        """The style chosen for the report's plan pages; ``None`` follows the canvas."""
+        return self._style_group.override()
+
+    @property
+    def paper_texture(self) -> bool:
+        """Embed the Line & Wash paper grain (opt-in)."""
+        return self._style_group.paper_texture()
 
     @property
     def project_name(self) -> str:

@@ -4,6 +4,7 @@
 - [Roadmap](Roadmap)
 - [Installation](Installation)
 - [Architecture](Architecture)
+- [Render styles](Render-Styles)
 - [Contributing](Contributing)
 
 **Community**

@@ -260,6 +260,7 @@ class AppSettings:
     KEY_RENDER_STYLE = "appearance/render_style"
     KEY_CAD_CALLOUTS = "appearance/cad_callouts"
     KEY_EXPORT_RENDER_STYLE_OVERRIDE = "export/render_style_override"
+    KEY_EXPORT_PAPER_TEXTURE_IN_VECTOR = "export/paper_texture_in_vector"
     DEFAULT_RENDER_STYLE = "illustrated"
     EXPORT_STYLE_FOLLOW = "follow"
     # Owner decision Q4 (2026-11-19): callouts are off until the user turns them on.
@@ -1013,6 +1014,16 @@ class AppSettings:
         self._settings.setValue(
             self.KEY_EXPORT_RENDER_STYLE_OVERRIDE,
             text if text in valid else self.EXPORT_STYLE_FOLLOW)
+
+    @property
+    def export_paper_texture_in_vector(self) -> bool:
+        """Whether SVG/PDF Line & Wash exports embed the paper grain (opt-in, off)."""
+        return bool(self._settings.value(
+            self.KEY_EXPORT_PAPER_TEXTURE_IN_VECTOR, False, type=bool))
+
+    @export_paper_texture_in_vector.setter
+    def export_paper_texture_in_vector(self, enabled: bool) -> None:
+        self._settings.setValue(self.KEY_EXPORT_PAPER_TEXTURE_IN_VECTOR, bool(enabled))
 
     @property
     def view3d_auto_level(self) -> str:

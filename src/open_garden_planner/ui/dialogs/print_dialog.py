@@ -21,7 +21,9 @@ from PyQt6.QtWidgets import (
 )
 
 from open_garden_planner.core.measurement_display import length_text
+from open_garden_planner.core.render_style import RenderStyle
 from open_garden_planner.services.scene_rendering import styled_scene
+from open_garden_planner.ui.widgets.export_style_group import FORMAT_PRINT, ExportStyleGroup
 
 # Scale presets: display name -> scale denominator (0 = fit to page)
 SCALE_PRESETS = [
@@ -96,6 +98,7 @@ class PrintOptionsDialog(QDialog):
         grid_visible: bool,
         labels_visible: bool,
         parent: object = None,
+        canvas_style: RenderStyle = RenderStyle.ILLUSTRATED,
     ) -> None:
         """Initialize the Print Options dialog.
 
@@ -105,9 +108,11 @@ class PrintOptionsDialog(QDialog):
             grid_visible: Whether grid is currently visible
             labels_visible: Whether labels are currently visible
             parent: Parent widget
+            canvas_style: The render style the canvas shows ("Same as canvas")
         """
         super().__init__(parent)
 
+        self._canvas_style = canvas_style
         self._canvas_width_cm = canvas_width_cm
         self._canvas_height_cm = canvas_height_cm
 
@@ -163,6 +168,10 @@ class PrintOptionsDialog(QDialog):
 
         layout.addWidget(include_group)
 
+        # Style: the canvas style or an override (WP7)
+        self._style_group = ExportStyleGroup(self._canvas_style, FORMAT_PRINT, self)
+        layout.addWidget(self._style_group)
+
         # Canvas info
         info_label = QLabel(
             self.tr("Canvas: {w} × {h}").format(
@@ -215,6 +224,20 @@ class PrintOptionsDialog(QDialog):
                     )
                 )
 
+    def accept(self) -> None:
+        """Remember the style choice, then close."""
+        self._style_group.commit()
+        super().accept()
+
+    @property
+    def style_group(self) -> ExportStyleGroup:
+        return self._style_group
+
+    @property
+    def render_style_override(self) -> RenderStyle | None:
+        """The style chosen for the printout; ``None`` follows the canvas."""
+        return self._style_group.override()
+
     @property
     def scale_denominator(self) -> int:
         """Get the selected scale denominator (0 = fit to page)."""
@@ -250,6 +273,7 @@ class GardenPrintManager:
         *,
         snapshot_validator: Callable[[], None] | None = None,
         grid_size_cm: float = 50.0,
+        render_style: RenderStyle | None = None,
     ) -> None:
         """Initialize the print manager.
 
@@ -257,7 +281,9 @@ class GardenPrintManager:
             scene: The canvas scene to print
             project_name: Name of the project for the legend
             grid_size_cm: The canvas's grid spacing, used when "Grid" is on
+            render_style: The printout's style; None is the canvas's own
         """
+        self._render_style = render_style
         self._scene = scene
         self._project_name = project_name
         self._snapshot_validator = snapshot_validator
@@ -512,7 +538,7 @@ class GardenPrintManager:
         painter.translate(0, 2 * offset_y + target_h)
         painter.scale(1, -1)
         with styled_scene(
-            self._scene, None, target_rect.width() / canvas_w, resolution
+            self._scene, self._render_style, target_rect.width() / canvas_w, resolution
         ):
             self._scene.render(painter, target_rect, canvas_rect)
         painter.restore()
@@ -602,7 +628,7 @@ class GardenPrintManager:
                 painter.setClipRect(target_rect, Qt.ClipOperation.IntersectClip)
                 painter.translate(0, tgt_h)
                 painter.scale(1, -1)
-                with styled_scene(self._scene, None, tgt_w / src_w, resolution):
+                with styled_scene(self._scene, self._render_style, tgt_w / src_w, resolution):
                     self._scene.render(painter, target_rect, source_rect)
                 painter.restore()
 
