@@ -1171,7 +1171,10 @@ def build_server(
         Returns ``configured`` (false when the plan was never georeferenced), the stored
         anchor (origin lat/lon at origin x/y cm, scale, rotation, ground-control points,
         the calibration affine), the plan's north angle, the canvas corners and extent in
-        (lat, lon), and the conversion status. Importing a satellite background sets the
+        (lat, lon), and the conversion status. ``fit_north_angle_deg`` / ``north_locked``
+        report whether a calibration is locked to the north angle it was fitted at (it is:
+        changing the plan's north later does not move a calibrated conversion; an
+        uncalibrated one follows the plan's north). Importing a satellite background sets the
         anchor automatically; set_georeference / calibrate_georeference set it by hand.
         """
         provider = providers.get_georeference
@@ -2163,7 +2166,8 @@ def build_server(
             origin_y_cm). cm_per_meter_x/y is the plan scale (100 = true scale; y defaults
             to x). The plan's own north angle is applied on top, so on a north-up plan
             +x is east and +y is north; rotation_deg is an extra clockwise turn.
-            Replaces any previous anchor and its calibration. Pass clear=true (and no
+            (calibrate_georeference on a bare plan follows the same rule: rotation_deg 0,
+            the plan's north applied on top.) Replaces any previous anchor and its calibration. Pass clear=true (and no
             origin) to remove the georeference. Numbers must be finite; latitude within
             +-89.9, longitude within +-180. One undoable step.
 
@@ -2212,7 +2216,10 @@ def build_server(
             translation; two fit a similarity (translation, rotation, uniform scale); three
             or more fit a least-squares 2-D affine. The reply lists every point's residual
             error in cm and the RMS error. With no georeference yet, the first point becomes
-            the origin at true scale. append=false (default) replaces the stored control
+            the origin at true scale with rotation_deg 0, so the plan's north applies on
+            top, exactly as in set_georeference. The fit is locked to the plan's north
+            angle at that moment (reported as fit_north_angle_deg) and a later north change
+            does not skew it. append=false (default) replaces the stored control
             points; true adds to them. At most 64 points; collinear or duplicate points
             are rejected. One undoable step.
 

@@ -14,6 +14,10 @@ Frames (ADR-002, ADR-037 addendum, §8.20):
   ``(cos a, -sin a)`` and ``(sin a, cos a)``; at ``a = 0`` that is +x = East, +y = North.
 - ``rotation_deg`` is an extra turn of the same kind owned by the georeference itself
   (a satellite bound while the plan's north was turned stores the compensation here).
+- ``fit_north_angle_deg`` is the plan's north angle at the moment a calibration was
+  fitted. A calibrated georeference LOCKS to it (ADR-079): the control points are
+  ground truth, so a later ``SetPlanNorthCommand`` cannot skew the affine residual.
+  An uncalibrated one has no lock and follows the plan's north.
 
 Projection: a local tangent plane at ``origin_lat`` using the WGS84 meridional and
 prime-vertical radii of curvature, sub-millimetre accurate over property scales.
@@ -68,6 +72,13 @@ def _require_lat_lon(lat: Any, lon: Any) -> tuple[float, float]:
     if not -180.0 <= lon_f <= 180.0:
         raise GeoreferenceError(f"lon out of range [-180, 180]: {lon_f}")
     return lat_f, lon_f
+
+
+def _finite_pair(first: float, second: float, what: str) -> tuple[float, float]:
+    """An output pair, or an error: huge finite inputs overflow to ``inf``/``nan``."""
+    if not (math.isfinite(first) and math.isfinite(second)):
+        raise GeoreferenceError(f"{what} is not finite (input out of range)")
+    return first, second
 
 
 def meters_per_degree(lat_deg: float) -> tuple[float, float]:
@@ -148,6 +159,13 @@ class PlanGeoreference:
     rotation_deg: float = 0.0
     control_points: tuple[ControlPoint, ...] = ()
     affine_matrix: Affine | None = None
+    fit_north_angle_deg: float | None = None
+
+    def effective_north(self, plan_north_deg: float) -> float:
+        """The north angle the projection uses: the fit-time lock, else the plan's."""
+        if self.affine_matrix is not None and self.fit_north_angle_deg is not None:
+            return self.fit_north_angle_deg
+        return plan_north_deg
 
     def __post_init__(self) -> None:
         lat, _lon = _require_lat_lon(self.origin_lat, self.origin_lon)
@@ -176,6 +194,8 @@ class PlanGeoreference:
             ]
             if abs(vals[0] * vals[4] - vals[1] * vals[3]) < _MIN_AFFINE_DET:
                 raise GeoreferenceError("affine_matrix is singular")
+        if self.fit_north_angle_deg is not None:
+            _require_finite(self.fit_north_angle_deg, "fit_north_angle_deg")
 
     def to_dict(self) -> dict[str, Any]:
         result: dict[str, Any] = {
@@ -191,6 +211,8 @@ class PlanGeoreference:
             result["control_points"] = [cp.to_dict() for cp in self.control_points]
         if self.affine_matrix is not None:
             result["affine_matrix"] = list(self.affine_matrix)
+        if self.fit_north_angle_deg is not None:
+            result["fit_north_angle_deg"] = self.fit_north_angle_deg
         return result
 
     @classmethod
@@ -210,6 +232,8 @@ class PlanGeoreference:
                 raise GeoreferenceError("affine_matrix must be a 6-element list")
             v = [_require_finite(x, f"affine_matrix[{i}]") for i, x in enumerate(raw_aff)]
             affine = (v[0], v[1], v[2], v[3], v[4], v[5])
+        raw_fit = data.get("fit_north_angle_deg")
+        fit_north = None if raw_fit is None else _require_finite(raw_fit, "fit_north_angle_deg")
         return cls(
             origin_lat=_require_finite(data.get("origin_lat"), "origin_lat"),
             origin_lon=_require_finite(data.get("origin_lon"), "origin_lon"),
@@ -220,6 +244,7 @@ class PlanGeoreference:
             rotation_deg=_require_finite(data.get("rotation_deg", 0.0), "rotation_deg"),
             control_points=tuple(ControlPoint.from_dict(cp) for cp in raw_cps),
             affine_matrix=affine,
+            fit_north_angle_deg=fit_north,
         )
 
 
@@ -264,12 +289,12 @@ def gps_to_scene(
 ) -> tuple[float, float]:
     """Convert WGS84 ``(lat, lon)`` to CAD scene ``(x_cm, y_cm)``."""
     lat_f, lon_f = _require_lat_lon(lat, lon)
-    north_f = _require_finite(north_angle_deg, "north_angle_deg")
+    north_f = georef.effective_north(_require_finite(north_angle_deg, "north_angle_deg"))
     x0, y0 = _base_gps_to_scene(lat_f, lon_f, georef, north_f)
     if georef.affine_matrix is None:
-        return x0, y0
+        return _finite_pair(x0, y0, "scene position")
     a, b, tx, c, d, ty = georef.affine_matrix
-    return a * x0 + b * y0 + tx, c * x0 + d * y0 + ty
+    return _finite_pair(a * x0 + b * y0 + tx, c * x0 + d * y0 + ty, "scene position")
 
 
 def scene_to_gps(
@@ -278,7 +303,7 @@ def scene_to_gps(
     """Convert CAD scene ``(x_cm, y_cm)`` to WGS84 ``(lat, lon)`` - the exact inverse."""
     x_f = _require_finite(x_cm, "x_cm")
     y_f = _require_finite(y_cm, "y_cm")
-    north_f = _require_finite(north_angle_deg, "north_angle_deg")
+    north_f = georef.effective_north(_require_finite(north_angle_deg, "north_angle_deg"))
 
     if georef.affine_matrix is not None:
         a, b, tx, c, d, ty = georef.affine_matrix
@@ -297,9 +322,10 @@ def scene_to_gps(
     north_m = x_rel_m * sin_t + y_rel_m * cos_t
 
     m_per_lat, m_per_lon = meters_per_degree(georef.origin_lat)
-    return (
+    return _finite_pair(
         georef.origin_lat + north_m / m_per_lat,
         georef.origin_lon + east_m / m_per_lon,
+        "GPS position",
     )
 
 
@@ -401,6 +427,7 @@ def fit_affine_calibration(
             rotation_deg=base.rotation_deg,
             control_points=pts,
             affine_matrix=matrix,
+            fit_north_angle_deg=north_f,
         )
     except GeoreferenceError as error:
         raise GeoreferenceError(f"control points give a degenerate calibration: {error}") from error

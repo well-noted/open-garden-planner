@@ -130,15 +130,18 @@ def georeference_view(
             "conversion": "unavailable: no georeference is set (set_georeference or "
             "import a satellite background)",
         }
+    locked = georef.affine_matrix is not None and georef.fit_north_angle_deg is not None
     return {
         "configured": True,
         "georeference": georef.to_dict(),
         "north_angle_deg": north_angle_deg,
         "calibrated": georef.affine_matrix is not None,
+        "fit_north_angle_deg": georef.fit_north_angle_deg,
+        "north_locked": locked,
         "calibration_note": (
-            "the calibration was fitted at the plan's north angle of that time; after "
-            "changing the north angle, calibrate again"
-            if georef.affine_matrix is not None else None
+            f"calibrated at north {georef.fit_north_angle_deg}; the conversion stays locked "
+            "to that angle, so changing the plan's north does not move it"
+            if locked else None
         ),
         "control_point_count": len(georef.control_points),
         "bounds": georeference_bounds(georef, canvas_width_cm, canvas_height_cm, north_angle_deg),
@@ -192,7 +195,8 @@ def calibrate(
             origin_lon=first.lon,
             origin_x_cm=first.x_cm,
             origin_y_cm=first.y_cm,
-            rotation_deg=-north_angle_deg,
+            # rotation_deg stays 0, exactly as set_georeference's default: the plan's
+            # north applies on top (ADR-079).
         )
     all_points = [*current.control_points, *points] if append else points
     result = fit_affine_calibration(current, all_points, north_angle_deg)

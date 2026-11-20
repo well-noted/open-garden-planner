@@ -351,3 +351,31 @@ def test_the_write_tools_refuse_a_missing_or_wrong_token(app: Any, qtbot: Any) -
         assert app._project_manager.georeference is None
     finally:
         server.stop()
+
+
+def test_a_calibrated_read_view_reports_the_locked_fit_north(app: Any) -> None:
+    app._project_manager.set_north_angle(20.0)
+    app._do_agent_set_georeference(dict(BERLIN))
+    lat, lon = scene_to_gps(300.0, 400.0, app._project_manager.georeference, 20.0)  # type: ignore[arg-type]
+    app._do_agent_calibrate_georeference(
+        [{"lat": lat, "lon": lon, "x_cm": 310.0, "y_cm": 395.0}], False
+    )
+    before = app._do_agent_get_georeference()
+    assert before["north_locked"] is True and before["fit_north_angle_deg"] == 20.0
+    app._project_manager.set_north_angle(80.0)
+    after = app._do_agent_get_georeference()
+    assert after["north_angle_deg"] == 80.0 and after["fit_north_angle_deg"] == 20.0
+    assert after["bounds"] == before["bounds"]  # the north change did not skew the fit
+    flat = app._do_agent_set_georeference(dict(BERLIN))
+    assert flat["georeference"].get("fit_north_angle_deg") is None
+    assert app._do_agent_get_georeference()["north_locked"] is False
+
+
+def test_calibrating_a_bare_plan_keeps_rotation_zero_like_set_georeference(app: Any) -> None:
+    app._project_manager.set_north_angle(35.0)
+    app._do_agent_calibrate_georeference(
+        [{"lat": 48.0, "lon": 11.0, "x_cm": 500.0, "y_cm": 700.0}], False
+    )
+    georef = app._project_manager.georeference
+    assert georef is not None and georef.rotation_deg == 0.0
+    assert georef.fit_north_angle_deg == 35.0

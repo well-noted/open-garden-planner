@@ -6242,7 +6242,12 @@ class GardenPlannerApp(QMainWindow):
         self.canvas_view.fit_in_view()
 
         self._project_manager.mark_dirty()
-        self._bind_satellite_georeference(image_item)
+        bound = self._bind_satellite_georeference(image_item)
+        undo_note = (
+            " " + self.tr("Undo reverts only the georeference, not the picture or canvas size.")
+            if bound
+            else ""
+        )
         if result.source == "google_js_view_capture":
             self.statusBar().showMessage(
                 self.tr(
@@ -6253,6 +6258,7 @@ class GardenPlannerApp(QMainWindow):
                     w_m=length_text(canvas_w_cm),
                     h_m=length_text(canvas_h_cm),
                 )
+                + undo_note
             )
         else:
             self.statusBar().showMessage(
@@ -6266,14 +6272,17 @@ class GardenPlannerApp(QMainWindow):
                     w_m=length_text(canvas_w_cm),
                     h_m=length_text(canvas_h_cm),
                 )
+                + undo_note
             )
 
-    def _bind_satellite_georeference(self, image_item: Any) -> None:
+    def _bind_satellite_georeference(self, image_item: Any) -> bool:
         """Bind the plan's georeference to a freshly imported satellite picture.
 
         The picture's centre (lat, lon) is the canvas centre. A plan with no georeference
         takes it silently; one that already has a different anchor is asked first, and a
-        refusal keeps it. ONE undoable ``SetGeoreferenceCommand`` either way.
+        refusal keeps it. ONE undoable ``SetGeoreferenceCommand`` either way - but only
+        the georeference: the image replace and the canvas resize before it are not on
+        the undo stack (ADR-079). Returns True when the georeference was set.
         """
         from open_garden_planner.core.commands import SetGeoreferenceCommand
         from open_garden_planner.core.georeference import (
@@ -6288,10 +6297,10 @@ class GardenPlannerApp(QMainWindow):
                 image_item.geo_metadata or {}, centre.x(), centre.y(), pm.north_angle_deg
             )
         except GeoreferenceError:
-            return
+            return False
         current = pm.georeference
         if current == georef:
-            return
+            return False
         if current is not None:
             answer = QMessageBox.question(
                 self,
@@ -6302,8 +6311,9 @@ class GardenPlannerApp(QMainWindow):
                 ),
             )
             if answer != QMessageBox.StandardButton.Yes:
-                return
+                return False
         self.canvas_view.command_manager.execute(SetGeoreferenceCommand(pm, georef))
+        return True
 
     def _on_set_location(self) -> None:
         """Handle Set Garden Location action."""

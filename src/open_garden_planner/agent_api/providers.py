@@ -350,6 +350,9 @@ class AgentProviders:
         calibrate_georeference: **Write.** Fits ground-control pairs onto the georeference
             (1 point = translation, 2 = similarity, >= 3 = least-squares affine) and
             reports per-point residuals in cm; one undoable ``SetGeoreferenceCommand``.
+            The fit is locked to the plan's north angle at that moment
+            (``fit_north_angle_deg``); a bare plan starts at ``rotation_deg`` 0, as
+            ``set_georeference`` does.
         set_plant_recipe: **Write.** Sets or clears a custom 3D recipe on one plant
             (``instance`` / ``species`` / ``library``); one undoable
             ``SetPlantRecipeCommand``.
