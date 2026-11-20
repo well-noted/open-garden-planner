@@ -290,6 +290,44 @@ def test_the_lawn_has_no_blades_under_the_terrace_or_the_greenhouse(garden: Gard
             & (moved[:, 1] > 1005.0) & (moved[:, 1] < 1295.0)).any()
 
 
+def test_a_mulch_bed_drawn_with_its_tool_is_bark_relief_on_a_cut_lawn(garden: Garden, mouse_event: Any) -> None:
+    """The MULCH tool's bed reaches 3D as relief on its painted bark: chips, never a solid
+    (no shadow, not picked, the bake keeps painting it), the lawn's blades cleared under it
+    and its spill. Another fill is painted flat as drawn: no bark invented on it."""
+    from open_garden_planner.core.fill_patterns import FillPattern, create_pattern_brush
+
+    before = set(garden.scene.items())
+    garden.view.set_active_tool(ToolType.MULCH)
+    tool = garden.view.tool_manager.active_tool
+    corners = [(1300.0, 1450.0), (1900.0, 1450.0), (1900.0, 1750.0), (1300.0, 1750.0)]
+    for x, y in corners:
+        tool.mouse_press(mouse_event, QPointF(x, y))
+    tool.mouse_double_click(mouse_event, QPointF(*corners[-1]))
+    (bed,) = [i for i in set(garden.scene.items()) - before if isinstance(i, PolygonItem)]
+    assert bed.object_type is ObjectType.MULCH and bed.fill_pattern is FillPattern.MULCH
+
+    pipeline = Pipeline(garden.scene)
+    pipeline.tick()
+    record = pipeline.sync.records[Garden.id(bed)]
+    assert record.params["surface_pattern"] == "MULCH"
+    chips = pipeline.part(bed, "mulch_layer")
+    assert chips.ground_detail and not chips.casts_shadow and chips.surface == "mulch"
+    assert Garden.id(bed) not in pipeline.sync.solid_ids
+    posed = pipeline.posed(bed, "mulch_layer")
+    assert float(posed[:, 2].max()) <= surfaces.CHIP_LIFT_CM + 1e-3
+    roots = pipeline.posed(garden.lawn, surfaces.LAWN_BLADES)[::5, :2]
+    spill = surfaces.MULCH_SPILL_CM - 0.6
+    under = ((roots[:, 0] > 1300.0 - spill) & (roots[:, 0] < 1900.0 + spill)
+             & (roots[:, 1] > 1450.0 - spill) & (roots[:, 1] < 1750.0 + spill))
+    assert not under.any()
+
+    bed.fill_pattern = FillPattern.GRAVEL
+    bed.setBrush(create_pattern_brush(FillPattern.GRAVEL, bed.fill_color))
+    pipeline.tick()
+    assert pipeline.sync.records[Garden.id(bed)].params["surface_pattern"] == "GRAVEL"
+    assert not [p for p in pipeline.sink.item(Garden.id(bed)).parts if p.mesh.vertex_count]
+
+
 # ── 4. a path's width is its width on the ground ─────────────────────────────
 
 

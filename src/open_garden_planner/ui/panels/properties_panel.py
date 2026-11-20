@@ -36,9 +36,11 @@ from open_garden_planner.core.commands import (
 )
 from open_garden_planner.core.fill_patterns import (
     GRAVEL_COLORS,
+    MULCH_COLORS,
     FillPattern,
     FillTransform,
     gravel_color_key,
+    mulch_color_key,
 )
 from open_garden_planner.core.furniture_renderer import get_furniture_svg_path
 from open_garden_planner.core.item_look import (
@@ -108,6 +110,7 @@ _TOOL_ICONS: dict[ObjectType, str] = {
     ObjectType.POND_POOL: "pond",
     ObjectType.GARDEN_BED: "garden_bed",
     ObjectType.LAWN: "lawn",
+    ObjectType.MULCH: "mulch",
     ObjectType.FENCE: "fence",
     ObjectType.WALL: "wall",
     ObjectType.PATH: "path",
@@ -2689,6 +2692,7 @@ class PropertiesPanel(QWidget):
             )
             self._form_layout.addRow(self.tr("Fill Pattern:"), pattern_combo)
             self._add_gravel_color_row(item, fill_btn, pattern_combo)
+            self._add_mulch_color_row(item, fill_btn, pattern_combo)
             self._register_refresh(
                 pattern_combo,
                 lambda c=pattern_combo, it=item: c.setCurrentIndex(
@@ -3342,6 +3346,44 @@ class PropertiesPanel(QWidget):
             if key is None or self._updating:
                 return
             hex_rgb = next(h for k, _n, h in GRAVEL_COLORS if k == key)
+            fill_btn.set_color(QColor(hex_rgb))
+            self._on_color_changed(item, 'fill_color', fill_btn)
+
+        combo.currentIndexChanged.connect(lambda _i: chosen())
+        pattern_combo.currentIndexChanged.connect(lambda _i: read_state())
+        self._register_refresh(combo, read_state)
+        read_state()
+
+    def _add_mulch_color_row(self, item: QGraphicsItem, fill_btn: ColorButton,
+                             pattern_combo: QComboBox) -> None:
+        """The gravel colour row's twin for mulch: a combo of the mulch types under the
+        fill colour, shown while the fill pattern is mulch. Choosing one sets the fill
+        colour (one undo step); a fill that is none of them reads "Custom"."""
+        combo = QComboBox()
+        _style_combo(combo)
+        names = {"bark": self.tr("Bark"), "cedar": self.tr("Cedar"),
+                 "pine": self.tr("Pine"), "black": self.tr("Black")}
+        combo.addItem(self.tr("Custom"), None)
+        for key, _name, _hex_rgb in MULCH_COLORS:
+            combo.addItem(names[key], key)
+        combo.setObjectName("mulch_color_combo")
+        label = QLabel(self.tr("Mulch Type:"))
+        self._form_layout.addRow(label, combo)
+
+        def read_state() -> None:
+            mulch = getattr(item, 'fill_pattern', FillPattern.SOLID) == FillPattern.MULCH
+            key = mulch_color_key(fill_btn.color)
+            combo.blockSignals(True)
+            combo.setCurrentIndex(max(combo.findData(key), 0))
+            combo.blockSignals(False)
+            combo.setVisible(mulch)
+            label.setVisible(mulch)
+
+        def chosen() -> None:
+            key = combo.currentData()
+            if key is None or self._updating:
+                return
+            hex_rgb = next(h for k, _n, h in MULCH_COLORS if k == key)
             fill_btn.set_color(QColor(hex_rgb))
             self._on_color_changed(item, 'fill_color', fill_btn)
 

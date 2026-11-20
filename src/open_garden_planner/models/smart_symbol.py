@@ -84,6 +84,7 @@ VALID_OBJECT_TYPES_BY_KIND: dict[str, frozenset[str]] = {
         "GREENHOUSE",
         "GARDEN_BED",
         "LAWN",
+        "MULCH",
         "HEDGE_POLYGON",
     }),
     "circle": frozenset({

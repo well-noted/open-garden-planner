@@ -45,6 +45,7 @@ class ToolType(Enum):
     GREENHOUSE = auto()
     GARDEN_BED = auto()
     LAWN = auto()
+    MULCH = auto()
     HEDGE_POLYGON = auto()
 
     # Property object types (polyline-based)

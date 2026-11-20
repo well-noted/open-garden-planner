@@ -160,8 +160,9 @@ _log = logging.getLogger(__name__)
 #: rotation of the house (measured: on 400 of 400) — "rotate → transform only"
 #: would be false for the one item a house owns.
 _NO_RECORD_KINDS = frozenset({"ROOF_RIDGE"})
-#: Surfaces whose 3D relief depends on their fill pattern (L4.2: a deck has boards).
-_PATTERNED_SURFACES: Final = frozenset({"TERRACE_PATIO", "DRIVEWAY"})
+#: Surfaces whose 3D relief depends on their fill pattern (L4.2: a deck has boards; a
+#: mulch bed has its bark layer only while its fill is the MULCH pattern).
+_PATTERNED_SURFACES: Final = frozenset({"TERRACE_PATIO", "DRIVEWAY", "MULCH"})
 
 
 class SkipReason(StrEnum):

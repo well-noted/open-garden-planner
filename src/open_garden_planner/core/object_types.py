@@ -238,6 +238,10 @@ class ObjectType(Enum):
     GARDEN_LIGHT = auto()
     STRING_LIGHTS = auto()
 
+    # Mulch surface: a polygon of bark / wood chips laid on the ground (appended: names are
+    # serialized, values are not)
+    MULCH = auto()
+
 
 @dataclass(frozen=True)
 class ObjectStyle:
@@ -304,6 +308,13 @@ OBJECT_STYLES: dict[ObjectType, ObjectStyle] = {
         stroke_width=2.5,
         display_name=QT_TR_NOOP("Garden Bed"),
         fill_pattern=FillPattern.SOIL,
+    ),
+    ObjectType.MULCH: ObjectStyle(
+        fill_color=QColor(122, 82, 52, 255),  # Bark brown
+        stroke_color=QColor(74, 48, 30),  # Dark bark
+        stroke_width=2.0,
+        display_name=QT_TR_NOOP("Mulch"),
+        fill_pattern=FillPattern.MULCH,
     ),
     ObjectType.LAWN: ObjectStyle(
         fill_color=QColor(100, 180, 60, 255),  # Fresh green
@@ -818,6 +829,7 @@ def get_valid_types_for_shape(
             ObjectType.GREENHOUSE,
             ObjectType.GARDEN_BED,
             ObjectType.LAWN,
+            ObjectType.MULCH,
             ObjectType.HEDGE_POLYGON,
         ]
     if shape == "rectangle":

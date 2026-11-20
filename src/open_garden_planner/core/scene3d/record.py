@@ -150,8 +150,9 @@ PARAM_ROOF_OVERHANG: Final = "roof_overhang_cm"
 #: DRIVEWAY first); its door goes there. WHICH wall only, so a building moved along
 #: its path keeps its param and its mesh. Absent when the plan has no path.
 PARAM_DOOR_WALL: Final = "door_wall"
-#: str — a TERRACE_PATIO's or DRIVEWAY's fill-pattern name (L4.2): its relief
-#: (boards for a deck, pavers, a kerb) depends on it, so here it is geometry.
+#: str — a TERRACE_PATIO's, DRIVEWAY's or MULCH's fill-pattern name (L4.2): its relief
+#: (boards for a deck, pavers, a kerb, a mulch bed's bark layer) depends on it, so
+#: here it is geometry.
 PARAM_SURFACE_PATTERN: Final = "surface_pattern"
 #: ``((x, y), …)`` rings — a LAWN's (L4.5): the outlines, in the lawn's local frame,
 #: of the flat items painted ABOVE it (paths, terraces, beds, ponds …). Its blades

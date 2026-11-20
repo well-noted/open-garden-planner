@@ -197,6 +197,7 @@ _SOIL_PARENT_TYPE_NAMES = frozenset(
 GROUND_SURFACE_TYPE_NAMES = frozenset(
     {
         "LAWN",
+        "MULCH",
         "PATH",
         "TERRACE_PATIO",
         "DRIVEWAY",

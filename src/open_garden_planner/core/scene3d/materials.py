@@ -117,6 +117,10 @@ SURFACES: Final = MappingProxyType(dict((
              SurfaceDetail("CONCRETE", DETAIL_PLANAR, 128.0, 1.0, 2000.0, 0.85)),
     _surface("concrete", 0.90, 0.15),
     _surface("soil", 0.95, 0.10),          # §4 bark, soil, mulch 0.85-0.95
+    # §4 bark, soil, mulch 0.85-0.95: a mulch bed's edge and loose chips. No detail picture:
+    # the MULCH texture's bright chips reach 4.7x its mean, past the detail texel's 2.5x
+    # headroom (``surface_detail.ALBEDO_ENCODE``) - 6 % of it would clip and its mean fall 2.9 %
+    _surface("mulch", 0.92, 0.08),
     _surface("roof_tile", 0.80, 0.15,      # §4 roof tiles 0.70-0.85 (roofMat's values)
              SurfaceDetail("ROOF_TILES", DETAIL_UV, 256.0, 1.5, 4000.0, 0.6)),
     _surface("shingle", 0.80, 0.15,

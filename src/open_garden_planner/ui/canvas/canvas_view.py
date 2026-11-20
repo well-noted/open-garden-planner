@@ -637,6 +637,11 @@ class CanvasView(QGraphicsView):
         lawn_tool.display_name = self.tr("Lawn")
         self._tool_manager.register_tool(lawn_tool)
 
+        mulch_tool = PolygonTool(self, object_type=ObjectType.MULCH)
+        mulch_tool.tool_type = ToolType.MULCH
+        mulch_tool.display_name = self.tr("Mulch")
+        self._tool_manager.register_tool(mulch_tool)
+
         # Register property object tools (polyline-based)
         fence_tool = PolylineTool(self, object_type=ObjectType.FENCE)
         fence_tool.tool_type = ToolType.FENCE

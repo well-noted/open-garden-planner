@@ -226,3 +226,8 @@ moves, chevrons indicating the step:
   down (Send Backward)
 - `arrange_back.svg` — back square accented, double chevron pointing down
   (Send to Back)
+
+Added 2026-11-20 (mulch surface), same contract and normalizer, drawn by hand
+for this project (no Tabler source icon):
+
+- `mulch.svg` — ground line with five scattered wood chips

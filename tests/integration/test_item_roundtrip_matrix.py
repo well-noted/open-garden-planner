@@ -196,7 +196,8 @@ RECOLOURED = "#ffc81e1e"  # no object type's default
 #: Types a rectangle is drawn as (furniture is a sprite: no fill of its own).
 RECTANGLE_TYPES = [
     ObjectType.GENERIC_RECTANGLE, ObjectType.LAWN, ObjectType.TERRACE_PATIO, ObjectType.GARDEN_BED,
-    ObjectType.DRIVEWAY, ObjectType.POND_POOL, ObjectType.GREENHOUSE, ObjectType.HOUSE,
+    ObjectType.DRIVEWAY, ObjectType.MULCH, ObjectType.POND_POOL, ObjectType.GREENHOUSE,
+    ObjectType.HOUSE,
     ObjectType.GARAGE_SHED, ObjectType.CONTAINER, ObjectType.WALL_PLANTER,
 ]
 

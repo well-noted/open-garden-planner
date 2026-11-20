@@ -45,6 +45,7 @@ from open_garden_planner.core.scene3d.context import (
     ROUND_PATH_STYLES,
     with_context,
 )
+from open_garden_planner.core.scene3d.materials import SURFACES
 from open_garden_planner.core.scene3d.pick_oracle import pick_scene
 from open_garden_planner.core.scene3d.polygon import RegionTooLargeError, group_rings
 from open_garden_planner.core.scene3d.record import BUILD_ONLY_PARAMS, Params
@@ -113,7 +114,7 @@ PATH_STYLES = ["STEPPING_STONES", "WOODEN_BOARDWALK", "PAVED_PATH", "GRAVEL_PATH
 
 
 def test_the_surface_kinds() -> None:
-    assert {"PATH", "TERRACE_PATIO", "DRIVEWAY", "POND_POOL", "LAWN"} == SURFACE_KINDS
+    assert {"PATH", "TERRACE_PATIO", "DRIVEWAY", "POND_POOL", "LAWN", "MULCH"} == SURFACE_KINDS
 
 
 # ── paths ────────────────────────────────────────────────────────────────────
@@ -180,7 +181,8 @@ def test_no_relief_vertex_lies_more_than_10_cm_past_the_path(style, path, width)
 
 
 @pytest.mark.parametrize("kind,params", [("TERRACE_PATIO", {}), ("TERRACE_PATIO", {"surface_pattern": "DECKING"}),
-                                         ("DRIVEWAY", {}), ("POND_POOL", {})])
+                                         ("DRIVEWAY", {}), ("POND_POOL", {}), ("MULCH", {}),
+                                         ("MULCH", {"surface_pattern": "MULCH"})])
 @pytest.mark.parametrize("ring", [rectangle(400.0, 300.0), L_SHAPE], ids=["box", "L"])
 def test_no_relief_vertex_lies_more_than_10_cm_past_a_surface(kind, params, ring) -> None:
     assert reach_outside(polygon_record(kind, ring, None, params=params)) <= 10.0
@@ -371,6 +373,156 @@ def test_an_outline_of_too_many_vertices_gets_no_relief(kind: str) -> None:
     assert REGISTRY.build(polygon_record(kind, ring, None)) == ()
     small = ring[::2]   # half the vertices: under the cap, the relief is there
     assert REGISTRY.build(polygon_record(kind, small, None)) != ()
+
+
+# ── mulch ────────────────────────────────────────────────────────────────────
+
+
+def _mulch(ring, height=None, **params):  # noqa: ANN001, ANN202
+    return polygon_record("MULCH", ring, height, params={"seed": "mulch-bed", **params})
+
+
+#: A chip: a bevelled slab, 38 triangles, 114 vertices (``bevelled_boxes``).
+CHIP_TRIANGLES = 38
+#: How far a border chip may reach past the outline: its centre's spill (slid past a
+#: corner by at most 0.45 of a step) plus the largest chip's half diagonal (9 x 3.6 cm).
+CHIP_REACH_CM = float(np.hypot(surfaces.MULCH_SPILL_CM, 0.45 * surfaces.EDGE_CHIP_EVERY_CM)
+                      + np.hypot(4.5, 1.8))
+
+
+def _chips(part) -> np.ndarray:  # noqa: ANN001 - a MeshPart
+    return part.mesh.positions.astype(np.float64).reshape(-1, 3 * CHIP_TRIANGLES, 3)
+
+
+@pytest.mark.parametrize("ring", [rectangle(400.0, 300.0), L_SHAPE, rectangle(30.0, 12.0)],
+                         ids=["box", "L", "tiny"])
+def test_a_mulch_bed_is_low_relief_of_ground_detail(ring) -> None:
+    (part,) = verify_builder(REGISTRY.builder_for("MULCH"), _mulch(ring), plan_margin_cm=10.0)
+    assert part.name == "mulch_layer" and part.ground_detail and not part.casts_shadow and part.tinted
+    assert part.material_kind == "vc" and part.surface == "mulch" and part.surface in SURFACES
+    assert part.mesh.triangle_count % CHIP_TRIANGLES == 0      # chips, and nothing else
+    z = part.mesh.positions[:, 2]
+    assert float(z.min()) == pytest.approx(0.0, abs=1e-4)      # lying on the painted ground
+    assert float(z.max()) <= surfaces.CHIP_LIFT_CM + 1e-4 < surfaces.DECK_TOP_CM
+    # nothing faces down: a culled vc face turned away would show the ground through it
+    assert float(part.mesh.normals[:, 2].min()) >= -1e-6
+    assert CHIP_REACH_CM <= 10.0
+    assert reach_outside(_mulch(ring)) <= CHIP_REACH_CM + 1e-4
+
+
+def test_the_mulch_border_is_ragged_chips_not_a_kerb() -> None:
+    """Round 2's soft heap along the border read as a picture frame round the bed: the
+    border is a ragged row of chips, about one every ``EDGE_CHIP_EVERY_CM``, some past
+    the outline."""
+    record = _mulch(rectangle(400.0, 300.0))
+    rng = np.random.Generator(np.random.PCG64(1))
+    centres, sizes, angles = surfaces._edge_chips(record, rng)
+    assert 0.7 < len(centres) / (1400.0 / surfaces.EDGE_CHIP_EVERY_CM) < 0.9   # one in five left out
+    past = np.maximum(np.abs(centres[:, 0]) - 200.0, np.abs(centres[:, 1]) - 150.0)
+    assert float(past.max()) <= surfaces.MULCH_SPILL_CM + 1e-9 and float(past.max()) > 0.0
+    assert float(past.min()) >= -3.0 - 1e-9
+    assert sizes.shape == (len(centres), 2) and angles.shape == (len(centres),)
+
+
+def test_the_mulch_chips_are_deterministic_bounded_and_differ_per_item() -> None:
+    ring = rectangle(400.0, 300.0)
+    (one,) = REGISTRY.build(_mulch(ring))
+    (again,) = REGISTRY.build(_mulch(ring))
+    assert np.array_equal(one.mesh.positions, again.mesh.positions)
+    other = polygon_record("MULCH", ring, None, params={"seed": "another-bed"})
+    (two,) = REGISTRY.build(other)
+    assert not np.array_equal(one.mesh.positions, two.mesh.positions)   # two beds are no clones
+    huge = _mulch(rectangle(20_000.0, 20_000.0))                       # 400 m²: the cap holds
+    (big,) = REGISTRY.build(huge)
+    assert big.mesh.triangle_count <= CHIP_TRIANGLES * surfaces.MAX_MULCH_CHIPS
+
+
+def test_no_mulch_chip_hangs_over_the_edge_or_stands_up() -> None:
+    record = _mulch(L_SHAPE)
+    (part,) = REGISTRY.build(record)
+    chips = _chips(part)
+    ring = record.footprints[0]
+    outside = ~surfaces._inside(chips.reshape(-1, 3)[:, :2], np.asarray(ring, dtype=np.float64))
+    reach = distance_to_path(chips.reshape(-1, 3)[outside, :2], ring, closed=True)
+    assert float(reach.max()) <= CHIP_REACH_CM + 1e-4      # a border chip spills, never further
+    assert float(chips[:, :, 2].min()) == pytest.approx(0.0)
+    assert float(chips[:, :, 2].max()) <= surfaces.CHIP_LIFT_CM + 1e-6
+    width = np.array([min(np.ptp(chip[:, 0]), np.ptp(chip[:, 1])) for chip in chips])
+    height = np.ptp(chips[:, :, 2], axis=1)
+    assert (height < 0.75 * width).all()                   # lying flat, never a tent
+    area_m2 = record.plan_area_cm2 / 10_000.0
+    assert len(chips) >= 0.7 * surfaces.CHIPS_PER_M2 * area_m2   # the interior's share, at least
+
+
+def test_a_mulch_bed_with_a_hole_keeps_its_hole() -> None:
+    outer = rectangle(400.0, 400.0)
+    hole = tuple(reversed(rectangle(100.0, 100.0)))
+    record = dataclasses.replace(_mulch(outer), footprints=(outer,), holes=((hole,),))
+    (part,) = verify_builder(REGISTRY.builder_for("MULCH"), record, plan_margin_cm=10.0)
+    pos = part.mesh.positions.astype(np.float64)
+    deep_in_hole = (np.abs(pos[:, 0]) < 50.0 - CHIP_REACH_CM - 0.01) \
+        & (np.abs(pos[:, 1]) < 50.0 - CHIP_REACH_CM - 0.01)
+    assert not deep_in_hole.any()
+    assert ((np.abs(pos[:, 0]) < 50.0) & (np.abs(pos[:, 1]) < 50.0)).any()   # its border chips spill in
+
+
+@pytest.mark.parametrize("pattern", ["SOLID", "GRAVEL", "WOOD"])
+def test_a_mulch_item_of_another_pattern_is_painted_flat_as_drawn(pattern: str) -> None:
+    """The relief is bark: on an item the user gave another fill it would invent chips
+    the 2D plan does not show. Its painted ground stays as drawn."""
+    assert REGISTRY.build(_mulch(rectangle(400.0, 300.0), surface_pattern=pattern)) == ()
+    assert REGISTRY.build(_mulch(rectangle(400.0, 300.0), surface_pattern="MULCH")) != ()
+
+
+def test_a_mulch_outline_of_too_many_vertices_gets_no_relief() -> None:
+    count = surfaces.MAX_RELIEF_VERTICES + 4
+    ring = [(2000.0 * np.cos(2 * np.pi * k / count), 2000.0 * np.sin(2 * np.pi * k / count))
+            for k in range(count)]
+    assert REGISTRY.build(_mulch(ring)) == ()
+    assert REGISTRY.build(_mulch(ring[::2])) != ()
+
+
+def test_a_bed_with_a_border_past_the_chip_cap_keeps_its_interior_chips() -> None:
+    """A border longer than ``MAX_MULCH_CHIPS`` chips gets none along it (checked before
+    the walk allocates), and the chip cap holds in all."""
+    record = _mulch(rectangle(30_000.0, 30.0))   # 600 m of border, 9 m² of bed
+    (part,) = REGISTRY.build(record)
+    assert part.mesh.triangle_count <= CHIP_TRIANGLES * surfaces.MAX_MULCH_CHIPS
+    assert reach_outside(record) <= 1e-4          # no border chip: nothing spills
+
+
+def test_a_comb_of_mulch_is_bounded_and_on_its_footprint() -> None:
+    """A hostile outline: 100 teeth, 402 vertices, under the relief cap."""
+    record = _mulch(comb(100))
+    (part,) = REGISTRY.build(record)
+    assert part.mesh.triangle_count <= CHIP_TRIANGLES * surfaces.MAX_MULCH_CHIPS
+    assert reach_outside(record) <= 10.0
+
+
+@pytest.mark.parametrize("height", [2.0, 25.0])
+def test_a_mulch_bed_the_user_gave_a_height_is_a_raised_solid_that_casts(height: float) -> None:
+    record = _mulch(rectangle(400.0, 300.0), height)
+    parts = verify_builder(REGISTRY.builder_for("MULCH"), record, plan_margin_cm=0.5)
+    sides, cap = parts
+    assert (sides.name, cap.name) == ("mulch_sides", "mulch")
+    assert cap.fill_texture and not cap.tinted and sides.tinted     # its top shows its own fill
+    assert all(part.casts_shadow and not part.ground_detail for part in parts)
+    assert max(float(part.mesh.positions[:, 2].max()) for part in parts) == pytest.approx(height)
+
+
+def test_flat_mulch_on_a_lawn_cuts_its_blades_out_with_the_spill() -> None:
+    bed = at(polygon_record("MULCH", rectangle(400.0, 400.0), None, item_id="bed",
+                            params={"seed": "bed", "surface_pattern": "MULCH"}), 0.0, 0.0)
+    whole, cut = _blade_roots_cut(bed)
+    inside = lambda roots, grow: (np.abs(roots[:, 0]) < 200.0 + grow) & (np.abs(roots[:, 1]) < 200.0 + grow)  # noqa: E731
+    assert inside(whole, 0.0).sum() > 100                  # there were blades under it …
+    assert not inside(cut, surfaces.MULCH_SPILL_CM - 0.6).any()   # … none grows through it or its spill
+    assert len(cut) > 0.9 * len(whole) - inside(whole, surfaces.MULCH_SPILL_CM + 0.6).sum()
+    # another pattern has no spill: its cut-out is the outline
+    gravel = dataclasses.replace(bed, params=Params({"seed": "bed", "surface_pattern": "GRAVEL"}))
+    _whole, cut = _blade_roots_cut(gravel)
+    assert not inside(cut, -0.01).any()
+    assert inside(cut, surfaces.MULCH_SPILL_CM).any()
 
 
 # ── ponds ────────────────────────────────────────────────────────────────────
@@ -762,3 +914,20 @@ def test_an_item_with_a_solid_part_and_relief_is_a_solid() -> None:
     record = line_record("PATH", BENT_PATH, None, width=80.0, style="PAVED_PATH", item_id="p")
     sync.apply({"p": record})
     assert sync.solid_ids == frozenset({"p"})
+
+
+@pytest.mark.parametrize("mulch_first", [True, False], ids=["under-lawn", "over-lawn"])
+def test_a_raised_mulch_bed_clears_the_lawn_blades_under_it(mulch_first: bool) -> None:
+    """A mulch bed given a height (a 5 cm layer under 7 cm blades) cuts the lawn like a
+    flat one does — whatever its paint order, as a raised solid: no blade pokes through its
+    top (3D review of the mulch surface). A flat one drawn UNDER the lawn is covered by it."""
+    lawn = at(painted(polygon_record("LAWN", rectangle(800.0, 800.0), None, item_id="lawn")), 0.0, 0.0)
+    bed = at(painted(polygon_record("MULCH", rectangle(200.0, 200.0), 5.0, item_id="bed")), 0.0, 0.0)
+    flat = at(painted(polygon_record("MULCH", rectangle(200.0, 200.0), None, item_id="flat")), 0.0, 0.0)
+    order = (bed, lawn) if mulch_first else (lawn, bed)
+    records = {r.item_id: r for r in order}
+    with_context(records)
+    assert records["lawn"].params.get("lawn_cutouts"), "the raised bed left the lawn uncut"
+    records = {r.item_id: r for r in ((flat, lawn) if mulch_first else (lawn, flat))}
+    with_context(records)
+    assert bool(records["lawn"].params.get("lawn_cutouts")) is (not mulch_first)

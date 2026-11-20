@@ -448,6 +448,7 @@ def _bed_and_surface_items() -> list[GalleryItem]:
     surfaces = [
         (_tr("Garden Bed"), ToolType.GARDEN_BED, ObjectType.GARDEN_BED, "garden_bed", FillPattern.SOIL),
         (_tr("Lawn"), ToolType.LAWN, ObjectType.LAWN, "lawn", FillPattern.GRASS),
+        (_tr("Mulch"), ToolType.MULCH, ObjectType.MULCH, "mulch", FillPattern.MULCH),
         (_tr("Terrace/Patio"), ToolType.TERRACE_PATIO, ObjectType.TERRACE_PATIO, "terrace", FillPattern.WOOD),
         (_tr("Driveway"), ToolType.DRIVEWAY, ObjectType.DRIVEWAY, "driveway", FillPattern.GRAVEL),
         (_tr("Pond/Pool"), ToolType.POND_POOL, ObjectType.POND_POOL, "pond", FillPattern.WATER),

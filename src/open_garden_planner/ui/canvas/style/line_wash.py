@@ -103,6 +103,7 @@ WASH_DEFAULT: Final = {
     StyleRole.FENCE_WALL: "#a08c70",
     StyleRole.LAWN: "#7fae5a",
     StyleRole.BED: "#8a6a48",
+    StyleRole.MULCH: "#7a5234",
     StyleRole.PLANT_TREE: "#5f9a52",
     StyleRole.PLANT_SHRUB: "#6fa85a",
     StyleRole.PLANT_GROUND: "#8bbf6a",

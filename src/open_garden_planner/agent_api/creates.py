@@ -117,6 +117,7 @@ _POLYGON_TYPE_NAMES = frozenset(
         "POND_POOL",
         "GREENHOUSE",
         "LAWN",
+        "MULCH",
         "HEDGE_POLYGON",
     }
 )

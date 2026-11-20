@@ -372,6 +372,29 @@ def gravel_color_key(color: QColor) -> str | None:
     return best[1] if best else None
 
 
+#: The mulch types the properties panel offers: (key, English name, fill colour). Plain
+#: fill colours like the gravel ones (a plan stores only the colour); the luminance-map
+#: tint turns the bark-chip picture into each.
+MULCH_COLORS: tuple[tuple[str, str, str], ...] = (
+    ("bark", "Bark", "#7a5234"),
+    ("cedar", "Cedar", "#9a5a3a"),
+    ("pine", "Pine", "#a87d52"),
+    ("black", "Black", "#3a3027"),
+)
+
+
+def mulch_color_key(color: QColor) -> str | None:
+    """The key of the mulch colour ``color`` is (within ``GRAVEL_COLOR_MATCH``), else None."""
+    best: tuple[float, str] | None = None
+    for key, _name, hex_rgb in MULCH_COLORS:
+        ref = QColor(hex_rgb)
+        dist = math.sqrt((color.red() - ref.red()) ** 2 + (color.green() - ref.green()) ** 2
+                         + (color.blue() - ref.blue()) ** 2)
+        if dist <= GRAVEL_COLOR_MATCH and (best is None or dist < best[0]):
+            best = (dist, key)
+    return best[1] if best else None
+
+
 def _hue_reference(pattern: FillPattern | None, image: QImage) -> tuple[float, float, float, float] | None:
     """(keep, mean R, G, B) of a texture the tint keeps hues of, else None."""
     keep = HUE_KEEP.get(pattern) if pattern is not None else None

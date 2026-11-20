@@ -76,6 +76,7 @@ IRRIGATION_COLOR: Final = QColor("#1f5fbf")
 WATER_TINT: Final = QColor("#e3ecf8")
 BED_GREY: Final = QColor("#f0f0f0")  # 6 % grey
 LAWN_GREY: Final = QColor("#f5f5f5")  # 4 % grey
+MULCH_GREY: Final = QColor("#e8e8e8")  # 9 % grey: darker than a lawn or a bed, as chips are
 HATCH_FALLBACK_GREY: Final = QColor("#e6e6e6")  # 10 % grey, when a hatch is over budget
 
 #: Outline weights, paper mm.
@@ -102,6 +103,8 @@ MAX_DETAIL_ELEMENTS: Final = 4000
 IRRIGATION_DASH_MM: Final = (4.0, 2.0)
 IRRIGATION_WEIGHT_MM: Final = 0.25
 LAWN_DASH_MM: Final = (3.0, 1.5)
+#: Mulch outline: a fine dotted line (paper mm), told from the lawn's dashes at a glance.
+MULCH_DASH_MM: Final = (0.4, 0.9)
 
 _ELLIPSE_POINTS: Final = 48
 _FULL_TURN: Final = 360 * 16
@@ -286,6 +289,10 @@ class CadPainter:
             elif role is StyleRole.LAWN:
                 painter.setBrush(LAWN_GREY)
                 painter.setPen(_dashed(_ink_pen(painter, W_LIGHT), painter, LAWN_DASH_MM))
+                painter.drawPath(path)
+            elif role is StyleRole.MULCH:
+                painter.setBrush(MULCH_GREY)
+                painter.setPen(_dashed(_ink_pen(painter, W_STANDARD), painter, MULCH_DASH_MM))
                 painter.drawPath(path)
             elif role is StyleRole.BED:
                 painter.setBrush(BED_GREY)

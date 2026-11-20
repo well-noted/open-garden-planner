@@ -522,6 +522,10 @@ def build_built() -> PlanBuilder:
     b.circle(1080, 1240, 20, T.GARDEN_LIGHT, "Garden light")
     b.polyline([(240, 1250), (450, 1210), (660, 1250)], T.STRING_LIGHTS,
                name="String lights")   # a line: a post at each point (owner's manual test)
+    # --- a mulch bed round the cherry tree (#mulch-surface): on the lawn, so its blades are
+    # cut out under it. LAST, like the lights: every earlier item keeps its id and seed ---
+    b.polygon([(870, 1080), (1040, 1060), (1095, 1150), (1050, 1225), (930, 1240), (860, 1160)],
+              T.MULCH, "Mulch bed")
     return b
 
 

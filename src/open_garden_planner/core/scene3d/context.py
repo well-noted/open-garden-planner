@@ -15,7 +15,8 @@ the record's own frame, once every record exists (``with_context``):
   ``params["lawn_cutouts"]`` holds the outer outlines of every such record
   (painted on the ground, no height, not a plant, later in paint order; or
   enclosed) whose box meets the lawn's, in the lawn's frame — a pond's grown by its
-  coping (``POND_CLEARANCE_CM``), an open gravel or dirt path's the rounded stroke the
+  coping (``POND_CLEARANCE_CM``), a mulch bed's by its bark's spill (``MULCH_SPILL_CM``),
+  an open gravel or dirt path's the rounded stroke the
   canvas paints (``ROUND_PATH_STYLES``). At most
   ``MAX_CUTOUTS`` outlines and ``MAX_CUTOUT_VERTICES`` vertices, the largest
   first: beyond that, the smallest items let blades through.
@@ -44,7 +45,13 @@ from ..shadow_geometry import grown_polygon, polyline_round_outline
 from .builders import OBJECT_KINDS
 from .builders.common import centre_line
 from .builders.facade import door_wall_index
-from .builders.surfaces import BLADES_PER_M2, COPING_OUT_CM, pond_regions
+from .builders.surfaces import (
+    BLADES_PER_M2,
+    COPING_OUT_CM,
+    MULCH_PATTERN,
+    MULCH_SPILL_CM,
+    pond_regions,
+)
 from .builders.surfaces import MAX_BLADES as MAX_LAWN_BLADES
 from .frame import cos_sin, pose_ring
 from .polygon import group_rings, ring_area
@@ -53,6 +60,7 @@ from .record import (
     PARAM_LAWN_BLADES,
     PARAM_LAWN_CUTOUTS,
     PARAM_PATH_STYLE,
+    PARAM_SURFACE_PATTERN,
     Record,
     Transform,
 )
@@ -73,6 +81,9 @@ _NOT_A_CUTOUT: Final = frozenset({"TREE", "SHRUB", "PERENNIAL", "LAWN"})
 #: parasol 6 m²).
 GROUND_COVERING_KINDS: Final = frozenset({
     "COLD_FRAME", "COMPOST_BIN", "FIRE_PIT", "HOT_TUB", "PLANTER_POT", "RAIN_BARREL", "SANDBOX"})
+#: Ground surfaces that, once given a height, are solids a lawn's blades would poke through
+#: (a 5 cm mulch bed under 7 cm blades): they cut the lawn whatever their paint order.
+RAISED_COVERING_KINDS: Final = frozenset({"MULCH", "PATH", "TERRACE_PATIO", "DRIVEWAY"})
 #: Enclosed buildings cut a lawn whatever their place in the paint order: their
 #: inside is seen — through a greenhouse's glass, into a house with its roof off
 #: (Cutaway) — and no grass grows on a floor.
@@ -201,6 +212,11 @@ def _cutout_rings(record: Record) -> list[tuple[tuple[float, float], ...]]:
     if record.kind == "POND_POOL":  # the outline its coping is built on (a round pond: round)
         return [_keyhole(grown, holes) for outer, holes in pond_regions(record)
                 for grown in grown_polygon(outer, POND_CLEARANCE_CM)]
+    if record.kind == "MULCH" and record.params.get(PARAM_SURFACE_PATTERN, MULCH_PATTERN) == MULCH_PATTERN:
+        # a mulch bed's bark spills past its outline (``surfaces.MULCH_SPILL_CM``): no
+        # blade grows through the spill
+        return [_keyhole(grown, holes) for outer, holes in record.regions
+                for grown in grown_polygon(outer, MULCH_SPILL_CM)]
     width = record.path_width_cm
     if record.kind == "PATH" and record.params.get(PARAM_PATH_STYLE) in ROUND_PATH_STYLES and width:
         line, closed = centre_line(record)
@@ -240,7 +256,8 @@ def _lawn_cutouts(records: MutableMapping[str, Record]) -> None:
     candidates = []  # every record that cuts a lawn it lies on: collected once
     for index, item_id in enumerate(order):
         other = records[item_id]
-        enclosed = other.kind in ENCLOSED_KINDS or other.kind in GROUND_COVERING_KINDS
+        enclosed = (other.kind in ENCLOSED_KINDS or other.kind in GROUND_COVERING_KINDS
+                    or (other.kind in RAISED_COVERING_KINDS and other.height_cm is not None))
         if not other.footprints or (not enclosed and (
                 other.kind in _NOT_A_CUTOUT or other.height_cm is not None or other.material.paint is None
                 or other.kind in OBJECT_KINDS)):

@@ -25,7 +25,7 @@ covers this package).
 ``lights``         GARDEN_LIGHT, STRING_LIGHTS: a lantern on a post, a string of
                    bulbs on a line of posts — and where their bulbs are, for the
                    lights of the night (L5.4, ``core/scene3d/lights.py``)
-``surfaces``       PATH, TERRACE_PATIO, DRIVEWAY, POND_POOL, LAWN: relief on
+``surfaces``       PATH, TERRACE_PATIO, DRIVEWAY, POND_POOL, LAWN, MULCH: relief on
                    the painted ground — ``ground_detail`` parts (L4.2, L4.5)
 ``plants``         TREE, SHRUB, PERENNIAL (``plant_art.PLANT_KINDS``): one
                    silhouette per sprite archetype, from the 2D recipe tables

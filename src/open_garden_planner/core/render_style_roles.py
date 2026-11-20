@@ -25,6 +25,7 @@ class StyleRole(Enum):
     PATH = "path"
     FENCE_WALL = "fence_wall"
     LAWN = "lawn"
+    MULCH = "mulch"
     BED = "bed"
     PLANT_TREE = "plant_tree"
     PLANT_SHRUB = "plant_shrub"
@@ -52,6 +53,7 @@ _ROLE_BY_TYPE_NAME: Final[dict[str, StyleRole]] = {
     "HEDGE_POLYGON": StyleRole.FENCE_WALL,
     "HEDGE_SECTION": StyleRole.FENCE_WALL,
     "LAWN": StyleRole.LAWN,
+    "MULCH": StyleRole.MULCH,
     "GARDEN_BED": StyleRole.BED,
     "RAISED_BED": StyleRole.BED,
     "CONTAINER": StyleRole.BED,

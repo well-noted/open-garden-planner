@@ -13670,3 +13670,19 @@ The photo tools, the records window and Field Remote were first built on an olde
 ### ADR-081 addendum: the read API and the position puck (WP-C)
 
 `field_remote/routes.py` (`read_routes`) adds `GET /api/state|scene|basemap|species|stream` and `POST /api/position`; `field_remote/projection.py` holds the pure projections and `field_remote/events.py` the bounded event ring. The routes never touch the scene: the host fetches one `snapshot_dict` through the main-thread bridge (reused for one second, dropped on a plan change), and every projection works on that plain dict on the server's thread pool. ETags exclude `server_time`, so a phone polling `/api/state` gets 304 until the plan, a layer flag or a permission changes. `/api/scene` is capped at 5000 objects (`truncated` says so), polylines are simplified to 2 cm and at most 200 points, hidden layers are not sent. `/api/basemap` is the background downscaled to 2048 px JPEG with its plan rectangle (cm, Y-up, bottom-left corner), resized once per distinct background. `/api/stream` is NDJSON, one minute per connection with a `since` replay, at most two at a time. `/api/position` (one fix or up to 50) is allowed with the phone-save toggle off because it changes nothing on disk; it returns the telemetry of design 2.9 and hands it to the desktop, whose `PositionPuckItem` (halo, heading cone, fix badge) is an overlay with no stacking rank, outside the undo stack and the saved plan, hidden from exports and toggled in View. Until the positioning engine (WP-B) is wired through the `solver` hook of `projection.telemetry`, the telemetry is the raw projected fix: `fix_mode` standard (or the client-reported quality, marked `fix_mode_reported`), `sigma_m` the reported accuracy, nothing smoothed and no claim below the reported accuracy.
+
+## ADR-082: Mulch is a ground-surface object type with chip relief (extends ADR-065)
+
+**Status**: Implemented on `feature/mulch-surface`; draft until the owner confirms manual testing.
+
+**Context**: Mulch existed only as a fill pattern. A user could not place it as a surface with its own tool, render style roles or 3D look.
+
+**Decision**:
+
+1. `ObjectType.MULCH` is appended to the enum (names are serialized, so no `FILE_VERSION` bump) and handled like a driveway: polygon tool, gallery entry, `GROUND_SURFACE_TYPE_NAMES`, Agent API polygon roster. The fill pattern `MULCH` and `mulch.png` are reused; no new texture art.
+2. Render styles key on `StyleRole.MULCH` (one row in `render_style_roles`): CAD and Line & Wash each get a branch; Illustrated needs none.
+3. 3D: loose bark chips as `ground_detail` relief over the bark the ground bake already paints (builder `surfaces._mulch`, surface `mulch`). A raised 3-5 cm layer was built and rejected: it needs the bark picture on top and the detail-picture path cannot carry it inside its accuracy gate (bright chips reach 4.7x the mean against 2.5x headroom), so a layer without the picture hid the bake as a flat slab. Revisit with a headroom change to `built_detail.frag` and `surface_detail.py`.
+4. A raised ground surface cuts a lawn whatever its paint order (`context.RAISED_COVERING_KINDS`), so blades never poke through it.
+
+**Consequences**: Shopping-list mulch area (beds) does not yet count mulch objects. Chips spill up to `MULCH_SPILL_CM` past the outline and the lawn cut-out grows by the same margin.
+

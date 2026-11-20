@@ -279,7 +279,7 @@ class TestPanelUndo:
 
     @pytest.mark.parametrize("type_name", [
         "GENERIC_POLYGON", "GENERIC_RECTANGLE", "GENERIC_CIRCLE", "GENERIC_ELLIPSE",
-        "GARDEN_BED", "TERRACE_PATIO", "POND_POOL", "LAWN", "PATH", "DRIVEWAY",
+        "GARDEN_BED", "TERRACE_PATIO", "POND_POOL", "LAWN", "PATH", "DRIVEWAY", "MULCH",
     ])
     def test_every_footprint_type_offers_the_height_field(
             self, qtbot, type_name: str) -> None:

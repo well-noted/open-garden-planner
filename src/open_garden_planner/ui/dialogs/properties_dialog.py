@@ -157,6 +157,7 @@ class PropertiesDialog(QDialog):
                     ObjectType.GARAGE_SHED,
                     ObjectType.TERRACE_PATIO,
                     ObjectType.DRIVEWAY,
+                    ObjectType.MULCH,
                     ObjectType.POND_POOL,
                     ObjectType.GREENHOUSE,
                     ObjectType.GARDEN_BED,

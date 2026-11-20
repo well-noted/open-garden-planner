@@ -1,7 +1,7 @@
 {
   "version": "1.4",
   "metadata": {
-    "modified": "2026-11-08T19:46:53.587694+00:00"
+    "modified": "2026-11-20T20:44:54.322440+00:00"
   },
   "canvas": {
     "width": 2600.0,
@@ -285,6 +285,44 @@
       "stroke_width": 80.0,
       "path_fence_style": "DIRT_PATH",
       "stack_order": 21504
+    },
+    {
+      "type": "polygon",
+      "item_id": "0fd1e71e-32c3-4742-8cde-89907d4805a1",
+      "points": [
+        {
+          "x": 870.0,
+          "y": 1080.0
+        },
+        {
+          "x": 1040.0,
+          "y": 1060.0
+        },
+        {
+          "x": 1095.0,
+          "y": 1150.0
+        },
+        {
+          "x": 1050.0,
+          "y": 1225.0
+        },
+        {
+          "x": 930.0,
+          "y": 1240.0
+        },
+        {
+          "x": 860.0,
+          "y": 1160.0
+        }
+      ],
+      "object_type": "MULCH",
+      "name": "Mulch bed",
+      "fill_color": "#ff7a5234",
+      "stroke_color": "#ff4a301e",
+      "stroke_width": 2.0,
+      "fill_pattern": "MULCH",
+      "stroke_style": "SOLID",
+      "stack_order": 65536
     },
     {
       "type": "polygon",

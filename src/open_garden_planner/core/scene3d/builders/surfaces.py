@@ -27,6 +27,11 @@ it casts no shadow (the plan gives a surface no height).
   ``lawn_blades``; the engine hides them below) — in the lawn's colour, swaying
   with the wind, nowhere under a flat item painted ABOVE the lawn
   (``params["lawn_cutouts"]``, the snapshot's), so a path on a lawn stays clear.
+- **MULCH**: on its painted bark loose chips — low bevelled slabs, never
+  upright — in the item's colour, and a ragged row of them along its border,
+  spilling up to 2.5 cm past it. Only while its fill is the MULCH pattern
+  (``params["surface_pattern"]``): another pattern is painted flat, as drawn. A
+  mulch bed the user gave a height is the raised solid (``raised_surface``).
 
 Relief stays inside the footprint plus 10 cm (issue #388's truth gate) and low:
 the tallest is a deck's boards, 6 cm.
@@ -70,7 +75,7 @@ from .kit import MIN_DETAIL_DIMENSION_CM, beam
 from .primitives import F64, bevelled_boxes, flat_mesh, signed_area, sweep
 
 #: The kinds this module builds.
-KINDS: Final[tuple[str, ...]] = ("PATH", "TERRACE_PATIO", "DRIVEWAY", "POND_POOL", "LAWN")
+KINDS: Final[tuple[str, ...]] = ("PATH", "TERRACE_PATIO", "DRIVEWAY", "POND_POOL", "LAWN", "MULCH")
 #: The part name of a lawn's blades — the engine shows it at the presets whose look
 #: says ``lawn_blades`` (High, Ultra).
 LAWN_BLADES: Final = "lawn_blades"
@@ -134,6 +139,26 @@ MAX_DECK_ROWS: Final = 1_000
 MAX_RELIEF_VERTICES: Final = 4_096
 #: A blade's height (cm), before its ±30 % variation.
 BLADE_CM: Final = 7.0
+#: How far a mulch bed's border chips are centred past its outline (cm), and how often
+#: one lies along it (before 0.45 of a step's slide and one in five left out). A chip is
+#: at most 9 x 3.6 cm, so none reaches further than 4.9 cm past its centre, and a centre
+#: slid past a corner lies at most hypot(2.5, 2.7) = 3.7 cm from the outline: 8.6 cm, inside
+#: the truth gate (footprint plus 10 cm).
+MULCH_SPILL_CM: Final = 2.5
+EDGE_CHIP_EVERY_CM: Final = 6.0
+#: The fill pattern a mulch bed's relief belongs to; any other gets none.
+MULCH_PATTERN: Final = "MULCH"
+#: Loose chips on a mulch bed, low enough that a plant or a bench in the bed still
+#: stands on the plan's ground (z 0): per square metre, at most this many per bed (38
+#: triangles a chip, border chips included), this low to this high with this bevel, and
+#: their shading weights round the item's colour (the painted picture's own chips are
+#: lighter and darker than its mean).
+CHIPS_PER_M2: Final = 40.0
+MAX_MULCH_CHIPS: Final = 1_500
+CHIP_MIN_CM: Final = 0.4
+CHIP_LIFT_CM: Final = 1.0
+CHIP_BEVEL_CM: Final = 0.35
+CHIP_SHADE: Final = (0.85, 1.35)
 
 Color = tuple[float, float, float, float]
 
@@ -147,7 +172,7 @@ def _shade(weight: float) -> Color:
 #: What a tinted relief part is made of (#803), by its name; an untinted one (a pond's
 #: coping) takes its palette entries' surfaces.
 RELIEF_SURFACES: Final = {"stones": "stone", "boardwalk": "wood", "kerb": "concrete",
-                          "gravel": "stone", "deck": "wood"}
+                          "gravel": "stone", "deck": "wood", "mulch_layer": "mulch"}
 
 
 def _relief(meshes: list[Mesh], name: str, kind: str = "vc", *, tinted: bool = True) -> tuple[MeshPart, ...]:
@@ -499,6 +524,128 @@ def _surface(record: Record) -> tuple[MeshPart, ...]:
     return _relief(_kerbs(record, KERB_CM, 8.0, _shade(0.72)), "kerb")
 
 
+# ── mulch ────────────────────────────────────────────────────────────────────
+
+
+def _region_triangles(record: Record) -> F64 | None:
+    """The record's ground (holes cut out) as plan triangles (t, 3, 2), or None."""
+    triangles: list[F64] = []
+    for outer, holes in record.regions:
+        try:
+            vertices, faces = cut_region(tuple(outer), tuple(holes))
+        except ValueError:
+            continue
+        if faces:
+            triangles.append(np.asarray(vertices, dtype=np.float64)[np.asarray(faces, dtype=np.int64)])
+    return np.concatenate(triangles) if triangles else None
+
+
+def _edge_chips(record: Record, rng: np.random.Generator) -> tuple[F64, F64, F64]:
+    """Chips along every ring of the bed, every ``EDGE_CHIP_EVERY_CM``: centred from
+    ``MULCH_SPILL_CM`` outside the outline to 3 cm inside it, turned roughly along it —
+    a ragged border of bark, not the polygon's ruled line (and not a kerb: round 2's
+    heap read as a picture frame). ``(centres, sizes, angles)``; none beyond
+    ``MAX_MULCH_CHIPS``."""
+    rings = [np.asarray(ring, dtype=np.float64) for outer, holes in record.regions
+             for ring in (outer, *holes) if len(ring) >= 3]
+    perimeter = sum(float(np.linalg.norm(np.roll(ring, -1, axis=0) - ring, axis=1).sum()) for ring in rings)
+    if perimeter / EDGE_CHIP_EVERY_CM > MAX_MULCH_CHIPS:   # bounded BEFORE the walk allocates
+        return np.zeros((0, 2)), np.zeros((0, 2)), np.zeros(0)
+    centres, angles = [], []
+    for points in rings:
+        walked, along = walk_path(np.concatenate([points, points[:1]]), EDGE_CHIP_EVERY_CM)
+        inward = np.stack([-along[:, 1], along[:, 0]], axis=1)   # left of travel: the region
+        # off the ruled spacing: slid along the ring, turned well off it, some left out —
+        # round 3's even row read as a course of bricks
+        slide = rng.uniform(-0.45, 0.45, len(walked)) * EDGE_CHIP_EVERY_CM
+        kept = rng.random(len(walked)) < 0.8
+        placed = walked + inward * rng.uniform(-MULCH_SPILL_CM, 3.0, len(walked))[:, None] + along * slide[:, None]
+        centres.append(placed[kept])
+        turned = np.degrees(np.arctan2(along[:, 1], along[:, 0])) + rng.uniform(-60.0, 60.0, len(walked))
+        angles.append(turned[kept])
+    count = sum(len(c) for c in centres)
+    if not count or count > MAX_MULCH_CHIPS:
+        return np.zeros((0, 2)), np.zeros((0, 2)), np.zeros(0)
+    sizes = np.stack([rng.uniform(6.0, 11.0, count), rng.uniform(2.6, 4.4, count)], axis=1)
+    return np.concatenate(centres), sizes, np.concatenate(angles)
+
+
+def _on_regions(points: F64, record: Record) -> np.ndarray:
+    """Which ``points`` lie inside a region of the record (and in none of its holes)."""
+    on = np.zeros(len(points), dtype=bool)
+    for outer, holes in record.regions:
+        inside = _inside(points, np.asarray(outer, dtype=np.float64))
+        for hole in holes:
+            inside &= ~_inside(points, np.asarray(hole, dtype=np.float64))
+        on |= inside
+    return on
+
+
+def _mulch_chips(record: Record, plan: F64) -> Mesh:
+    """Loose bark chips on the painted bed: a ragged row along its border
+    (``_edge_chips``) and some drawn area-weighted from its triangles (each whose corners
+    do not all lie on the bed left out). Low bevelled slabs at the painted chips' scale,
+    each turned its own way, ``CHIP_MIN_CM`` to ``CHIP_LIFT_CM`` high — pieces lying on a
+    bed, never upright (L4's lesson: pebbles standing on a lawn read as tents)."""
+    rng = np.random.Generator(np.random.PCG64(item_seed(str(record.params.get(PARAM_SEED, "")), "mulch chips")))
+    centres, sizes, angles = _edge_chips(record, rng)
+    areas = 0.5 * np.abs((plan[:, 1, 0] - plan[:, 0, 0]) * (plan[:, 2, 1] - plan[:, 0, 1])
+                         - (plan[:, 2, 0] - plan[:, 0, 0]) * (plan[:, 1, 1] - plan[:, 0, 1]))
+    total = float(areas.sum())
+    count = int(min(MAX_MULCH_CHIPS - len(centres), CHIPS_PER_M2 * total / 10_000.0))
+    if count >= 1:
+        which = rng.choice(len(plan), size=count, p=areas / total)
+        a, b = rng.random(count), rng.random(count)
+        flip = a + b > 1.0
+        a[flip], b[flip] = 1.0 - a[flip], 1.0 - b[flip]
+        corners = plan[which]
+        inner = (corners[:, 0] + a[:, None] * (corners[:, 1] - corners[:, 0])
+                 + b[:, None] * (corners[:, 2] - corners[:, 0]))
+        inner_sizes = np.stack([rng.uniform(7.0, 14.0, count), rng.uniform(3.0, 5.5, count)], axis=1)
+        inner_angles = rng.uniform(0.0, 360.0, count)
+        turn = np.radians(inner_angles)
+        along = np.stack([np.cos(turn), np.sin(turn)], axis=1)
+        across = np.stack([-along[:, 1], along[:, 0]], axis=1)
+        keep = np.ones(count, dtype=bool)
+        for sx in (-0.5, 0.5):
+            for sy in (-0.5, 0.5):
+                keep &= _on_regions(inner + along * (sx * inner_sizes[:, :1])
+                                    + across * (sy * inner_sizes[:, 1:]), record)
+        centres = np.concatenate([centres, inner[keep]])
+        sizes = np.concatenate([sizes, inner_sizes[keep]])
+        angles = np.concatenate([angles, inner_angles[keep]])
+    n = len(centres)
+    if not n:
+        return Mesh.empty()
+    lift = rng.uniform(CHIP_MIN_CM, CHIP_LIFT_CM, n)
+    weight = rng.uniform(CHIP_SHADE[0], CHIP_SHADE[1], n)
+    colors = np.stack([weight, weight, weight, np.ones(n)], axis=1)
+    return bevelled_boxes(centres, sizes, 0.0, lift, CHIP_BEVEL_CM, angles, colors)
+
+
+@surfaced
+def _mulch(record: Record) -> tuple[MeshPart, ...]:
+    """A MULCH bed: the ground bake paints its bark (the canvas's own MULCH picture, which
+    the ground shader also lights by its detail normals); on top of it loose chips in its
+    colour, a ragged row of them along its border. Relief like every surface here
+    (``ground_detail``: painted under it, never picked, no shadow). A fill pattern other
+    than MULCH (the user chose gravel, a plain colour …) gets no relief: the ground bake
+    shows the 2D picture as it is, and no bark is invented on top of it. A bed the user
+    gave a HEIGHT is a raised layer — the solid, its top showing the item's fill,
+    casting a shadow, as a raised driveway does."""
+    if record.height_cm is not None:
+        return raised_surface(record, record.height_cm, name="mulch")
+    pattern = record.params.get(PARAM_SURFACE_PATTERN)
+    if pattern is not None and pattern != MULCH_PATTERN:
+        return ()
+    if _outline_vertices(record.regions) > MAX_RELIEF_VERTICES:
+        return ()
+    plan = _region_triangles(record)
+    if plan is None:
+        return ()
+    return _relief([_mulch_chips(record, plan)], "mulch_layer")
+
+
 # ── ponds ────────────────────────────────────────────────────────────────────
 
 
@@ -840,6 +987,7 @@ BUILDERS: Final = {
     "DRIVEWAY": _surface,
     "POND_POOL": _pond,
     "LAWN": _lawn,
+    "MULCH": _mulch,
 }
 
 
