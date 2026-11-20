@@ -243,3 +243,69 @@ def test_satellite_binding_anchors_the_picture_centre_at_the_canvas_centre() -> 
     for bad in ({}, {"center": [1.0]}, {"center": ["a", "b"]}, {"center": [float("nan"), 1.0]}):
         with pytest.raises(GeoreferenceError):
             georeference_from_satellite(bad, 0.0, 0.0)
+
+
+# --- review fixes: fit-time north lock, finite outputs (ADR-079) -----------------------
+
+
+def _calibrated_at(north: float) -> PlanGeoreference:
+    base = PlanGeoreference(52.52, 13.405, 100.0, 50.0)
+    pts = _points(base, [(0.0, 0.0), (5000.0, 0.0), (0.0, 3000.0)])
+    return fit_affine_calibration(base, pts, north).georeference
+
+
+def test_a_calibration_stores_and_locks_the_fit_time_north() -> None:
+    cal = _calibrated_at(30.0)
+    assert cal.fit_north_angle_deg == 30.0
+    lat, lon = scene_to_gps(700.0, 400.0, cal, 30.0)
+    # The plan's north later turns: the calibrated conversion must not move.
+    assert gps_to_scene(lat, lon, cal, 75.0) == pytest.approx((700.0, 400.0), abs=1e-6)
+    assert scene_to_gps(700.0, 400.0, cal, 75.0) == pytest.approx((lat, lon), abs=1e-12)
+
+
+def test_an_uncalibrated_georeference_still_follows_the_plans_north() -> None:
+    base = PlanGeoreference(52.52, 13.405)
+    assert base.fit_north_angle_deg is None
+    assert gps_to_scene(52.5201, 13.4052, base, 0.0) != pytest.approx(
+        gps_to_scene(52.5201, 13.4052, base, 90.0)
+    )
+
+
+def test_a_legacy_affine_without_a_fit_north_uses_the_passed_north() -> None:
+    cal = _calibrated_at(10.0)
+    legacy = PlanGeoreference.from_dict(
+        {k: v for k, v in cal.to_dict().items() if k != "fit_north_angle_deg"}
+    )
+    assert legacy.fit_north_angle_deg is None
+    assert gps_to_scene(52.5201, 13.4052, legacy, 0.0) != pytest.approx(
+        gps_to_scene(52.5201, 13.4052, legacy, 40.0)
+    )
+
+
+def test_the_fit_north_round_trips_and_is_validated() -> None:
+    cal = _calibrated_at(30.0)
+    assert cal.to_dict()["fit_north_angle_deg"] == 30.0
+    assert PlanGeoreference.from_dict(cal.to_dict()).fit_north_angle_deg == 30.0
+    assert "fit_north_angle_deg" not in BERLIN.to_dict()
+    for bad in (float("nan"), float("inf"), True, "30"):
+        with pytest.raises(GeoreferenceError):
+            PlanGeoreference.from_dict({**BERLIN.to_dict(), "fit_north_angle_deg": bad})
+        with pytest.raises(GeoreferenceError):
+            PlanGeoreference(52.52, 13.405, fit_north_angle_deg=bad)  # type: ignore[arg-type]
+
+
+def test_huge_finite_inputs_that_overflow_are_refused() -> None:
+    tiny_scale = PlanGeoreference(52.52, 13.405, cm_per_meter_x=1e-300, cm_per_meter_y=1e-300)
+    with pytest.raises(GeoreferenceError, match="not finite"):
+        scene_to_gps(1e308, 1e308, tiny_scale)
+    huge_scale = PlanGeoreference(52.52, 13.405, cm_per_meter_x=1e308, cm_per_meter_y=1e308)
+    with pytest.raises(GeoreferenceError, match="not finite"):
+        gps_to_scene(52.6, 13.5, huge_scale)
+    big_affine = PlanGeoreference(
+        52.52, 13.405, cm_per_meter_x=1e308, cm_per_meter_y=1e308,
+        affine_matrix=(1e308, 0.0, 0.0, 0.0, 1e308, 0.0),
+    )
+    with pytest.raises(GeoreferenceError, match="not finite"):
+        gps_to_scene(52.6, 13.4, big_affine)
+    # an ordinary conversion still passes
+    assert all(math.isfinite(v) for v in gps_to_scene(52.6, 13.5, BERLIN))
