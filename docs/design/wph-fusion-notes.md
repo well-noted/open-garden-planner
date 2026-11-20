@@ -40,9 +40,11 @@
   - a time reversal;
   - an implied VIO speed above 5 m/s between two `tracking` samples (reference-space reset);
   - **on recovery from limited/lost to `tracking` (review fix):** the jump is measured against the last *tracking* pose, not the limited ones, because the system may relocalise the frame while it is not tracking. A recovery more than 1 s after the last tracking pose, or limited for more than 1 s in total, also unlocks.
+  - **the walking bound (round-2 fix):** on any recovery from limited/lost, and across any pose gap (two `tracking` poses more than `POSE_GAP_S` = 0.5 s apart; poses come at 10 Hz), the ground jump may be at most `WALK_SPEED_MPS * gap + WALK_SLACK_M` = 2 m/s × gap + 0.3 m, where gap is the time since the last tracking pose. A larger jump is a relocalisation and unlocks with `vio_pose_jump`. A 4.5 m jump in 0.95 s, which the 5 m/s check alone let through, now unlocks; a walk through a short blip stays locked.
+  - the time of a frame break (loss, jump, reset) only ever moves forward: a non-finite sample can never lower or clear the break a reset left, so a lock point from before the reset stays refused.
 - A reference-space reset resets both aligners (the GNSS-aligned fallback too), and the unlock reason of a loss is kept when A is captured again; only re-capturing A while locked reports `relock`.
 - Between 0 and 1 s of limited tracking, positions are still produced but `fix_mode` is None, so the engine does not use them as the track.
-- After an unlock, `on_sample` returns None until a new lock. Nothing is ever spliced.
+- After an unlock, `on_sample` returns None until a new lock. A break is bridged only within the walking bound above; anything larger is never spliced.
 
 **GNSS gross-error check**
 

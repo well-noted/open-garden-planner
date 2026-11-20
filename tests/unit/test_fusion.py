@@ -285,3 +285,39 @@ def test_a_lock_point_taken_before_a_frame_break_is_refused() -> None:
         al.capture_a((0.0, 0.0), (0.0, 0.0), vio_t=5.0)  # the hit is in the old frame
     al.capture_a((0.0, 0.0), (0.0, 0.0), vio_t=5.3)  # a hit after the reset is fine
     assert al.state is FusionState.PENDING_B
+
+
+def test_a_relocalisation_of_metres_under_one_second_of_limited_tracking_unlocks() -> None:
+    al = _identity_locked()
+    al.on_sample(_vio(10.0, 0.0, 0.0))
+    al.on_sample(_vio(10.1, 0.0, 0.0, "limited"))
+    al.on_sample(_vio(10.5, 0.0, 3.5, "limited"))
+    assert al.on_sample(_vio(10.95, 0.0, 3.5)) is None  # 3.5 m in 0.95 s is no walk (bound 2.2 m)
+    assert al.state is FusionState.UNLOCKED and al.unlock_reason == "vio_pose_jump"
+
+
+def test_a_jump_across_a_pose_gap_while_tracking_unlocks() -> None:
+    al = _identity_locked()
+    al.on_sample(_vio(10.0, 0.0, 0.0))
+    assert al.on_sample(_vio(11.0, 0.0, 3.0)) is None  # 3 m in 1.0 s, under 5 m/s but over 2.3 m
+    assert al.unlock_reason == "vio_pose_jump"
+
+
+def test_a_walk_across_a_short_limited_blip_and_a_short_pose_gap_stays_locked() -> None:
+    al = _identity_locked()
+    al.on_sample(_vio(10.0, 0.0, 0.0))
+    al.on_sample(_vio(10.1, 0.15, 0.0, "limited"))
+    al.on_sample(_vio(10.3, 0.45, 0.0, "limited"))
+    assert al.on_sample(_vio(10.6, 0.9, 0.0)) is not None  # 1.5 m/s through a 0.6 s blip
+    assert al.on_sample(_vio(11.4, 2.1, 0.0)) is not None  # 1.5 m/s across a 0.8 s pose gap
+    assert al.state is FusionState.LOCKED and al.unlock_reason is None
+
+
+def test_a_non_finite_sample_never_lowers_or_clears_the_break_of_a_frame_reset() -> None:
+    al = PlanLockedAligner()
+    al.on_sample(_vio(100.0, 0.0, 0.0))
+    al.frame_reset(101.0)
+    al.on_sample(_vio(float("nan"), 0.0, 0.0))
+    al.on_sample(_vio(101.2, 0.0, 0.0))
+    with pytest.raises(FusionError, match="lost or reset"):
+        al.capture_a((0.0, 0.0), (0.0, 0.0), vio_t=99.0)  # taken in the frame before the reset

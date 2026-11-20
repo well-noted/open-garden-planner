@@ -192,7 +192,11 @@ class PositioningEngine:
 
         Returns the plan-locked estimate (``track_source="vio"``) while locked, tracking
         and the scale check passed; ``None`` otherwise (the Kalman track then stays the
-        source). Nothing is ever spliced: after a loss the lock is gone until re-locked.
+        source). After a loss the lock is gone until re-locked. A brief break is bridged
+        only when a walker could have made the jump: across a pose gap (> ``POSE_GAP_S``
+        between tracking poses) or a recovery from limited/lost (measured from the last
+        tracking pose), a jump above ``WALK_SPEED_MPS * gap + WALK_SLACK_M`` unlocks with
+        ``vio_pose_jump``; so does any implied speed above ``MAX_VIO_SPEED_MPS``.
         """
         self.latest_vio = v
         self._last_vio_t = v.t

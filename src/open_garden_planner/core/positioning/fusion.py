@@ -26,6 +26,9 @@ LOCK_MIN_BASELINE_M = 2.0
 SCALE_TOL = 0.02
 TRACKING_LOSS_S = 1.0  # limited/lost longer than this (strictly) unlocks
 MAX_VIO_SPEED_MPS = 5.0  # implied VIO speed above this is a reference-space jump
+POSE_GAP_S = 0.5  # two tracking poses further apart than this (strictly) are a pose gap (poses come at 10 Hz)
+WALK_SPEED_MPS = 2.0  # across a pose gap or a limited/lost recovery the jump may be at most
+WALK_SLACK_M = 0.3  # WALK_SPEED_MPS * gap + WALK_SLACK_M, else it is a relocalisation (vio_pose_jump)
 GNSS_ALERT_SIGMAS = 3.0
 PLAN_POINT_SIGMA_M = 0.25  # PLACEHOLDER anchor sigma, not measured (WP-M replaces it)
 VIO_PAIR_MAX_DT_S = 0.5
@@ -62,6 +65,11 @@ def _wrap(a: float) -> float:
 
 def _finite(*vals: float) -> bool:
     return all(math.isfinite(float(v)) for v in vals)
+
+
+def _walk_bound(gap_s: float) -> float:
+    """The largest ground jump a walker can make in ``gap_s`` seconds (metres)."""
+    return WALK_SPEED_MPS * gap_s + WALK_SLACK_M
 
 
 def vio_ground(sample: VioSample) -> Point2:
@@ -144,13 +152,19 @@ class _TrackingWatch:
         self.last = None
         self.last_tracking = None
 
+    def _mark_break(self, t: float) -> None:
+        """Note a frame break at ``t``. The break time only ever moves forward."""
+        if math.isfinite(t) and (self.break_t is None or t > self.break_t):
+            self.break_t = t
+
     @property
     def good(self) -> bool:
         return self.last is not None and self.last.tracking == "tracking"
 
     def update(self, v: VioSample) -> str | None:
         if not _finite(v.t, v.x, v.z):
-            self.break_t = self.last.t if self.last is not None else None
+            if self.last is not None:
+                self._mark_break(self.last.t)  # never lowers or clears a break already noted
             return "vio_non_finite"
         reason: str | None = None
         last = self.last
@@ -160,24 +174,22 @@ class _TrackingWatch:
                 reason = "vio_time_reversed"
             elif dt > TRACKING_LOSS_S:
                 reason = "vio_gap"
-            elif (
-                dt > 0.0
-                and last.tracking == "tracking"
-                and v.tracking == "tracking"
-                and math.hypot(v.x - last.x, v.z - last.z) / dt > MAX_VIO_SPEED_MPS
-            ):
-                reason = "vio_pose_jump"
+            elif dt > 0.0 and last.tracking == "tracking" and v.tracking == "tracking":
+                jump = math.hypot(v.x - last.x, v.z - last.z)
+                if jump / dt > MAX_VIO_SPEED_MPS or (dt > POSE_GAP_S and jump > _walk_bound(dt)):
+                    reason = "vio_pose_jump"
         ref = self.last_tracking
         if reason is None and v.tracking == "tracking" and last is not None and last.tracking != "tracking":
             # Recovery from limited/lost: the system may have relocalised the frame while it was
-            # not tracking. Judge the jump against the last *tracking* pose, never the limited ones.
+            # not tracking. Judge the jump against the last *tracking* pose, never the limited ones,
+            # and by walking speed: a relocalisation is spliced only if a walker could have made it.
             if self._bad_since is not None and v.t - self._bad_since > TRACKING_LOSS_S:
                 reason = f"tracking_{self._bad_kind}"
             elif ref is not None:
                 gap = v.t - ref.t
                 if gap > TRACKING_LOSS_S:
                     reason = "vio_gap"
-                elif gap > 0.0 and math.hypot(v.x - ref.x, v.z - ref.z) / gap > MAX_VIO_SPEED_MPS:
+                elif gap > 0.0 and math.hypot(v.x - ref.x, v.z - ref.z) > _walk_bound(gap):
                     reason = "vio_pose_jump"
         if v.tracking == "tracking":
             self._bad_since = None
@@ -188,7 +200,7 @@ class _TrackingWatch:
         if reason is None and self._bad_since is not None and v.t - self._bad_since > TRACKING_LOSS_S:
             reason = f"tracking_{v.tracking}"
         if reason is not None:
-            self.break_t = v.t
+            self._mark_break(v.t)
         self.last = v
         return reason
 
@@ -304,7 +316,7 @@ class PlanLockedAligner:
         """The phone's reference space was reset: drop the lock and forget the old frame."""
         self.unlock("reference_space_reset")
         self._watch.reset()
-        self._watch.break_t = t
+        self._watch._mark_break(t)
 
     def unlock(self, reason: str = "user") -> None:
         self.transform = None
