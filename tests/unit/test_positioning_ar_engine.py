@@ -316,3 +316,31 @@ def test_a_stale_pose_stream_never_publishes_the_locked_track() -> None:
     now[0] += 10.0  # no pose batch for 10 s, but the GNSS fix is still within the fused window
     tele = session.solver([_fix(TL + 0.6, *TRUE.apply(*P))], G)
     assert tele["track_source"] == "gnss" and tele["fused"]["source"] != "plan_locked"
+
+
+def test_vio_arriving_after_truncation_leaves_no_hole_in_the_kept_gnss(monkeypatch: pytest.MonkeyPatch) -> None:
+    from open_garden_planner.core.positioning import engine as engine_mod
+
+    monkeypatch.setattr(engine_mod, "MAX_TRACK_STEPS", 5)
+    eng = locked_engine()
+    eng.start_track()
+    for k in range(1, 7):  # the GNSS request lands first and fills the recording
+        eng.add_gnss(gnss(TL + k, *TRUE.apply(20.0 + 0.5 * k, 0.0)))
+    kept = len(eng._segmented()[0])
+    assert eng._truncated and kept == 5
+    for k in range(1, 61):  # then the VIO batch for the same seconds, after the cut
+        eng.add_vio(vio(TL + 0.1 * k, 20.0 + 0.05 * k, 0.0))
+    assert len(eng._segmented()[0]) == kept and eng._vio_spans == []  # nothing dropped, no span grew
+
+
+def test_the_vio_span_list_is_bounded(monkeypatch: pytest.MonkeyPatch) -> None:
+    from types import SimpleNamespace
+
+    from open_garden_planner.core.positioning import engine as engine_mod
+
+    monkeypatch.setattr(engine_mod, "MAX_VIO_SPANS", 3)
+    eng = PositioningEngine(G)
+    eng.start_track()
+    for k in range(10):  # ten runs of VIO, each separated by more than VIO_FRESH_S
+        eng._record_vio(SimpleNamespace(t=T0 + 5.0 * k, e_m=0.0, n_m=0.0, sigma_m=0.25))  # type: ignore[arg-type]
+    assert len(eng._vio_spans) == 3 and eng._truncated and len(eng._steps) == 3

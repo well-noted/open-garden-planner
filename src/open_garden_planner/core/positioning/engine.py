@@ -55,6 +55,7 @@ from .types import (
 from .zupt import StationaryDetector
 
 MAX_TRACK_STEPS = 20000
+MAX_VIO_SPANS = 2000  # runs of fresh VIO in one recording; more marks the recording truncated
 MOVING_SPEED_MPS = 0.5
 VIO_FRESH_S = 1.0  # a VIO fix older than this no longer drives the track
 PDR_VIO_QUIET_S = 2.0  # steps feed the prediction only when VIO has been silent this long
@@ -417,9 +418,19 @@ class PositioningEngine:
         return any(a <= t <= b + VIO_FRESH_S for a, b in self._vio_spans)
 
     def _record_vio(self, fix: FusedFix) -> None:
-        """Note the VIO coverage on every fix; keep a step at most every ``VIO_RECORD_MIN_DT_S``."""
+        """Note the VIO coverage on every fix; keep a step at most every ``VIO_RECORD_MIN_DT_S``.
+
+        Once the recording is truncated no span is added or extended: a span covering GNSS
+        steps already kept, with its own VIO steps refused, would leave a hole in the track.
+        """
         spans = self._vio_spans
+        if self._truncated or len(self._steps) >= MAX_TRACK_STEPS:
+            self._truncated = True
+            return
         new_span = not spans or fix.t - spans[-1][1] > VIO_FRESH_S or fix.t < spans[-1][0]
+        if new_span and len(spans) >= MAX_VIO_SPANS:
+            self._truncated = True  # the span list stays bounded; the recording ends here
+            return
         if new_span:
             spans.append([fix.t, fix.t])
         else:
@@ -441,8 +452,8 @@ class PositioningEngine:
             self._gnss_seq += 1
             if self._in_vio_span(step.t):
                 return  # the VIO track is the source there; finish re-checks late-arriving VIO
-        if len(self._steps) >= MAX_TRACK_STEPS:
-            self._truncated = True
+        if self._truncated or len(self._steps) >= MAX_TRACK_STEPS:
+            self._truncated = True  # nothing after the cut: the kept part has one source per time
             return
         self._steps.append(step)
         self._rec_vio.append(vio)
