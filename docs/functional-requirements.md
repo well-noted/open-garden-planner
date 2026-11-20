@@ -1170,6 +1170,15 @@ tier `tests/integration/test_scene3d_ground_render.py` and the frozen
   in a clean sentence, and nothing has changed. While a camera tour is moving the clock, **agent
   reads report the owner's held date** (not the frame's) as `as_of_date`, and **a plant an agent
   creates is stamped with that date**, so a recording cannot plant next week's crop in a video.
+- **FR-RS-AGENT** (render styles WP11): `render_canvas_image` and `render_3d_view` take an optional
+  `render_style` (`illustrated`, `cad`, `line_and_wash`; the schema enum is the shared `RENDER_STYLES`
+  constant). Omitted, the picture uses the user's current style (owner decision Q9). A style given for one
+  call draws that picture only: the plan, the user's saved preference and the user's canvas or 3D view are
+  not changed. Unknown ids are refused with the valid ids listed. `render_canvas_image` also takes
+  `callouts` (CAD only; ignored with a warning for other styles). Both results echo `render_style` (the
+  style drawn; `cad` in 3D has no look of its own and is drawn and echoed as `illustrated`, with a
+  warning) and `warnings`. `list_render_styles` lists `{id, label_en, svg_vector, supports_3d, options}`
+  and the current style. The top-down truth views ignore the style. No `FILE_VERSION` change.
 
 Acceptance (L6): `tests/integration/test_directors_cut.py` (§8.10 — photo mode, the click, Save Photo,
 the dialog, a recording end to end, every refusal, the blur/point invariant, the owner's date during
@@ -1364,3 +1373,29 @@ Pins: `tests/unit/test_shape_split.py`, `tests/integration/test_split_shapes.py`
 `tests/integration/test_group_drill_down.py`, `tests/unit/test_project.py::TestItemReferences`,
 `tests/integration/test_tool_switching.py::TestEscapeReturnsToSelect`,
 `tests/unit/test_object_height.py::TestHeightAcrossATypeChange`.
+
+## FR-RS: Render styles, the UI (Package 4, WP7)
+
+- **FR-RS-01:** The plan is drawn in one of three render styles: `tr("Illustrated")`
+  (default), `tr("Architectural CAD")` and `tr("Line & Wash")`. The style is a view
+  preference: not in the `.ogp`, no undo entry, never marks the plan modified.
+- **FR-RS-02:** The View menu has a "Render Style" radio group, a toolbar has a combo
+  and the 3D pane has a button; all three share one state
+  (`ui/render_style_controller.RenderStyleController`). Choosing a style switches the
+  running 2D canvas (`CanvasScene.set_render_style`) and the 3D view
+  (`LookController.set_render_style`: Line & Wash selects the NPR effect, CAD stays
+  plain 3D), stores `appearance/render_style` and is restored on the next start. A
+  style chosen before 3D first opens is used when it does.
+- **FR-RS-03:** The `tr("Leader callouts")` toggle (`appearance/cad_callouts`, default
+  off) is enabled only while the style is CAD. The toggle stores the preference; the
+  CAD callout layer itself is package WP5.
+- **FR-RS-04:** The PNG, SVG, PDF report and print dialogs have a "Style" combo,
+  "Same as canvas (...)" by default, then the three styles; the last choice is stored
+  in `export/render_style_override`. The Paper Space viewport follows the canvas style.
+- **FR-RS-05:** For SVG and PDF the dialog shows a fidelity note under the combo:
+  CAD is fully vector; Line & Wash says "SVG/PDF: washes without paper texture or
+  glazing". The SVG and PDF dialogs offer the opt-in "Include paper texture (raster)"
+  (`export/paper_texture_in_vector`, off), which sets
+  `line_wash.PAPER_TEXTURE_IN_VECTOR` for that export.
+
+Pins: `tests/unit/test_render_style_ui.py`, `tests/integration/test_render_style_ui.py`.

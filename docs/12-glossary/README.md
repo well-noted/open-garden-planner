@@ -390,3 +390,13 @@ yearly plan copy and from task reminder reference dates (ADR-062).
 - **SmartScreen reputation:** Microsoft's download-time trust signal in Edge and Windows. For an unsigned file it is kept per file hash and starts at zero with every release; for a signed file it can follow the publisher identity. Store-distributed packages never pass through it. The reason an unsigned app released several times a day shows "not commonly downloaded" forever (ADR-073, #375).
 - **App execution alias:** A zero-byte reparse-point exe Windows places in `%LOCALAPPDATA%\Microsoft\WindowsApps` for a packaged app (`uap5:AppExecutionAlias`). The only way for a shell or a script to start a Store-installed exe with arguments — Open Garden Planner declares one named like its exe so the frozen self-test still runs in the installed package (a double-clicked `.ogp` reaches the app through the file-type association, not the alias; ADR-073).
 - **Partner Center:** Microsoft's developer portal for Store submissions. It assigns the package identity (`Identity/Name`, `Identity/Publisher` as `CN=<GUID>`) that the manifest must carry; the project reads it from repository variables, never from source (ADR-073).
+
+### Render styles (Package 4)
+
+- **Render style:** How the plan is drawn: `illustrated` (default), `cad` or `line_and_wash`. A view preference with a per-output override, never stored in the plan.
+- **LOD band:** The zoom octave `floor(log2(device px per cm))` that derived style geometry is quantised to, so it does not shimmer while zooming.
+- **Style state:** The scene-wide data a render style computes once per `(style, paint revision, band)` (palette, canopy clusters, callout layout), kept in a two-entry LRU and never built inside a paint.
+- **Paper millimetre:** The unit of a style's line weights and dash lengths; on screen 96 dpi cosmetic pixels, in an export `mm x dpi / 25.4`.
+- **Render style controller:** `ui/render_style_controller.RenderStyleController`, the one owner of the chosen style; the View menu radio group, the toolbar combo and the 3D pane's button are views of it.
+- **Follow canvas:** The default of an export dialog's Style combo (`export/render_style_override` = `follow`): the output is drawn in the style the canvas shows.
+- **Paper texture (vector):** The opt-in raster of the Line & Wash paper grain embedded in an SVG or PDF (`PAPER_TEXTURE_IN_VECTOR`); off, vector outputs omit the grain.

@@ -12,7 +12,13 @@ from PyQt6.QtWidgets import (
 
 from open_garden_planner.core.i18n import format_integer
 from open_garden_planner.core.measurement_display import length_text
+from open_garden_planner.core.render_style import RenderStyle
 from open_garden_planner.services.export_service import ExportService
+from open_garden_planner.ui.widgets.export_style_group import (
+    FORMAT_PNG,
+    FORMAT_SVG,
+    ExportStyleGroup,
+)
 
 
 class ExportPngDialog(QDialog):
@@ -27,6 +33,7 @@ class ExportPngDialog(QDialog):
         canvas_width_cm: float,
         canvas_height_cm: float,
         parent: object = None,
+        canvas_style: RenderStyle = RenderStyle.ILLUSTRATED,
     ) -> None:
         """Initialize the Export PNG dialog.
 
@@ -34,9 +41,11 @@ class ExportPngDialog(QDialog):
             canvas_width_cm: Canvas width in centimeters
             canvas_height_cm: Canvas height in centimeters
             parent: Parent widget
+            canvas_style: The render style the canvas shows ("Same as canvas")
         """
         super().__init__(parent)
 
+        self._canvas_style = canvas_style
         self._canvas_width_cm = canvas_width_cm
         self._canvas_height_cm = canvas_height_cm
         self._selected_dpi = ExportService.DPI_PRINT  # Default to 150 DPI
@@ -119,6 +128,10 @@ class ExportPngDialog(QDialog):
 
         layout.addWidget(resolution_group)
 
+        # Style group: the canvas style or an override (WP7)
+        self._style_group = ExportStyleGroup(self._canvas_style, FORMAT_PNG, self)
+        layout.addWidget(self._style_group)
+
         # Preview group
         preview_group = QGroupBox(self.tr("Output Preview"))
         preview_layout = QVBoxLayout(preview_group)
@@ -154,6 +167,20 @@ class ExportPngDialog(QDialog):
         button_box.accepted.connect(self.accept)
         button_box.rejected.connect(self.reject)
         layout.addWidget(button_box)
+
+    def accept(self) -> None:
+        """Remember the style choice, then close."""
+        self._style_group.commit()
+        super().accept()
+
+    @property
+    def style_group(self) -> ExportStyleGroup:
+        return self._style_group
+
+    @property
+    def render_style_override(self) -> RenderStyle | None:
+        """The style chosen for this export; ``None`` follows the canvas."""
+        return self._style_group.override()
 
     def _on_size_changed(self, size_id: int) -> None:
         """Handle output size selection change.
@@ -204,3 +231,42 @@ class ExportPngDialog(QDialog):
     def selected_output_width_cm(self) -> float:
         """Get the selected output width in centimeters."""
         return self._selected_output_width_cm
+
+
+class ExportSvgDialog(QDialog):
+    """Dialog for the SVG export: the drawing style and the paper-texture opt-in."""
+
+    def __init__(self, canvas_style: RenderStyle = RenderStyle.ILLUSTRATED,
+                 parent: object = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle(self.tr("Export as SVG"))
+        self.setModal(True)
+        self.setMinimumWidth(420)
+        layout = QVBoxLayout(self)
+        self._style_group = ExportStyleGroup(canvas_style, FORMAT_SVG, self)
+        layout.addWidget(self._style_group)
+        button_box = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel
+        )
+        button_box.accepted.connect(self.accept)
+        button_box.rejected.connect(self.reject)
+        layout.addWidget(button_box)
+
+    def accept(self) -> None:
+        """Remember the style choice, then close."""
+        self._style_group.commit()
+        super().accept()
+
+    @property
+    def style_group(self) -> ExportStyleGroup:
+        return self._style_group
+
+    @property
+    def render_style_override(self) -> RenderStyle | None:
+        """The style chosen for this export; ``None`` follows the canvas."""
+        return self._style_group.override()
+
+    @property
+    def paper_texture(self) -> bool:
+        """Embed the Line & Wash paper grain as a raster under the vectors (opt-in)."""
+        return self._style_group.paper_texture()

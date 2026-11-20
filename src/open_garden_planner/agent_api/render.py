@@ -22,14 +22,17 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Any
 
-from PyQt6.QtCore import QBuffer, QIODevice, QRectF, Qt
+from PyQt6.QtCore import QBuffer, QIODevice, QRectF
 from PyQt6.QtGui import QImage, QPainter
 from PyQt6.QtWidgets import QGraphicsScene
 
+from open_garden_planner.core.render_style import RenderStyle, parse_render_style
 from open_garden_planner.services.export_service import ExportService
 from open_garden_planner.services.scene_rendering import (
     compute_export_font_size,
+    effective_style,
     render_scene_region,
+    style_background,
 )
 
 MIN_IMAGE_PX = 128
@@ -126,6 +129,8 @@ def render_canvas_image(
     region: tuple[float, float, float, float] | None,
     layers: list[str] | None,
     image_width_px: int,
+    render_style: str | None = None,
+    callouts: bool | None = None,
 ) -> dict[str, Any]:
     """Render a PNG of ``scene`` for the Agent API. Must run on the Qt main thread.
 
@@ -133,8 +138,26 @@ def render_canvas_image(
     and "what did we paint" happen on the same hop — no separate snapshot
     call, no race if the canvas is resized in between calls. Returns a
     Qt-free dict: ``png_bytes``, ``region`` (x, y, width, height in scene cm),
-    ``image_width_px``, ``image_height_px``, ``px_per_cm``, ``layers_rendered``.
+    ``image_width_px``, ``image_height_px``, ``px_per_cm``, ``layers_rendered``,
+    ``render_style`` (the style drawn: ``render_style``, or the scene's own when
+    ``None`` — what the user sees), ``callouts`` (whether callouts were drawn) and
+    ``warnings``.
+
+    ``render_style`` is validated strictly (``ValueError`` listing the valid ids). It
+    applies to this picture only: it goes through ``style_for_render``, which restores
+    the scene's style and moves no paint revision, so the user's canvas does not
+    repaint and the saved preference is untouched. ``callouts`` belongs to the CAD
+    style; for any other style it is ignored and a warning says so.
     """
+    style = effective_style(scene, None if render_style is None else
+                            parse_render_style(render_style))
+    warnings: list[str] = []
+    if callouts is not None and style is not RenderStyle.CAD:
+        warnings.append(f"callouts ignored: only the 'cad' style has callouts "
+                        f"(this picture is '{style.value}').")
+    elif callouts:
+        warnings.append("callouts requested, but this version draws none in the picture yet.")
+
     canvas_rect = scene.canvas_rect if hasattr(scene, "canvas_rect") else scene.sceneRect()
     if region is None:
         source_rect = QRectF(canvas_rect)
@@ -156,8 +179,7 @@ def render_canvas_image(
     text_point_size = compute_export_font_size(equivalent_scale, ExportService.DPI_SCREEN)
 
     image = QImage(width_px, height_px, QImage.Format.Format_ARGB32)
-    background = getattr(scene, "CANVAS_COLOR", Qt.GlobalColor.white)
-    image.fill(background)
+    image.fill(style_background(style, scene))
     painter = QPainter(image)
     painter.setRenderHint(QPainter.RenderHint.Antialiasing)
     painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
@@ -174,6 +196,7 @@ def render_canvas_image(
                 hide_construction=True,
                 text_point_size=text_point_size,
                 y_flip=True,
+                render_style=style,
             )
         finally:
             painter.end()
@@ -196,4 +219,7 @@ def render_canvas_image(
         "image_height_px": height_px,
         "px_per_cm": px_per_cm,
         "layers_rendered": list(layers) if layers is not None else None,
+        "render_style": style.value,
+        "callouts": False,
+        "warnings": warnings,
     }

@@ -20,6 +20,7 @@ from open_garden_planner.core.measurements import (
     format_scale_distance,
 )
 from open_garden_planner.core.plant_cycle_label import plant_cycle_label
+from open_garden_planner.core.render_style import RenderStyle
 from open_garden_planner.core.unit_preference import active_unit_system
 from open_garden_planner.core.units import LengthStyle, UnitSystem, nice_distances
 
@@ -77,6 +78,8 @@ class PdfReportOptions:
     export_date: str = field(default_factory=lambda: date.today().isoformat())
     #: The plan's north orientation (#663), degrees clockwise from plan-up.
     north_angle_deg: float = 0.0
+    #: The style of the plan pages; None is the canvas's own (render styles WP7).
+    render_style: RenderStyle | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -116,7 +119,11 @@ def _font(point_size: int) -> QFont:
 
 
 def _scene_to_image(
-    scene: Any, source: QRectF, dest: QRectF, dpi: float | None = None
+    scene: Any,
+    source: QRectF,
+    dest: QRectF,
+    dpi: float | None = None,
+    render_style: RenderStyle | None = None,
 ) -> QImage:
     """Render *source* of *scene*, Y-up, into a picture for the page rectangle *dest*.
 
@@ -130,6 +137,7 @@ def _scene_to_image(
     size it has on the plan (#789).
     """
     from open_garden_planner.services.export_service import ExportService
+    from open_garden_planner.services.scene_rendering import styled_scene
 
     dpi = PLAN_RENDER_DPI if dpi is None else dpi
     w = max(1, int(round(dest.width() * dpi / 72.0)))
@@ -153,7 +161,8 @@ def _scene_to_image(
         p.save()
         p.translate(0, h)
         p.scale(1.0, -1.0)
-        scene.render(p, QRectF(0, 0, w, h), source)
+        with styled_scene(scene, render_style, w / max(source.width(), 1e-9), dpi):
+            scene.render(p, QRectF(0, 0, w, h), source)
         p.restore()
         p.end()
     finally:
@@ -397,7 +406,7 @@ def _render_overview(
 
     canvas_rect = scene.canvas_rect if hasattr(scene, "canvas_rect") else scene.sceneRect()
     plan_rect = _fit_rect(canvas_rect, content_rect)
-    img = _scene_to_image(scene, canvas_rect, plan_rect)
+    img = _scene_to_image(scene, canvas_rect, plan_rect, render_style=opts.render_style)
     painter.drawImage(plan_rect, img)
 
     # North arrow (top-right of content area)
@@ -529,7 +538,7 @@ def _render_bed_detail(
         united = united.united(_bed_rect(member))
     source = _bed_frame(united, canvas_rect)
     bed_rect = _fit_rect(source, content_rect)
-    img = _scene_to_image(scene, source, bed_rect)
+    img = _scene_to_image(scene, source, bed_rect, render_style=opts.render_style)
     painter.drawImage(bed_rect, img)
 
     names = [getattr(member, "name", "") or _tr("Bed") for member in members]

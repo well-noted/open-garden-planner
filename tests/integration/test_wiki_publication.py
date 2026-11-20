@@ -12,7 +12,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts/sync_wiki.py"
 PAGES = {"Home.md", "Roadmap.md", "Installation.md", "Contributing.md",
-         "Architecture.md", "_Sidebar.md"}
+         "Architecture.md", "Render-Styles.md", "_Sidebar.md"}
 
 
 @pytest.fixture
@@ -42,7 +42,7 @@ def test_check_is_offline_and_read_only(source_repo: Path) -> None:
     for args in ((), ("--check",)):
         result = invoke(source_repo, *args)
         assert result.returncode == 0, result.stderr
-        assert "6 wiki pages and 3 roadmap inclusions" in result.stdout
+        assert "7 wiki pages and 3 roadmap inclusions" in result.stdout
     assert snapshot(source_repo) == before
 
 

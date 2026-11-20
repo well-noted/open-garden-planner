@@ -45,9 +45,11 @@ from open_garden_planner.core.scene3d.look import (
     ATMOSPHERE_DISC_ENERGY,
     ATMOSPHERE_HAZE_DEG,
     ATMOSPHERE_THIN_CLOUD_LIFT,
+    LINE_AND_WASH_NPR,
     NEUTRAL_DAY,
     AtmosphereSpec,
     LookSpec,
+    NprSpec,
     SkySpec,
     sky_phase,
 )
@@ -66,7 +68,7 @@ __all__ = ["ATMOSPHERE_VECTOR_PROPERTIES", "COLOR_PROPERTIES", "LINEAR_COLOR_PRO
            "atmosphere_properties", "atmosphere_sun_direction", "engine_hex", "engine_linear",
            "cloud_hue_share", "cloud_light_gain", "deck_anchor", "deck_closure", "painted_sky",
            "photo_properties",
-           "engine_srgb", "scene_properties", "sky_longitude", "sky_properties"]
+           "engine_srgb", "npr_properties", "scene_properties", "sky_longitude", "sky_properties"]
 
 #: The look properties of ``Garden.qml`` that are colours given as ``#rrggbb`` …
 COLOR_PROPERTIES: Final = frozenset({"sunColor", "meadowColor"})
@@ -77,7 +79,8 @@ LINEAR_COLOR_PROPERTIES: Final = frozenset({"fogColor", "skyColor", "fillColor",
 #: … and the ones that are ``vector3d`` (handed over as ``QVector3D``): the wind's drift
 #: (engine frame) and the light an unlit particle is drawn in (linear rgb) — L5 — and the
 #: wind that sways a plant by its own size (engine frame, #800).
-VECTOR_PROPERTIES: Final = frozenset({"windDrift", "particleLight", "windSway"})
+VECTOR_PROPERTIES: Final = frozenset({"windDrift", "particleLight", "windSway",
+                                      "nprPaper", "nprInk"})
 #: ``AtmosphereSpec.precipitation`` as the scene's ``precipKind``.
 PRECIP_KINDS: Final = {"none": 0, "rain": 1, "snow": 2}
 #: The dry atmosphere (every look of L1-L4): the ground's roughness and specular the
@@ -172,6 +175,63 @@ def scene_properties(look: LookSpec) -> dict[str, object]:
         "windSway": _wind_sway(look.wind_strength),
         # the living garden (L5, ADR-070)
         **_atmosphere_properties(look),
+        # render styles WP9: the drawn 3D style (NprStyle.qml)
+        **npr_properties(look.npr),
+    }
+
+
+def _srgb_triple(hex_colour: str) -> tuple[float, float, float]:
+    value = hex_colour.lstrip("#")
+    return (int(value[0:2], 16) / 255.0, int(value[2:4], 16) / 255.0, int(value[4:6], 16) / 255.0)
+
+
+def npr_properties(npr: NprSpec | None) -> dict[str, object]:
+    """``npr`` as the scene's Line & Wash properties (render styles WP9). ``None`` (the
+    plain look) switches the effect off and leaves the ground unflattened; its other
+    values are then the Line & Wash table's, which is what the scene file declares, so a
+    host that never saw a style holds the same numbers. Colours: sRGB floats (the effect
+    writes the picture itself, the environment's tone mapping stands down)."""
+    spec = LINE_AND_WASH_NPR if npr is None else npr
+    return {
+        "nprStyle": npr is not None,
+        "nprEdgeShare": float(spec.edge_share),
+        "nprSilhouetteThresh": float(spec.silhouette_thresh),
+        "nprCreaseThresh": float(spec.crease_thresh),
+        "nprStepThresh": float(spec.step_thresh),
+        "nprStepContrast": float(spec.step_contrast),
+        "nprCreaseInk": float(spec.crease_ink),
+        "nprInkSpread": float(spec.ink_spread),
+        "nprSilhouetteShare": float(spec.silhouette_share),
+        "nprBusyThresh": float(spec.busy_thresh),
+        "nprBusyCut": float(spec.busy_cut),
+        "nprMassShare": float(spec.mass_share),
+        "nprMassThresh": float(spec.mass_thresh),
+        "nprMassInk": float(spec.mass_ink),
+        "nprFoliageSoftenShare": float(spec.foliage_soften_share),
+        "nprBands": float(spec.bands),
+        "nprBandSoft": float(spec.band_soft),
+        "nprBandRim": float(spec.band_rim),
+        "nprBandRimShare": float(spec.band_rim_share),
+        "nprEdgeDarken": float(spec.edge_darken),
+        "nprWashLift": float(spec.wash_lift),
+        "nprWashSaturation": float(spec.wash_saturation),
+        "nprGrainShare": float(spec.grain_share),
+        "nprGrainStrength": float(spec.grain_strength),
+        "nprGranulation": float(spec.granulation),
+        "nprGranulationShare": float(spec.granulation_share),
+        "nprWashMottle": float(spec.wash_mottle),
+        "nprWashMottleShare": float(spec.wash_mottle_share),
+        "nprGroundWash": float(spec.ground_wash),
+        "nprGroundWashCm": float(spec.ground_wash_cm),
+        "nprGroundSoften": float(spec.ground_soften),
+        "nprPaper": _srgb_triple(spec.paper_rgb),
+        "nprInk": _srgb_triple(spec.ink_rgb),
+        "nprFogNear": float(spec.fog_near_cm),
+        "nprFogFar": float(spec.fog_far_cm),
+        "groundFlatten": float(spec.ground_flatten) if npr is not None else 0.0,
+        "surfaceFlatten": float(spec.surface_flatten) if npr is not None else 0.0,
+        "nprShadowScale": float(spec.shadow_factor_scale),
+        "nprPcfScale": float(spec.pcf_scale),
     }
 
 

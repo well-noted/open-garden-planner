@@ -1129,6 +1129,29 @@ def scenario_embed(ctx: Context) -> dict[str, Any]:
             "control_ratio": round(control["median_ms"] / plain, 3) if plain > 0 else None}
 
 
+#: Render styles WP9: an oblique view of the truth boxes, the sky in its top rows.
+NPR_SHOT = PerspectiveShot(eye=(-500.0, -600.0, 260.0), target=(120.0, 80.0, 30.0), fov_deg=40.0)
+
+
+def scenario_npr(ctx: Context) -> dict[str, Any]:
+    """Render styles WP9: the 3D Line & Wash style. The truth view ignores it; the plain
+    look is the same frame whether the style is left out or asked for as Illustrated;
+    Line & Wash draws ink and paper, the same frame twice (deterministic)."""
+    records = truth_records()
+    return {
+        "truth_plain": ctx.offscreen("npr_truth_plain", records, shot=TOP, sun=HIGH_SUN),
+        "truth_styled": ctx.offscreen("npr_truth_styled", records, shot=TOP, sun=HIGH_SUN,
+                                      render_style="line_and_wash"),
+        "plain": ctx.offscreen("npr_plain", records, shot=NPR_SHOT, sun=HIGH_SUN),
+        "illustrated": ctx.offscreen("npr_illustrated", records, shot=NPR_SHOT, sun=HIGH_SUN,
+                                     render_style="illustrated"),
+        "styled": ctx.offscreen("npr_styled", records, shot=NPR_SHOT, sun=HIGH_SUN,
+                                render_style="line_and_wash"),
+        "styled_again": ctx.offscreen("npr_styled_again", records, shot=NPR_SHOT, sun=HIGH_SUN,
+                                      render_style="line_and_wash"),
+    }
+
+
 SCENARIOS: dict[str, Callable[[Context], dict[str, Any]]] = {
     "truth": scenario_truth,
     "materials": scenario_materials,
@@ -1145,6 +1168,7 @@ SCENARIOS: dict[str, Callable[[Context], dict[str, Any]]] = {
     "embed": scenario_embed,
     # #801 / #803: the built world's materials (its scenes: built_materials_scenes.py)
     "built_materials": scenario_built_materials,
+    "npr": scenario_npr,
 }
 
 

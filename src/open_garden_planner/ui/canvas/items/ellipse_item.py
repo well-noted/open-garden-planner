@@ -17,6 +17,7 @@ from PyQt6.QtWidgets import (
 
 from open_garden_planner.core.fill_patterns import FillPattern, create_pattern_brush
 from open_garden_planner.core.object_types import ObjectType, StrokeStyle, get_style
+from open_garden_planner.ui.canvas.style.base import styled_bounding_rect
 
 from .fill_paint import paint_shape
 from .garden_item import GardenItemMixin
@@ -91,7 +92,7 @@ class EllipseItem(RotationHandleMixin, ResizeHandlesMixin, GardenItemMixin, QGra
         m = self._shadow_margin()
         if m > 0:
             base = base.adjusted(-m, -m, m, m)
-        return base
+        return styled_bounding_rect(self, base)
 
     def paint(
         self,
@@ -99,7 +100,7 @@ class EllipseItem(RotationHandleMixin, ResizeHandlesMixin, GardenItemMixin, QGra
         option: QStyleOptionGraphicsItem,
         widget: QWidget | None = None,
     ) -> None:
-        if self._shadows_enabled:
+        if self._shadow_painted():
             rect = self.rect()
             painter.save()
             painter.setPen(Qt.PenStyle.NoPen)

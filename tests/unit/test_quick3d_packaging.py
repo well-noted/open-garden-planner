@@ -82,14 +82,19 @@ class TestSpec:
         assert sorted(p.name for p in (PACKAGE / "qml").iterdir()) == [
             # the atmosphere sky (L7, #391) with its provenance and Qt's licence texts:
             # they ship beside the files they cover (MIT asks for the notice in copies)
-            "AtmosphereSky.qml", "Garden.qml", "LICENSE-qt-skymaterial.txt", "PROVENANCE.md",
+            "AtmosphereSky.qml", "Garden.qml", "LICENSE-qt-skymaterial.txt",
+            "NprStyle.qml",                   # the Render Styles pass: edges, wash, mass
+            "PROVENANCE.md",
             "PhotoBlur.qml",                  # photo mode's depth of field (#743)
             "ambient.frag", "ambient.vert",   # the garden's life: L5 (#389)
             "atmosphere.frag",
             "built_detail.frag", "built_detail.vert",   # roof tiles, wall courses (#801)
             "built_snow.frag", "built_snow.vert",   # snow on built tops (#687)
             "foliage.frag", "foliage.vert", "foliage_door.frag", "foliage_door.vert",
-            "grass.vert", "grass_door.vert", "ground.frag", "lawn.frag", "overlay.frag", "overlay.vert",
+            "grass.vert", "grass_door.vert", "ground.frag", "lawn.frag",
+            "npr_close.frag", "npr_compose.frag", "npr_edges.frag", "npr_mass.frag",
+            "npr_wash.frag",                  # the Render Styles pass shaders
+            "overlay.frag", "overlay.vert",
             "photoblur_compose.frag", "photoblur_layer.frag", "photoblur_rows.frag",
             "plant_sway.vert",                # a plant's wood and fruit in the wind (#800)
             "precipitation.frag", "precipitation.vert",    # rain and snow: L5 (#389)

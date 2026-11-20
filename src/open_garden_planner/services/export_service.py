@@ -4,12 +4,14 @@ import csv
 from pathlib import Path
 from typing import Any
 
-from PyQt6.QtCore import QCoreApplication, QRectF, Qt
+from PyQt6.QtCore import QCoreApplication, QRectF
 from PyQt6.QtGui import QColor, QFont, QImage, QPainter
 from PyQt6.QtWidgets import (
     QGraphicsItem,
     QGraphicsScene,
 )
+
+from open_garden_planner.core.render_style import RenderStyle
 
 
 class _PaintedDiagnostics:
@@ -243,6 +245,7 @@ class ExportService:
         dpi: int = 150,
         output_width_cm: float = 30.0,
         background_color: str | None = None,
+        render_style: RenderStyle | None = None,
     ) -> None:
         """Export the scene to a PNG image.
 
@@ -252,7 +255,10 @@ class ExportService:
             dpi: Dots per inch for the output image (72, 150, or 300)
             output_width_cm: Width of the output image in centimeters (default 30cm ~ A4 landscape)
             background_color: Optional background color hex string (e.g., "#ffffff")
-                            If None, uses the scene's canvas background
+                            If None, uses the style's paper (the scene's
+                            canvas background for illustrated)
+            render_style: The drawing style of this export; None is the
+                          scene's current one
 
         Raises:
             ValueError: If export fails
@@ -278,7 +284,9 @@ class ExportService:
 
         from open_garden_planner.services.scene_rendering import (
             compute_export_font_size,
+            effective_style,
             render_scene_region,
+            style_background,
         )
 
         text_point_size = compute_export_font_size(scale, dpi)
@@ -289,10 +297,8 @@ class ExportService:
         # Fill with background color
         if background_color:
             image.fill(QColor(background_color))
-        elif hasattr(scene, 'CANVAS_COLOR'):
-            image.fill(scene.CANVAS_COLOR)
         else:
-            image.fill(Qt.GlobalColor.white)
+            image.fill(style_background(effective_style(scene, render_style), scene))
 
         painter = QPainter(image)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -313,6 +319,8 @@ class ExportService:
                 hide_construction=True,
                 text_point_size=text_point_size,
                 y_flip=True,
+                render_style=render_style,
+                dpi=dpi,
             )
         finally:
             painter.end()
@@ -328,6 +336,7 @@ class ExportService:
         output_width_cm: float = 30.0,
         title: str = "Garden Plan",
         description: str = "",
+        render_style: RenderStyle | None = None,
     ) -> None:
         """Export the scene to an SVG vector file.
 
@@ -337,6 +346,8 @@ class ExportService:
             output_width_cm: Width of the output SVG in centimeters (default 30cm ~ A4 landscape)
             title: Title metadata for the SVG
             description: Description metadata for the SVG
+            render_style: The drawing style of this export; None is the
+                          scene's current one
 
         Raises:
             ValueError: If export fails
@@ -378,7 +389,7 @@ class ExportService:
         cached_items = ExportService._disable_item_caches(scene)
 
         try:
-            ops = record_scene(scene, canvas_rect, width, height)
+            ops = record_scene(scene, canvas_rect, width, height, render_style=render_style)
         finally:
             # Always restore items to original state
             ExportService._restore_text_after_export(saved_text_state)

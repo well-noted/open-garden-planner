@@ -452,6 +452,12 @@ class Workspace(QWidget):
         self._controller: Scene3DController | None = None
         self._forge_worker: ForgeWorker | None = None  # Plant Forge progressive upgrader (L3)
         self._look: LookController | None = None   # the look of the view (L1.4)
+        #: The render style the 3D view follows (WP7); the app's controller sets it.
+        self._render_style = "illustrated"
+        self._style_actions: list[QAction] = []
+        self._style_extra: QAction | None = None
+        self._style_button: QToolButton | None = None
+        self._lawn_blades_for: Callable[[str], bool] | None = None
         self._input: OrbitInput | None = None
         self._problems_dialog: View3DProblemsDialog | None = None
         #: The session's one camera: created with the workspace, so its pose survives
@@ -764,6 +770,72 @@ class Workspace(QWidget):
                 and self._mode is WorkspaceMode.SPLIT):
             self._ui_state.save_splitter(_SPLITTER_KEY, self._splitter)
 
+    # ── the render style (WP7) ───────────────────────────────────────────────
+
+    @property
+    def render_style(self) -> str:
+        """The render style the 3D view follows (``core.render_style`` id)."""
+        return self._render_style
+
+    def set_render_style(self, render_style: str) -> None:
+        """Draw the 3D view in ``render_style`` (Line & Wash selects the NPR effect;
+        CAD stays plain 3D). Remembered until 3D first opens; a view preference."""
+        from ...core.render_style import normalise_render_style
+
+        self._render_style = normalise_render_style(render_style).value
+        look = self._look
+        if look is None:
+            return
+        look.set_render_style(self._render_style)
+        controller = self._controller
+        blades = self._lawn_blades_for
+        if controller is not None and blades is not None:
+            controller.set_lawn_blades(blades(look.preset))
+
+    def set_render_style_actions(self, actions: list[QAction],
+                                 extra: QAction | None = None) -> None:
+        """The app's style actions (a radio group) for the pane's "Render Style" button;
+        ``extra`` (Leader callouts) follows a separator. The button is built with the pane."""
+        self._style_actions = list(actions)
+        self._style_extra = extra
+        if self._style_button is not None:
+            self._fill_style_menu()
+
+    @property
+    def style_button(self) -> QToolButton | None:
+        """The pane's "Render Style" button - None until 3D was first opened."""
+        return self._style_button
+
+    def _build_style_button(self, pane: _Pane3D) -> None:
+        from ..render_style_controller import render_style_title
+
+        button = QToolButton(pane.strip)
+        button.setText(render_style_title())
+        button.setToolTip(self.tr("Choose how the plan is drawn"))
+        button.setAccessibleName(render_style_title())
+        button.setAutoRaise(True)
+        button.setFocusPolicy(Qt.FocusPolicy.TabFocus)
+        button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
+        button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        button.setMenu(QMenu(button))
+        self._style_button = button
+        self._fill_style_menu()
+        pane.strip_layout.addWidget(button)
+
+    def _fill_style_menu(self) -> None:
+        button = self._style_button
+        if button is None:
+            return
+        menu = button.menu()
+        if menu is None:
+            return
+        menu.clear()
+        menu.addActions(self._style_actions)
+        if self._style_extra is not None:
+            menu.addSeparator()
+            menu.addAction(self._style_extra)
+        button.setEnabled(bool(self._style_actions))
+
     # ── the 3D pane, built on first use ──────────────────────────────────────
 
     def _ensure_pane(self) -> None:
@@ -785,6 +857,7 @@ class Workspace(QWidget):
         self._reset_button.setAutoRaise(True)
         self._reset_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         strip.addWidget(self._reset_button)
+        self._build_style_button(pane)  # WP7: the render style
         self._build_walk_controls(pane)  # L1.8: the Walk toggle and the eye height
         self._build_analysis_controls(pane)  # L2: the Analyze menu
         self._living.build_controls(pane.strip, strip)  # L5: the Weather menu
@@ -886,11 +959,19 @@ class Workspace(QWidget):
             # for at most its budget (10 ms) a pass — the controller runs the rest
             controller = Scene3DController(scene, clock, self._location, sink, parent=self,
                                            ground_baker=GroundBaker(), north=self._north)
-            from ...core.scene3d.look import PRESET_SPECS
+            from ...core.scene3d.look import PRESET_SPECS, npr_for
 
-            controller.set_lawn_blades(PRESET_SPECS[look.preset].lawn_blades)
+            # the lawn's blades: the preset's, and never under a drawn style (WP9: Line &
+            # Wash leaves them out - their edges would be ink noise)
+            def lawn_blades(preset: str, styles: LookController = look) -> bool:
+                return PRESET_SPECS[preset].lawn_blades and npr_for(styles.render_style) is None
+
+            # a style chosen before 3D first opened (WP7)
+            look.set_render_style(self._render_style)
+            controller.set_lawn_blades(lawn_blades(look.preset))
             look.preset_changed.connect(
-                lambda preset: controller.set_lawn_blades(PRESET_SPECS[preset].lawn_blades))
+                lambda preset: controller.set_lawn_blades(lawn_blades(preset)))
+            self._lawn_blades_for = lawn_blades
         except Exception as error:  # noqa: BLE001 - an import, the scene file, anything
             guard.init_failed()
             _log_failure("The 3D view could not be started", error)
@@ -1545,6 +1626,7 @@ class Workspace(QWidget):
         self._notices.clear()  # … and whatever the status line said about it
         self._refresh_notices()
         look, self._look = self._look, None
+        self._lawn_blades_for = None
         if look is not None:
             look.shutdown()
             look.deleteLater()

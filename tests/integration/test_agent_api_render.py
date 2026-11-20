@@ -59,8 +59,8 @@ def _providers(scene: Any) -> AgentProviders:
         diagnostics=lambda: bridge.run_on_main(
             lambda: project_manager.diagnostics_snapshot(scene)
         ),
-        render=lambda region, layers, width_px: bridge.run_on_main(
-            lambda: render_canvas_image(scene, region, layers, width_px)
+        render=lambda region, layers, width_px, **kw: bridge.run_on_main(
+            lambda: render_canvas_image(scene, region, layers, width_px, **kw)
         ),
         save_plan=lambda file_path: bridge.run_on_main(
             lambda: save_plan_file(scene, project_manager, soil_service, file_path)

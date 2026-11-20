@@ -10032,3 +10032,65 @@ any machine: `tests/integration/test_sun_overlay_cache.py`,
 `tests/integration/test_sprite_cache_teardown.py`, `TestPanIsCheap` and
 `TestALargeViewportKeepsItsSprites` in `tests/integration/test_canvas_sharpness.py`
 and `TestViewportChangesDoNotRender` in `tests/unit/test_minimap_widget.py`.
+
+## 8.38 Deterministic stylisation (render styles, Package 4)
+
+The render style (`illustrated`, `cad`, `line_and_wash`) is a **view preference**,
+never plan data: `CanvasScene.set_render_style` moves the paint revision and
+repaints, and touches no `plan_changed`, no undo stack, no modified flag and no
+.ogp byte (pinned by `tests/integration/test_render_style_seam.py`).
+
+- **One path.** Every output (canvas, PNG, SVG, PDF, print, the Agent API picture)
+  paints through each item's own `paint()`, reading the style from the scene.
+  Exports wrap their `scene.render` in `scene_rendering.styled_scene`; a test
+  fails on any `scene.render` call site in `services/` or the print dialog that
+  does not. A thumbnail uses `render_thumbnail_region` (always illustrated).
+- **Seeds, not randomness.** Wobble and scatter are pure functions of a
+  `zlib.crc32` seed of item id, role and `GEOM_VERSION`; `hash()`, `random` and
+  time are forbidden in `ui/canvas/style/` (an AST test).
+- **LOD band.** Derived geometry is quantised to the zoom octave
+  `floor(log2(device px per cm))`: identical inside a band, so zooming and
+  panning do not shimmer. The view's `_apply_transform` reports the band to the
+  scene.
+- **Scene-wide state follows the paint revision** (§8.9, §8.37). `StyleState`
+  is keyed `(style, paint_revision, band)`, kept in an LRU of two (screen and an
+  export), and built by the scene's own triggers: a style switch, a band change,
+  a deferred coalesced rebuild after a revision bump, an export's prewarm. A
+  paint only reads it (`CanvasScene.style_state`); on a miss it paints the base
+  geometry and a rebuild is scheduled. It is never built inside `paint()`.
+- **CAD painter (WP4).** `ui/canvas/style/cad.py`. Weights and dashes are paper mm
+  (`pen_for_painter`, dpi aware in exports). Hatch is `geometry.hatch_segments`
+  computed in scene coordinates (phase anchored to the origin), memoised on the item,
+  capped at 3000 segments (then a flat 10 % grey). Irrigation is a property of the
+  LAYER: `Layer.permaculture_layer == "irrigation"` (`render_style_roles`), never the
+  translated name; one colour. Canopies use the item's current size. A style that
+  replaces a sprite or painted shadow gates it with `style_painter_active(item)`.
+- **Line & Wash painter (WP6).** `ui/canvas/style/line_wash.py`. Paper `#f4eedf` plus a
+  512 px grain tile (`grain_tile`, numpy lattice noise from a murmur-style hash and a fixed
+  seed, `GRAIN_VERSION`; identical pixels in every process), drawn by
+  `CanvasScene.drawBackground` through the painter's `paint_paper`, anchored to scene
+  (0,0) at `2 ** -band` cm per tile pixel. Ink is `wobble_polyline` (corners) and
+  `wobble_closed` (curves); the wash is the outline shifted by a seeded 0.6-1.8 mm
+  misregistration, with `edge_ring` pooling rings. Multiply glazing and granulation are
+  used only when `is_raster(painter)`; SVG (the recording engine, type `User`), PDF and
+  print get alpha-over washes and no grain (opt-in `PAPER_TEXTURE_IN_VECTOR`, UI in WP7).
+  Canopy masses: tree and shrub circles of one layer are clustered in
+  `build_state`, ordered by item id; every member paints only its part (its disc minus the
+  discs before it, its stretch of the scalloped outline), so no item paints beyond its own
+  padded bounds. Labels: `styled_label_font` (Segoe Print where installed, else italic)
+  is applied by `HaloTextItem._label_font` to measuring, outline and fill. A painter clip
+  must use `IntersectClip` (`test_no_scene_painter_replaces_the_clip_it_was_handed`).
+- **3D: Line & Wash (WP9).** `look.styled_look(look, render_style)` adds the `NprSpec` table (`LINE_AND_WASH_NPR`, one table for every value) to a `LookSpec`; Illustrated and CAD return the very same look object, so the default 3D picture is byte-identical (measured on the Encanto plan, Iris Xe). Line & Wash turns glow, SSR, Qt's depth fog and the lawn blades off and draws `qml/NprStyle.qml`, the only user effect in the chain (PF-E3D-21), with photo mode's depth of field folded into its wash pass. While it is drawn the environment's tone mapping is None at exposure 1: the effect writes the finished sRGB picture, so paper and ink are exact. Ink comes from the second difference of the depth's reciprocal (zero on every plane: sloped ground draws no ink), split into silhouettes (near side only) and creases, widened by `ink_spread` and suppressed where a 3x3 neighbourhood is crowded (foliage). The truth view (`topDown`) ignores the style completely: the effect, the ground flatten and the shadow softening are gated by `nprActive` in the scene, and `render_records` skips the style for a `TopDownShot` (`test_render_style_3d.py` asserts identical truth pixels). The paper grain and the ragged paper-fog edge are hash noise of the pixel: deterministic and screen-anchored. Pick it with `LookController.set_render_style` (the preference at start), `Quick3DHost.capture(render_style=...)` or `render_records(render_style=...)`.
+- **Pad and cache.** A style's ink may reach beyond an item's rect: an item that
+  adopts `styled_bounding_rect` re-announces its geometry from
+  `style_geometry_changed()`. A style switch or band change also calls
+  `update()` on every item: a device-cached item would otherwise keep the picture
+  of the previous style.
+
+### 8.38.1 CAD leader callouts (WP5)
+
+A callout names a plant (common name, else the object name, else "Tree" / "Shrub" / "Plant") with a leader to an anchor dot on its centre. It is generated view decoration: never a `CalloutItem`, never saved, never selectable, off by default (`appearance/cad_callouts`, owner Q4; the style-menu toggle is WP7, so today the setting and `CanvasScene.set_cad_callouts`).
+
+- **One layer item.** `StyleCalloutLayer` (`style/callouts.py`, z 9000, empty `shape()`, no mouse buttons) draws the leaders and owns the text as `QGraphicsSimpleTextItem` children with `ItemIgnoresTransformations`, so `retarget_constant_size_text` sizes them in an export like an object label. It exists only while the scene paints in CAD with the flag on, and is added and removed through `QGraphicsScene` directly, so it moves no paint revision and is no plan change.
+- **Layout is state.** `compute_callouts` runs inside `CadPainter.build_state` and lives in `StyleState.data["callouts"]`, keyed `(style, paint_revision, band)`; `CanvasScene.ensure_style_state` syncs the layer after it, never a paint. Greedy, fixed order (top to bottom, left to right, id), 8 compass slots at 12 mm of paper, start slot from the crc32 seed of the item id, further rings of 6 mm before a plant goes without a callout. A slot is rejected when its box meets a placed box, a building outline or another plant's anchor dot. Boxes come from a paper-mm text model, not font metrics, so the layout does not depend on the installed font.
+- **Determinism.** No `hash()`, random or time (the AST lint in `tests/unit/style` covers the module). Pinned by `tests/unit/style/test_cad_callouts.py` and `tests/integration/test_cad_callouts.py` (PNG, SVG, no overlaps at bands -1..1).

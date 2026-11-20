@@ -48,9 +48,11 @@ class Stand:
     def __init__(self) -> None:
         self.calls: list[tuple[Any, tuple[int, int]]] = []
         self.refuse: str | None = None
+        self.extras: list[dict[str, Any]] = []
 
-    def __call__(self, shot: Any, size: tuple[int, int]) -> dict[str, Any]:
+    def __call__(self, shot: Any, size: tuple[int, int], **extra: Any) -> dict[str, Any]:
         self.calls.append((shot, size))
+        self.extras.append(extra)
         if self.refuse is not None:
             raise CaptureRefused(self.refuse)
         return answer(shot, size)
@@ -182,3 +184,28 @@ def test_the_application_builds_its_provider_with_the_tool(qtbot: Any) -> None:
         providers.render_3d(None, (640, 360))   # no 3D view was ever opened in this window
     assert refused.value.code == "not_open"
     assert window._workspace.host is None, "and it built none"
+
+
+def test_render_style_is_validated_forwarded_and_echoed(canvas: Any, qtbot: Any) -> None:
+    from open_garden_planner.core.render_style import RENDER_STYLES
+
+    stand = Stand()
+    result = call(canvas, qtbot, stand, {"render_style": "line_and_wash"})
+    assert stand.extras == [{"render_style": "line_and_wash"}]
+    schema = result["tools"]["render_3d_view"].inputSchema["properties"]["render_style"]
+    enums = [branch["enum"] for branch in schema["anyOf"] if "enum" in branch]
+    assert enums == [[style.value for style in RENDER_STYLES]], "the enum is the shared constant"
+    assert "Omit to use the user's current style" in result["tools"]["render_3d_view"].description
+
+    default = Stand()
+    call(canvas, qtbot, default, {})
+    assert default.extras == [{}], "no argument: the provider is asked as before"
+
+
+def test_an_unknown_render_style_is_refused_listing_the_valid_ids(canvas: Any, qtbot: Any) -> None:
+    stand = Stand()
+    result = call(canvas, qtbot, stand, {"render_style": "watercolour"})
+    assert result["call"].isError is True
+    text = result["call"].content[0].text
+    assert "illustrated" in text and "cad" in text and "line_and_wash" in text
+    assert stand.calls == []

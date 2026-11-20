@@ -92,7 +92,8 @@ class TestAppWiring:
         # #310: EVERY menu action carries an icon — recursively through submenus —
         # except the exclusive-choice radio groups (Theme, Language, Auto-Save
         # intervals) and the dynamic recent-files list, whose entries are content.
-        exempt_submenus = {"&Theme", "&Language", "Auto-&Save", "Open &Recent"}
+        exempt_submenus = {"&Theme", "&Language", "Auto-&Save", "Open &Recent",
+                           "Render Style"}
         missing: list[str] = []
 
         def walk(menu, path: str) -> None:
@@ -113,6 +114,7 @@ class TestAppWiring:
             walk(top.menu(), top.text())
         # the Enable Auto-Save toggle inside the exempt submenu is a toggle, not a radio
         assert not win._autosave_action.icon().isNull()
+        assert not win._render_style_controller.callouts_action.icon().isNull()
         assert missing == [], missing
 
         # View menu is regrouped (#310): Snapping / Overlays / Sun & 3D submenus,
@@ -120,7 +122,7 @@ class TestAppWiring:
         # workspace's submenu (Phase 17, in every window since L1.9) before Theme.
         view_menu = next(a.menu() for a in win.menuBar().actions() if a.text() == "&View")
         submenu_titles = [a.text() for a in view_menu.actions() if a.menu() is not None]
-        assert submenu_titles == ["&Snapping", "O&verlays", "&Workspace", "&Theme",
+        assert submenu_titles == ["&Snapping", "O&verlays", "&Workspace", "Render Style", "&Theme",
                                   "&Language"], submenu_titles
         snap_menu = next(a.menu() for a in view_menu.actions() if a.text() == "&Snapping")
         assert win.grid_action in snap_menu.actions() and win._dynamic_input_action in snap_menu.actions()

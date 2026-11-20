@@ -276,15 +276,22 @@ class GardenPlannerApp(QMainWindow):
         region: tuple[float, float, float, float] | None,
         layers: list[str] | None,
         image_width_px: int,
+        render_style: str | None = None,
+        callouts: bool | None = None,
     ) -> dict[str, Any]:
-        return self._agent_host._agent_render(region, layers, image_width_px)
+        return self._agent_host._agent_render(
+            region, layers, image_width_px, render_style, callouts)
+
+    def _agent_render_style(self) -> str:
+        return self._agent_host._agent_render_style()
 
     def _agent_render_3d(
         self,
         camera: tuple[tuple[float, float, float], tuple[float, float, float], float] | None,
         size: tuple[int, int],
+        render_style: str | None = None,
     ) -> dict[str, Any]:
-        return self._agent_host._agent_render_3d(camera, size)
+        return self._agent_host._agent_render_3d(camera, size, render_style)
 
     def _agent_save_plan(self, file_path: str | None) -> dict[str, Any]:
         return self._agent_host._agent_save_plan(file_path)
@@ -1825,6 +1832,22 @@ class GardenPlannerApp(QMainWindow):
         # Initialize language menu state from settings
         QTimer.singleShot(0, self._update_language_menu_state)
 
+    def _build_render_style_menu(self, parent: QMenu) -> QMenu:
+        """The View menu's "Render Style" submenu: the radio group and Leader callouts."""
+        from open_garden_planner.ui.render_style_controller import render_style_title
+
+        menu = QMenu(render_style_title(), parent)
+        menu.setObjectName("RenderStyleMenu")
+        menu.addActions(self._render_style_controller.actions())
+        menu.addSeparator()
+        menu.addAction(self._render_style_controller.callouts_action)
+        # the submenu and the toggle carry icons; the radio group is exempt (#310)
+        self._set_action_icon(menu.menuAction(), "theme")
+        self._set_action_icon(self._render_style_controller.callouts_action,
+                              "callout_annotation")
+        self._render_style_menu = menu
+        return menu
+
     def _setup_plants_menu(self, menu: QMenu) -> None:
         """Set up the Plants menu actions."""
         insert_guild_action = QAction(self.tr("Insert guild…"), self)
@@ -2070,10 +2093,20 @@ class GardenPlannerApp(QMainWindow):
 
         self.category_toolbar = CategoryToolbar(self)
         self.addToolBar(self.category_toolbar)
+
+        # Render style (Package 4, WP7): one controller behind the View menu, this
+        # toolbar's combo and the 3D pane's button; it restores the stored style.
+        from open_garden_planner.ui.render_style_controller import RenderStyleController
+        from open_garden_planner.ui.widgets.render_style_toolbar import RenderStyleToolbar
+
+        self._render_style_controller = RenderStyleController(self.canvas_scene, self)
+        self.render_style_toolbar = RenderStyleToolbar(self._render_style_controller, self)
+        self.addToolBar(self.render_style_toolbar)
         # ... while the window is wide enough: a toolbar that no longer fits
         # starts a row of its own instead of losing buttons to a popup (#796).
         self._toolbar_rows = ToolbarRows(
-            self, (self.main_toolbar, self.constraint_toolbar, self.category_toolbar))
+            self, (self.main_toolbar, self.constraint_toolbar, self.category_toolbar,
+                   self.render_style_toolbar))
 
         # ── Companion planting service (shared by sidebar panel and highlights) ─
         self._companion_service = CompanionPlantingService()
@@ -2327,6 +2360,12 @@ class GardenPlannerApp(QMainWindow):
         # #737: named tours live in the plan, and every edit of them is one undo step
         self._workspace.capture.connect_tours(
             self._project_manager, self.canvas_view.command_manager)
+        # the 3D pane's style button shares the View menu's actions; 3D follows the style
+        self._workspace.set_render_style_actions(
+            self._render_style_controller.actions(),
+            self._render_style_controller.callouts_action)
+        self._render_style_controller.attach_workspace(self._workspace)
+        style_menu = self._build_render_style_menu(self._view_menu)
         workspace_menu = self._workspace.create_menu(self._view_menu)
         # every menu action carries an icon (#310) — the workspace's too, now that it is
         # in every window (L1.9); its own buttons keep their words (ToolButtonTextOnly)
@@ -2339,6 +2378,7 @@ class GardenPlannerApp(QMainWindow):
         self._set_action_icon(self._workspace.capture.photo_action, "camera")
         self._set_action_icon(self._workspace.capture.tour_action, "path")
         self._view_menu.insertMenu(self._preview_action, workspace_menu)
+        self._view_menu.insertMenu(self._preview_action, style_menu)
         # The workspace lives inside the Garden Plan tab, but the View menu is
         # global (#539): its mode actions select the plan tab, so Alt+1/2/3 show
         # the 3D view instead of switching a hidden workspace. This slot runs
@@ -3680,6 +3720,7 @@ class GardenPlannerApp(QMainWindow):
             self.canvas_scene.width_cm,
             self.canvas_scene.height_cm,
             self,
+            canvas_style=self.canvas_scene.render_style,
         )
 
         if dialog.exec() != ExportPngDialog.DialogCode.Accepted:
@@ -3708,6 +3749,7 @@ class GardenPlannerApp(QMainWindow):
                 file_path,
                 dpi=dialog.selected_dpi,
                 output_width_cm=dialog.selected_output_width_cm,
+                render_style=dialog.render_style_override,
             ))
             self.statusBar().showMessage(self.tr("Exported: {path}").format(path=file_path))
         except ExportCanceled:
@@ -3717,6 +3759,13 @@ class GardenPlannerApp(QMainWindow):
 
     def _on_export_svg(self) -> None:
         """Handle Export as SVG action."""
+        from open_garden_planner.ui.dialogs.export_dialog import ExportSvgDialog
+        from open_garden_planner.ui.render_style_controller import vector_paper_texture
+
+        style_dialog = ExportSvgDialog(self.canvas_scene.render_style, self)
+        if style_dialog.exec() != ExportSvgDialog.DialogCode.Accepted:
+            return
+
         # Get file path
         default_name = self._default_save_path(self._project_manager.project_name + ".svg")
         file_path, _ = QFileDialog.getSaveFileName(
@@ -3735,13 +3784,18 @@ class GardenPlannerApp(QMainWindow):
             file_path = file_path.with_suffix(".svg")
 
         try:
-            self._sun_export_gate.run_gui(lambda: ExportService.export_to_svg(
-                self.canvas_scene,
-                file_path,
-                output_width_cm=ExportService.PAPER_A4_LANDSCAPE_WIDTH_CM,
-                title=self._project_manager.display_name,
-                description="Created with Open Garden Planner",
-            ))
+            def write_svg() -> None:
+                with vector_paper_texture(style_dialog.paper_texture):
+                    ExportService.export_to_svg(
+                        self.canvas_scene,
+                        file_path,
+                        output_width_cm=ExportService.PAPER_A4_LANDSCAPE_WIDTH_CM,
+                        title=self._project_manager.display_name,
+                        description="Created with Open Garden Planner",
+                        render_style=style_dialog.render_style_override,
+                    )
+
+            self._sun_export_gate.run_gui(write_svg)
             self.statusBar().showMessage(self.tr("Exported: {path}").format(path=file_path))
         except ExportCanceled:
             return
@@ -3798,6 +3852,7 @@ class GardenPlannerApp(QMainWindow):
             grid_visible=self.canvas_view.grid_visible,
             labels_visible=self.canvas_scene.labels_enabled,
             parent=self,
+            canvas_style=self.canvas_scene.render_style,
         )
 
         if options.exec() != PrintOptionsDialog.DialogCode.Accepted:
@@ -3810,6 +3865,7 @@ class GardenPlannerApp(QMainWindow):
                     project_name=self._project_manager.display_name,
                     snapshot_validator=validate_snapshot,
                     grid_size_cm=self.canvas_view.grid_size,
+                    render_style=options.render_style_override,
                 )
                 print_mgr.configure(
                     scale_denominator=options.scale_denominator,
@@ -3911,10 +3967,12 @@ class GardenPlannerApp(QMainWindow):
             PdfReportService,
         )
         from open_garden_planner.ui.dialogs.pdf_report_dialog import PdfReportDialog
+        from open_garden_planner.ui.render_style_controller import vector_paper_texture
 
         dialog = PdfReportDialog(
             project_name=self._project_manager.display_name,
             parent=self,
+            canvas_style=self.canvas_scene.render_style,
         )
         if dialog.exec() != PdfReportDialog.DialogCode.Accepted:
             return
@@ -3956,6 +4014,7 @@ class GardenPlannerApp(QMainWindow):
             project_name=dialog.project_name,
             author=dialog.author,
             north_angle_deg=self._project_manager.north_angle_deg,
+            render_style=dialog.render_style_override,
         )
 
         def generate() -> None:
@@ -3970,7 +4029,9 @@ class GardenPlannerApp(QMainWindow):
                 if total > 0:
                     progress.setValue(int(current / total * 100))
             try:
-                PdfReportService.generate(self.canvas_scene, opts, file_path_obj, on_progress)
+                with vector_paper_texture(dialog.paper_texture):
+                    PdfReportService.generate(
+                        self.canvas_scene, opts, file_path_obj, on_progress)
                 progress.setValue(100)
             finally:
                 progress.close()

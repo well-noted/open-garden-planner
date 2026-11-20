@@ -35,6 +35,7 @@ from open_garden_planner.ui.canvas.roof_ridge_link import (
     outline_polygon,
     ridge_points_local,
 )
+from open_garden_planner.ui.canvas.style.base import style_painter_active, styled_bounding_rect
 
 from .fill_paint import paint_shape
 from .garden_item import GardenItemMixin
@@ -236,7 +237,7 @@ class RectangleItem(RectVertexEditMixin, RotationHandleMixin, ResizeHandlesMixin
         m = self._shadow_margin()
         if m > 0:
             base = base.adjusted(-m, -m, m, m)
-        return base
+        return styled_bounding_rect(self, base)
 
     def _draw_grid_overlay(self, painter: QPainter) -> None:
         """Draw a square-foot grid overlay clipped to the rectangle boundary."""
@@ -298,7 +299,7 @@ class RectangleItem(RectVertexEditMixin, RotationHandleMixin, ResizeHandlesMixin
         to the default rectangle painting.
         """
         # Draw painted shadow before the item itself
-        if self._shadows_enabled:
+        if self._shadow_painted():
             rect = self.rect()
             painter.save()
             painter.setPen(Qt.PenStyle.NoPen)
@@ -307,7 +308,11 @@ class RectangleItem(RectVertexEditMixin, RotationHandleMixin, ResizeHandlesMixin
             painter.drawRect(shadow_rect)
             painter.restore()
 
-        if is_furniture_type(self.object_type):
+        # A drawing style (CAD) replaces the sprites and parametric pictures below
+        # with its own outline of the shape: paint_shape asks that style first.
+        styled = style_painter_active(self)
+
+        if is_furniture_type(self.object_type) and not styled:
             rect = self.rect()
             # The canvas (and every export) draws the scene through a
             # scale(1, -1) Y-flip, so a picture laid into item-local
@@ -341,13 +346,13 @@ class RectangleItem(RectVertexEditMixin, RotationHandleMixin, ResizeHandlesMixin
 
         # A PERGOLA is drawn from its one parametric layout (#769), never a
         # stretched sprite: posts, beams, rafters and purlins at their real sizes.
-        if self.object_type == ObjectType.PERGOLA:
+        if self.object_type == ObjectType.PERGOLA and not styled:
             height = effective_height_cm(self.object_type, self.metadata)
             if not paint_pergola(painter, self.rect(), height or 250.0):
                 paint_shape(self, painter, option, widget, super().paint)
         # A GREENHOUSE is a first-class building now (#768): its glass fill, then
         # the aluminium glazing bars the 3D frame puts at the same bay lines.
-        elif self.object_type == ObjectType.GREENHOUSE:
+        elif self.object_type == ObjectType.GREENHOUSE and not styled:
             paint_shape(self, painter, option, widget, super().paint)
             polygon = outline_polygon(self)
             if polygon is not None:
@@ -363,7 +368,7 @@ class RectangleItem(RectVertexEditMixin, RotationHandleMixin, ResizeHandlesMixin
         # the same ridge-aware paint the polygon tool's houses have used since
         # #372. Without this branch the converted house's tiles lapped back up
         # toward the ridge (manual test of PR #713, 2.1).
-        elif self.object_type == ObjectType.HOUSE:
+        elif self.object_type == ObjectType.HOUSE and not styled:
             ridge = linked_ridge(self)
             polygon = outline_polygon(self)
             if ridge is not None and polygon is not None:

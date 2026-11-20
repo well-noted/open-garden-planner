@@ -99,7 +99,7 @@ def test_simple_exports_default_to_projects_dir(
     qtbot.addWidget(window)  # type: ignore[attr-defined]
 
     safe = tmp_path / "Open Garden Planner"
-    for handler in (window._on_export_svg, window._on_export_plant_csv, window._on_export_dxf):
+    for handler in (window._on_export_plant_csv, window._on_export_dxf):
         captured.clear()
         handler()
         assert Path(captured["dir"]).parent == safe, handler.__name__
@@ -113,7 +113,7 @@ def test_gated_exports_default_to_projects_dir(
     These accept-then-save handlers don't go straight to the save dialog, so
     cover them explicitly by auto-accepting the option dialog.
     """
-    from open_garden_planner.ui.dialogs.export_dialog import ExportPngDialog
+    from open_garden_planner.ui.dialogs.export_dialog import ExportPngDialog, ExportSvgDialog
     from open_garden_planner.ui.dialogs.pdf_report_dialog import PdfReportDialog
 
     monkeypatch.setattr(paths, "get_documents_dir", lambda: tmp_path)  # type: ignore[attr-defined]
@@ -123,13 +123,16 @@ def test_gated_exports_default_to_projects_dir(
     monkeypatch.setattr(  # type: ignore[attr-defined]
         PdfReportDialog, "exec", lambda _self: PdfReportDialog.DialogCode.Accepted
     )
+    monkeypatch.setattr(  # type: ignore[attr-defined]
+        ExportSvgDialog, "exec", lambda _self: ExportSvgDialog.DialogCode.Accepted
+    )
     captured = _capture_dialog_dir(monkeypatch)
 
     window = GardenPlannerApp()
     qtbot.addWidget(window)  # type: ignore[attr-defined]
 
     safe = tmp_path / "Open Garden Planner"
-    for handler in (window._on_export_png, window._on_export_pdf_report):
+    for handler in (window._on_export_png, window._on_export_svg, window._on_export_pdf_report):
         captured.clear()
         handler()
         assert Path(captured["dir"]).parent == safe, handler.__name__

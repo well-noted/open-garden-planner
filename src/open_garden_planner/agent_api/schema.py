@@ -361,6 +361,19 @@ class RenderMeta(BaseModel):
         description="Layer names or ids included (echoes the request's "
         "allowlist), or null if all currently-visible layers were rendered.",
     )
+    render_style: str | None = Field(
+        default=None,
+        description="The drawing style this picture used (illustrated, cad or line_and_wash): "
+        "the style asked for, or the user's current one when the call gave none. Pass it back "
+        "to reproduce the picture.",
+    )
+    callouts: bool | None = Field(
+        default=None, description="True when callouts were drawn (the cad style only)."
+    )
+    warnings: list[str] = Field(
+        default_factory=list,
+        description="Things the call asked for that were ignored or could not be done.",
+    )
 
 
 class Render3DMeta(BaseModel):
@@ -403,6 +416,16 @@ class Render3DMeta(BaseModel):
     overlays: list[str] = Field(
         description="Analysis overlays in the picture: 'shade' (2D shadows on the ground), "
         "'drape' (hours of sun), 'lines' (sun path). The owner's own choice; empty for none."
+    )
+    render_style: str | None = Field(
+        default=None,
+        description="The drawing style this picture used: the style asked for, or the user's "
+        "current one when the call gave none. The cad style has no 3D look of its own and "
+        "draws as illustrated (see warnings); pass the echoed value to reproduce the picture.",
+    )
+    warnings: list[str] = Field(
+        default_factory=list,
+        description="Things the call asked for that were ignored or could not be done.",
     )
 
 

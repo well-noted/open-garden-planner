@@ -6,9 +6,10 @@ The view handles the Y-flip for display.
 """
 
 import contextlib
+import logging
 import weakref
 from collections.abc import Iterator, Sequence
-from contextlib import contextmanager
+from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass
 from datetime import date
 from typing import TYPE_CHECKING, Any, cast
@@ -20,6 +21,7 @@ from PyQt6.QtCore import (
     QPointF,
     QRectF,
     Qt,
+    QTimer,
     pyqtSignal,
     pyqtSlot,
 )
@@ -38,10 +40,17 @@ from open_garden_planner.core import stacking
 from open_garden_planner.core.object_height import lies_on_ground
 from open_garden_planner.core.object_types import is_plant_type
 from open_garden_planner.core.plan_timeline import plant_present
+from open_garden_planner.core.render_style import RenderStyle, normalise_render_style
 from open_garden_planner.core.sim_clock import SimClock
 from open_garden_planner.core.sprite_raster import clear_sprite_cache
 from open_garden_planner.core.units import UnitSystem
 from open_garden_planner.models.layer import Layer, create_default_layers
+from open_garden_planner.ui.canvas.style import cad as _cad  # noqa: F401  (registers the CAD painter)
+from open_garden_planner.ui.canvas.style import line_wash as _line_wash  # noqa: F401  (registers Line & Wash)
+from open_garden_planner.ui.canvas.style.base import OUTPUT_DPI as _OUTPUT_DPI
+from open_garden_planner.ui.canvas.style.base import painter_for as _style_painter_for
+from open_garden_planner.ui.canvas.style.geometry import band_for_scale
+from open_garden_planner.ui.canvas.style.state import StyleState, StyleStateCache
 from open_garden_planner.ui.units_notifier import units_notifier
 
 from .item_cache import ensure_item_cache_budget
@@ -57,6 +66,8 @@ if TYPE_CHECKING:
 #: its layer's band ``[z_order * 100, z_order * 100 + 100)`` above the overlays. Until
 #: the manual pass of PR #584 a lawn sat in its layer's band and hid both overlays.
 GROUND_Z_RANGE: tuple[float, float] = (-990.0, -510.0)
+
+logger = logging.getLogger(__name__)
 
 
 def ground_z(layer_z: float) -> float:
@@ -250,6 +261,17 @@ class CanvasScene(QGraphicsScene):
     #: something to count on (the #230 teardown trap; seen as "'CanvasScene'
     #: object has no attribute" in the group menu tests; PF-CAN-61).
     _paint_revision = 0
+    #: The render style (``render_style``): a class attribute too, for the same
+    #: teardown reason as ``_paint_revision``.
+    _render_style = RenderStyle.ILLUSTRATED
+    #: The LOD band the screen is painted at, and whether a state rebuild is
+    #: already scheduled (``style_state``); class attributes for the same reason.
+    _style_band = 0
+    _style_rebuild_pending = False
+    _style_miss_logged = False
+    #: CAD leader callouts (WP5): the flag, and the one layer item while it shows.
+    _cad_callouts = False
+    _callout_layer: Any = None
     diagnostics_changed = pyqtSignal()
     timeline_changed = pyqtSignal()
     active_layer_changed = pyqtSignal(object)  # Layer or None
@@ -349,6 +371,9 @@ class CanvasScene(QGraphicsScene):
         # was connected, so this one runs before any other listener repaints.
         # Not connected: Qt's ``changed`` (class docstring).
         self._paint_revision = 0
+        # The scene-wide state of the render style (``ui/canvas/style/state.py``).
+        self._style_states = StyleStateCache()
+        self._style_output_dpi: float | None = None
         self._standing_covers: tuple[int, list[StandingCover]] | None = None
         self._annotation_covers: tuple[int, QPainterPath] | None = None
         self._edit_decoration_covers: tuple[int, tuple[float, ...], QPainterPath] | None = None
@@ -412,7 +437,12 @@ class CanvasScene(QGraphicsScene):
 
         # Then draw canvas area (beige rectangle) on top
         canvas_rect = QRectF(0, 0, self._width_cm, self._height_cm)
-        painter.fillRect(canvas_rect, QBrush(self.CANVAS_COLOR))
+        styled = _style_painter_for(self._render_style)
+        paper = getattr(styled, "paper_color", None)
+        painter.fillRect(canvas_rect, QBrush(paper if paper is not None else self.CANVAS_COLOR))
+        paint_paper = getattr(styled, "paint_paper", None)
+        if paint_paper is not None:  # the grain of a style with a textured paper
+            paint_paper(painter, canvas_rect, self._style_band)
 
     #: Object labels (``PlanLabelItem``) are painted by ``drawForeground`` here,
     #: after every item, and not by the label items themselves.
@@ -1099,6 +1129,180 @@ class CanvasScene(QGraphicsScene):
         """Moves whenever a picture of the scene may differ (class docstring)."""
         return self._paint_revision
 
+    @property
+    def render_style(self) -> RenderStyle:
+        """The drawing style the scene is painted in (Package 4). A view
+        preference, never plan data: it is not saved in the .ogp, not on the
+        undo stack and does not mark the plan modified."""
+        return self._render_style
+
+    def set_render_style(self, style: RenderStyle | str) -> None:
+        """Paint the scene in ``style``. Moves the paint revision and repaints;
+        touches no plan state (no ``plan_changed``, no command)."""
+        new = normalise_render_style(style, self._render_style)
+        if new is self._render_style:
+            return
+        self._render_style = new
+        self._style_miss_logged = False
+        self.note_paint_changed()
+        # The pad of a styled item's bounding rect changes with the style.
+        self._notify_style_geometry()
+        self.ensure_style_state()  # also takes the callout layer off for illustrated
+        self.update()
+
+    @property
+    def cad_callouts(self) -> bool:
+        """Whether the CAD style draws leader callouts (a view preference like
+        the style itself; off by default, owner Q4)."""
+        return self._cad_callouts
+
+    def set_cad_callouts(self, enabled: bool) -> None:
+        """Turn the CAD leader callouts on or off: a paint change only."""
+        enabled = bool(enabled)
+        if enabled == self._cad_callouts:
+            return
+        self._cad_callouts = enabled
+        self.note_paint_changed()
+        if self._render_style is RenderStyle.CAD:
+            self.ensure_style_state()
+        self.update()
+
+    @property
+    def style_band(self) -> int:
+        """The LOD band (``floor(log2(device px per cm))``) the view paints at."""
+        return self._style_band
+
+    def set_style_band(self, band: int) -> None:
+        """The view's zoom crossed into LOD ``band``: build that band's state
+        before the next paint (called by the view's zoom handler)."""
+        if band == self._style_band:
+            return
+        self._style_band = band
+        if self._render_style is RenderStyle.ILLUSTRATED:
+            return
+        self._notify_style_geometry()
+        self.ensure_style_state()
+        self.update()
+
+    def ensure_style_state(self, band: int | None = None) -> StyleState | None:
+        """The render style's scene-wide state at the current paint revision,
+        built if it is missing. Called by the scene's own triggers (a style
+        switch, a band change, a render's prewarm), never by a paint."""
+        if self._render_style is RenderStyle.ILLUSTRATED:
+            self._sync_callouts(None)
+            return None
+        state = self._style_states.ensure(
+            self, self._render_style, self._paint_revision,
+            self._style_band if band is None else band,
+        )
+        self._sync_callouts(state)
+        return state
+
+    def _sync_callouts(self, state: StyleState | None) -> None:
+        """Put the CAD callout layer on (or take it off) the scene to match
+        ``state``; the layer is no plan item (``style.callouts``)."""
+        if state is None and self._callout_layer is None:
+            return
+        from open_garden_planner.ui.canvas.style.callouts import sync_callout_layer
+
+        sync_callout_layer(self, state)
+
+    def style_state(self) -> StyleState | None:
+        """The kept state, for a paint to read. Never builds (§8.9): on a miss
+        the item paints its plain base geometry and a rebuild is scheduled."""
+        if self._render_style is RenderStyle.ILLUSTRATED:
+            return None
+        state = self._style_states.lookup(
+            self._render_style, self._paint_revision, self._style_band)
+        if state is None:
+            if not self._style_miss_logged:
+                self._style_miss_logged = True
+                logger.debug("render style state missed in a paint; rebuild scheduled")
+            self._schedule_style_rebuild()
+        return state
+
+    def _schedule_style_rebuild(self) -> None:
+        """One deferred, coalesced rebuild after the paint revision moved."""
+        if self._style_rebuild_pending or self._render_style is RenderStyle.ILLUSTRATED:
+            return
+        self._style_rebuild_pending = True
+        QTimer.singleShot(0, self._rebuild_style_state)
+
+    def _rebuild_style_state(self) -> None:
+        self._style_rebuild_pending = False
+        if self._render_style is RenderStyle.ILLUSTRATED:
+            return
+        self.ensure_style_state()
+        # A paint that missed the state drew the plain picture and a device-cached
+        # item keeps it: every item repaints now that the state exists.
+        for item in self.items():
+            item.update()
+        self.update()
+
+    def _notify_style_geometry(self) -> None:
+        """Items whose bounding rect carries the style pad re-announce it, and
+        every item repaints: a cached item (a canvas one is device-cached) would
+        otherwise keep showing the picture of the previous style or band."""
+        for item in self.items():
+            hook = getattr(item, "style_geometry_changed", None)
+            if hook is not None:
+                hook()
+            item.update()
+
+    @property
+    def style_output_dpi(self) -> float | None:
+        """The dpi of the output being rendered (None on screen)."""
+        return self._style_output_dpi
+
+    @contextmanager
+    def style_for_render(
+        self,
+        style: RenderStyle | None = None,
+        px_per_cm: float | None = None,
+        dpi: float | None = None,
+    ) -> Iterator[None]:
+        """Paint at the style, LOD band and dpi of an output, then restore.
+
+        An export's, not the screen's: the style switch moves no paint revision
+        (nothing the state is built from changed), so the state cache, which keys
+        ``(style, revision, band)``, keeps the screen's state alive across the
+        export and the restore is a cache hit. The output's state is built once,
+        at the output's band. The pad of a styled bounding rect depends on the
+        style and the band, so items re-announce their geometry on entry and exit
+        whenever either differs.
+        """
+        previous_style = self._render_style
+        previous_band = self._style_band
+        previous_dpi = self._style_output_dpi
+        new_style = previous_style if style is None else normalise_render_style(
+            style, previous_style)
+        new_band = previous_band if px_per_cm is None else band_for_scale(px_per_cm)
+        changed = new_style is not previous_style or new_band != previous_band
+        self._render_style = new_style
+        self._style_band = new_band
+        self._style_output_dpi = dpi
+        token = _OUTPUT_DPI.set(dpi)
+        try:
+            if changed:
+                self._style_miss_logged = False
+                self._notify_style_geometry()
+            self.ensure_style_state()
+            yield
+        finally:
+            _OUTPUT_DPI.reset(token)
+            self._render_style = previous_style
+            self._style_band = previous_band
+            self._style_output_dpi = previous_dpi
+            if changed:
+                self._notify_style_geometry()
+                self.ensure_style_state()
+
+    def style_band_for_render(
+        self, px_per_cm: float, dpi: float | None = None
+    ) -> AbstractContextManager[None]:
+        """``style_for_render`` that keeps the style: just the band (and dpi)."""
+        return self.style_for_render(None, px_per_cm, dpi)
+
     @pyqtSlot()
     def note_paint_changed(self) -> None:
         """Something that is kept for painting was taken from has changed (class
@@ -1106,6 +1310,8 @@ class CanvasScene(QGraphicsScene):
         repaints nothing — a writer whose change shows on the canvas still
         calls ``item.update()`` itself."""
         self._paint_revision += 1
+        if self._render_style is not RenderStyle.ILLUSTRATED:
+            self._schedule_style_rebuild()
 
     def standing_covers(self) -> list[StandingCover]:
         """What stands on the plan (``collect_standing_covers``), kept until the
@@ -2247,6 +2453,8 @@ class CanvasScene(QGraphicsScene):
         self._plan_change_holds = 0
         self._plan_change_held = False
         self._plan_change_commit = False
+        # The callout layer dies with the scene's items (the C++ side is gone).
+        self._callout_layer = None
         self._compare_items.clear()
         self._compare_overlay_visible = False
         self._calibration_markers.clear()

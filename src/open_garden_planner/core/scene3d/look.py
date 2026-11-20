@@ -43,7 +43,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Mapping
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from types import MappingProxyType
 from typing import Final
 
@@ -69,12 +69,12 @@ __all__ = [
     "PAINTED", "QUALITY_CHOICES", "RECORDING_SKY_REBUILD_DEG", "SKY_MIN_ELEVATION_DEG",
     "SKY_MODELS", "SKY_REBUILD_DEG",
     "TWILIGHT_DEG", "AutoPolicy",
-    "AutoPreset", "LookSpec", "MoodSpec", "PresetSpec", "Rig", "ShadowSpec", "SkySpec",
+    "AutoPreset", "LINE_AND_WASH_NPR", "LookSpec", "MoodSpec", "NprSpec", "PresetSpec", "Rig", "ShadowSpec", "SkySpec",
     "anchor_lights", "ao_distance_scale", "day_rig", "ground_light", "night_ground_light",
     "fill_linear", "fog_color", "fog_depth_cm", "fog_linear", "linear_to_srgb_hex", "look_for", "mix_linear",
-    "mix_rig", "moon_travel_scene", "normalise_quality", "normalise_sky_model", "scale_linear",
+    "mix_rig", "moon_travel_scene", "normalise_quality", "npr_for", "normalise_sky_model", "scale_linear",
     "sky_is_stale",
-    "sky_must_build_now", "sky_phase", "sky_separation_deg", "twilight_fill", "twilight_fill_share", "twilight_fraction",
+    "sky_must_build_now", "sky_phase", "sky_separation_deg", "styled_look", "twilight_fill", "twilight_fill_share", "twilight_fraction",
     "twilight_rig",
 ]
 
@@ -664,6 +664,113 @@ CLEAR_STILL: Final = AtmosphereSpec()
 
 
 @dataclass(frozen=True, slots=True)
+class NprSpec:
+    """The 3D "Line & Wash" render style (render styles WP9): ONE table of every value
+    the style changes, the effect's (``qml/NprStyle.qml``) and the look's overrides
+    (``styled_look``). Plain data; widths and frequencies are shares of the picture's
+    height, so the pane, a 4K capture and a CI frame look alike. Colours are sRGB hex."""
+
+    #: The ink's sampling step, as a share of the picture's height (1.3 px at 1080p).
+    edge_share: float = 0.0015
+    #: The relative second difference of the depth's reciprocal (zero on every plane)
+    #: from which a pixel is a silhouette (one surface in front of another) ...
+    silhouette_thresh: float = 0.03
+    #: ... and from which it is a crease (two surfaces meeting at a fold).
+    crease_thresh: float = 0.006
+    #: A STEP (a window frame 3 cm proud of its wall reads 0.001 at 30 m) is inked from
+    #: this, far under a crease, but only where the colour changes across it too (log2
+    #: luminance by ``step_contrast``): the depth buffer's own quantisation draws rows of
+    #: such steps on a smooth, one-coloured ground, a frame against its wall is both.
+    step_thresh: float = 0.0005
+    step_contrast: float = 0.3
+    #: A crease's ink against a silhouette's 1.
+    crease_ink: float = 0.55
+    #: The pen's width: ink a pixel takes from its strongest neighbour (0 one-pixel lines).
+    ink_spread: float = 0.85
+    #: A silhouette's pen: its half width as a share of the picture's height (the line
+    #: weight of an outline, heavier than a crease's one-pixel stroke).
+    silhouette_share: float = 0.0012
+    #: Leaf-level depth jumps (the relative 2nd difference above this) count as "busy":
+    #: foliage. Window frames and sills (a few cm proud) stay far below it.
+    busy_thresh: float = 0.008
+    #: The share of a block's pixels that are busy from which the fine ink fades out and the
+    #: canopy's mass outline takes over.
+    busy_cut: float = 0.25
+    #: The canopy mass: the leaves' depth CLOSED over this radius (share of the height), so
+    #: the gaps between leaves fill and one outline goes round the whole crown ...
+    mass_share: float = 0.008
+    #: ... drawn where the closed depth's relative 2nd difference passes this (a crown in
+    #: front of the ground behind it, not the leaves inside it) ...
+    mass_thresh: float = 0.015
+    #: ... and with this ink against a silhouette's 1.
+    mass_ink: float = 1.0
+    #: Inside the mass the leaves' own colour noise is washed into soft masses: the wash
+    #: averaged over this radius (share of the height) where the picture is foliage.
+    foliage_soften_share: float = 0.004
+    #: Tonal bands from paper to ink, cut in display lightness; their soft step (0..0.5).
+    bands: float = 5.0
+    band_soft: float = 0.12
+    #: A band's dried edge: the pigment pooled along a step between two bands on a smooth
+    #: surface (0 none), the rim's width as a share of the height.
+    band_rim: float = 0.3
+    band_rim_share: float = 0.0012
+    #: Pigment pooled where the wash's colour changes (0 none).
+    edge_darken: float = 0.35
+    #: The wash thinned towards the paper (0 full pigment, 1 bare paper).
+    wash_lift: float = 0.2
+    #: The wash's chroma against the scene's (1 kept).
+    wash_saturation: float = 0.85
+    #: Paper grain: its cell as a share of the height, its darkening at full pigment.
+    grain_share: float = 0.0016
+    grain_strength: float = 0.08
+    #: Granulation: pigment settled in the paper's hollows - clumped specks (their cell a
+    #: share of the height) that darken a dense wash by up to this much.
+    granulation: float = 0.2
+    granulation_share: float = 0.0045
+    #: The wash laid unevenly: its density varies by this much (0 even) over blooms of
+    #: this size (share of the height) on every surface ...
+    wash_mottle: float = 0.14
+    wash_mottle_share: float = 0.18
+    #: ... and the ground's pigment, anchored to the ground (no swimming in a move), by
+    #: this much over patches of this size (cm): ``ground.frag`` under the flatten.
+    ground_wash: float = 0.18
+    ground_wash_cm: float = 800.0
+    #: ... and the ground's own pictures (gravel, decking, paving) softened to their local
+    #: mean: this many mip levels up (the plan's shapes stay; their edges soften a little).
+    ground_soften: float = 3.0
+    paper_rgb: str = "#f4eedf"   # the 2D Line & Wash paper (ui/canvas/style/line_wash.PAPER)
+    ink_rgb: str = "#2a241d"
+    #: The paper fog: from here (cm along the view) the distance fades to paper ...
+    fog_near_cm: float = 6000.0
+    #: ... and here it is paper.
+    fog_far_cm: float = 14000.0
+    #: ``ground.frag``'s ``uStyleFlatten``: the ground's relief and grass variation fade.
+    ground_flatten: float = 1.0
+    #: ``built_detail.frag``'s ``uStyleFlatten``: a built surface's detail picture (roof
+    #: tiles, brick courses, plaster) fades to its flat mean colour and its relief to a
+    #: plane; the geometry is untouched.
+    surface_flatten: float = 1.0
+    # ---- the look's overrides (``styled_look``) ----
+    #: Factor on the mood's saturation (after the effect: Qt's colour adjustment).
+    saturation_scale: float = 0.9
+    #: Factor on the wind (edge flicker in a video).
+    wind_scale: float = 0.3
+    #: Factor on the ambient occlusion's strength ("AO-like shadows").
+    ao_strength_scale: float = 1.4
+    #: Factors on the shadow's darkness (0-100) and its filter radius (softer edges).
+    #: Applied by the scene only while the effect is drawn (``nprActive``), never in the
+    #: truth view, whose shadows the truth gates read.
+    shadow_factor_scale: float = 0.75
+    pcf_scale: float = 2.0
+
+
+#: The Line & Wash style's table. The look overrides of the design's §3.3 table: glow,
+#: SSR, Qt's depth fog and the vignette off, the lawn's blades not drawn; the time-of-day
+#: rigs still drive the light, so Line & Wash at golden hour stays warm.
+LINE_AND_WASH_NPR: Final = NprSpec()
+
+
+@dataclass(frozen=True, slots=True)
 class LookSpec:
     """Everything about a frame that is art direction — plain, comparable data.
 
@@ -705,6 +812,12 @@ class LookSpec:
     #: ``TWILIGHT_FILL_TOP_DEG`` up and at night: the sunset anchor and the night rig are
     #: untouched. No light of its own, no shadow, no direction.
     twilight_fill_linear: tuple[float, float, float] = (0.0, 0.0, 0.0)
+    #: Render styles WP9: the drawn 3D style of this look (``styled_look``); None is the
+    #: plain look - every look ``look_for`` makes, and always the truth view's.
+    npr: NprSpec | None = None
+    #: The plain look a drawn style was made from (``styled_look``), so that a picture
+    #: in another style starts from the same plain look; None on every plain look.
+    unstyled: LookSpec | None = field(default=None, repr=False)
 
     @property
     def night(self) -> bool:
@@ -873,6 +986,38 @@ def look_for(sun: SunState, preset: str = "high") -> LookSpec:
     """
     look = _rig_look(sun, preset)
     return replace(look, twilight_fill_linear=twilight_fill(look, *anchor_lights()))
+
+
+def npr_for(render_style: object) -> NprSpec | None:
+    """The 3D style of a render style (``core.render_style``): Line & Wash draws the NPR
+    look; Illustrated and CAD (no 3D mode of its own in v1, design Q6) keep the plain one.
+    Unknown values are the plain look (lenient, as the settings are)."""
+    from ..render_style import RenderStyle, normalise_render_style
+
+    style = normalise_render_style(render_style)
+    return LINE_AND_WASH_NPR if style is RenderStyle.LINE_AND_WASH else None
+
+
+def styled_look(look: LookSpec, render_style: object) -> LookSpec:
+    """``look`` in ``render_style``. A plain look in a plain style is returned AS IS (the
+    same object: every default output stays what it was); a styled look goes back to the
+    plain look it was made from first. A drawn style changes art direction only: no
+    light direction, no geometry, no sun - the truth gates hold under it. The shadow's
+    softening is not here: the scene applies it only while the effect is drawn, so the
+    top-down truth view keeps the plain look's shadows (``npr_properties``)."""
+    spec = npr_for(render_style)
+    base = look.unstyled if look.unstyled is not None else look
+    if spec is None:
+        return base
+    if look.npr == spec:
+        return look
+    look = base
+    preset = replace(look.preset, glow=False, reflections=False, fog=False, lawn_blades=False)
+    mood = replace(look.mood, saturation=look.mood.saturation * spec.saturation_scale)
+    atmosphere = replace(look.atmosphere,
+                         ao_strength_gain=look.atmosphere.ao_strength_gain * spec.ao_strength_scale)
+    return replace(look, preset=preset, mood=mood, atmosphere=atmosphere,
+                   wind_strength=look.wind_strength * spec.wind_scale, npr=spec, unstyled=look)
 
 
 _ANCHOR_LIGHTS: list[tuple[float, float]] = []

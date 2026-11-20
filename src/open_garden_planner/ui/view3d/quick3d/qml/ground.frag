@@ -159,6 +159,33 @@ void MAIN()
         albedo += open * groundLinear(uMeadow) * (grass - 1.0);
         slope += open * grassSlope;
     }
+    // Render styles WP9: a drawn style (Line & Wash) fades the relief and the grass's
+    // variation (uStyleFlatten 0..1), so the ground reads as a flat wash and its blade
+    // texture does not turn into ink noise. 0 (every look but a drawn style, and the truth
+    // view) skips the branch: the pixels are the plain shader's, bit for bit.
+    if (uStyleFlatten > 0.0) {
+        float keep = 1.0 - clamp(uStyleFlatten, 0.0, 1.0);
+        // the tile's colour softened (uStyleWash.z mip levels up): a gravel's or a deck's
+        // picture becomes its local mean, the plan's shapes stay
+        vec3 plainColour = groundLinear(uHasTile > 0.5 ? texture(uBaseMap, uv, uStyleWash.z).rgb : uMeadow);
+        if (uSurface > 0.5) {
+            float open = (1.0 - tile.a) * uGrassShare;
+            plainColour = mix(plainColour, groundLinear(uMeadow), open);
+        }
+        albedo = mix(plainColour, albedo, keep);
+        slope *= keep;
+        // ... and lays the ground's pigment unevenly, as a wash dries: its density varies
+        // by uStyleWash.x over patches of uStyleWash.y cm and a finer octave, anchored to
+        // the ground (no swimming in a move), each octave fading where a pixel's reach on
+        // the ground would alias it. The effect's tonal bands cut these into soft steps.
+        float footprint = max(reach.x, reach.y);
+        vec2 p = VAR_WORLD_POSITION.xz;
+        float patches = 0.65 * meadowOctave(uStyleWash.y, footprint)
+                          * meadowNoise(mat2(0.87462, 0.48481, -0.48481, 0.87462) * p / uStyleWash.y + vec2(7.1, 2.3))
+                      + 0.35 * meadowOctave(0.37 * uStyleWash.y, footprint)
+                          * meadowNoise(mat2(0.60182, 0.79864, -0.79864, 0.60182) * p / (0.37 * uStyleWash.y) + vec2(1.9, 13.4));
+        albedo *= 1.0 + uStyleWash.x * clamp(uStyleFlatten, 0.0, 1.0) * patches;
+    }
     albedo *= groundLinear(uGroundTint);
     BASE_COLOR = vec4(mix(albedo, vec3(0.80, 0.84, 0.89), uSnowCover), 1.0);
     ROUGHNESS = uRough;

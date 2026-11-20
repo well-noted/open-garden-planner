@@ -11,7 +11,7 @@ from urllib.parse import unquote, urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 PAGES = ("Home.md", "Roadmap.md", "Installation.md", "Contributing.md",
-         "Architecture.md", "_Sidebar.md")
+         "Architecture.md", "Render-Styles.md", "_Sidebar.md")
 INCLUDES = {
     "roadmap-overview": ("Overview", True),
     "roadmap-infrastructure": ("Dev Infrastructure", True),

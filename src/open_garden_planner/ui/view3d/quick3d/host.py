@@ -146,7 +146,12 @@ from open_garden_planner.core.scene3d import (
     scene_to_engine_points,
     scene_to_engine_vectors,
 )
-from open_garden_planner.core.scene3d.look import ATMOSPHERE, ao_distance_scale, fog_depth_cm
+from open_garden_planner.core.scene3d.look import (
+    ATMOSPHERE,
+    ao_distance_scale,
+    fog_depth_cm,
+    styled_look,
+)
 from open_garden_planner.core.scene3d.meadow import GRASS_RELIEF, GRASS_VARIATION, meadow_frame
 from open_garden_planner.core.scene3d.particles import (
     precipitation_buffers,
@@ -1454,12 +1459,8 @@ class Quick3DHost:
         _set(self._root, "topDownScale", float(shot.px_per_cm))
         _set(self._root, "topDown", True)
 
-    def set_look(self, look: LookSpec) -> None:
-        """Apply a look — plain data from ``core.scene3d.look.look_for``; the mapping
-        onto the scene is ``look.scene_properties``. It moves no camera, touches no
-        Model and builds no sky (``set_sky``); at night it aims the key light at the
-        look's moon, by day it leaves the sun where the pipeline put it."""
-        self._open("set_look")
+    def _write_look(self, look: LookSpec) -> None:
+        """Write ``look``'s scene properties (``look.scene_properties``) to the scene."""
         for name, value in scene_properties(look).items():
             if name in COLOR_PROPERTIES:
                 value = QColor(str(value))
@@ -1470,6 +1471,14 @@ class Quick3DHost:
                 x, y, z = cast("tuple[float, float, float]", value)
                 value = QVector3D(float(x), float(y), float(z))
             _set(self._root, name, value)
+
+    def set_look(self, look: LookSpec) -> None:
+        """Apply a look — plain data from ``core.scene3d.look.look_for``; the mapping
+        onto the scene is ``look.scene_properties``. It moves no camera, touches no
+        Model and builds no sky (``set_sky``); at night it aims the key light at the
+        look's moon, by day it leaves the sun where the pipeline put it."""
+        self._open("set_look")
+        self._write_look(look)
         previous, self._shown_look = self._shown_look, look
         if self._photo.grade != NO_GRADE:
             self._apply_grade(self._photo.grade)   # the table carries the mood's adjustments
@@ -1648,7 +1657,8 @@ class Quick3DHost:
 
     def capture(self, size: tuple[int, int], shot: PerspectiveShot | None = None, *,
                 wind_time_s: float | None = None, photo: PhotoSettings | None = None,
-                label: str = "", fitted_shadows: bool = False) -> QImage:
+                label: str = "", fitted_shadows: bool = False,
+                render_style: str | None = None) -> QImage:
         """A picture of exactly ``size`` device pixels, without moving anything on screen:
         ``shot`` (None: the camera in place) through the scene's second View3D, whose size
         does not depend on the window's. Selection ring off; the photo settings apply.
@@ -1661,7 +1671,9 @@ class Quick3DHost:
         capture at the view's size the view, pixel for pixel (the self-test's check; #734:
         a fitted frame differs from the view by up to 24 levels along its shadow edges).
         Legal on a ``LIVE`` host only (``lifecycle.py``); else ``HostStateError``.
-        ``EngineError`` when no picture comes back.
+        ``EngineError`` when no picture comes back. ``render_style`` (render styles WP9):
+        draw this picture in that style (``look.styled_look`` of the look shown), the
+        view's own look put back after it; None is the view's style.
 
         WHY NOTHING JUMPS (ADR-072, measured: the view read back after a capture differs
         in no pixel). Everything below is one synchronous call on the GUI thread, and the
@@ -1700,8 +1712,13 @@ class Quick3DHost:
         wind_before = _get(root, "windTime")
         ring_before = _get(root, "selectionVisible")
         photo_before = self._photo
+        look_shown = self._shown_look
+        look_picture = (look_shown if render_style is None
+                        else styled_look(look_shown, render_style))
         started = time.perf_counter()
         try:
+            if look_picture is not look_shown:
+                self._write_look(look_picture)
             if photo is not None:
                 self._photo = photo
                 self._apply_grade(photo.grade)
@@ -1732,6 +1749,8 @@ class Quick3DHost:
             finally:
                 _set(root, "captureAoDistanceScale", 1.0)
                 _set(root, "fittedShadows", False)
+                if look_picture is not look_shown:
+                    self._write_look(look_shown)
                 _set(root, "selectionVisible", ring_before)
                 _set(root, "windTime", wind_before)
                 self._photo = photo_before

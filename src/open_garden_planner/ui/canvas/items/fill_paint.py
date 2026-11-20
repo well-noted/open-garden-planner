@@ -32,10 +32,11 @@ from PyQt6.QtWidgets import (
 )
 
 from open_garden_planner.core.fill_patterns import brush_for_painter
+from open_garden_planner.core.render_style import RenderStyle
+from open_garden_planner.ui.canvas.style.base import painter_for, style_of
 
 #: A full ellipse in Qt's sixteenths of a degree.
 _FULL_TURN = 360 * 16
-
 
 def paint_shape(
     item: Any,
@@ -46,6 +47,14 @@ def paint_shape(
 ) -> None:
     """Paint ``item``'s fill and outline as ``base_paint`` (its Qt base class's
     ``paint``) does, with the fill tile at ``painter``'s resolution."""
+    style = style_of(item)
+    if style is not RenderStyle.ILLUSTRATED:
+        styled = painter_for(style)
+        # a style painter draws the shape or returns False (the code below paints)
+        if styled is not None and styled.paint_shape(item, painter, option):
+            if option is not None and option.state & QStyle.StateFlag.State_Selected:
+                _highlight_selected(item, painter, option)
+            return
     brush = brush_for_painter(item.brush(), painter)
     if brush is None:
         base_paint(painter, option, widget)
@@ -104,4 +113,4 @@ def _highlight_selected(
     painter.drawRect(frame)
 
 
-__all__ = ["paint_shape"]
+__all__ = ["paint_shape", "style_of"]
