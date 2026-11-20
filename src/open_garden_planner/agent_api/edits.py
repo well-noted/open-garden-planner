@@ -257,6 +257,37 @@ def _require_min_extent(extent: float, field: str, object_type: str) -> None:
         )
 
 
+def validate_object_height(height_cm: float | None) -> float | None:
+    """Validate a ``set_object_height`` request; ``None`` means "clear the override".
+
+    The explicit height is a positive, finite number of centimetres up to the
+    Properties panel's own ceiling (``object_height.MAX_EXPLICIT_HEIGHT_CM``). The
+    panel's 0 ("Auto") is not accepted here: an agent clears with ``null`` so a stray
+    zero from a unit slip cannot silently remove a height.
+    """
+    from open_garden_planner.core import object_height as oh
+
+    if height_cm is None:
+        return None
+    if isinstance(height_cm, bool) or not isinstance(height_cm, (int, float)):
+        raise ValueError(
+            f"height_cm must be a number of centimetres or null, got {height_cm!r}"
+        )
+    value = float(height_cm)
+    if not math.isfinite(value):
+        raise ValueError(
+            f"height_cm must be finite, got {height_cm!r}: the valid range is greater "
+            f"than 0 and at most {oh.MAX_EXPLICIT_HEIGHT_CM:g} cm."
+        )
+    if not 0.0 < value <= oh.MAX_EXPLICIT_HEIGHT_CM:
+        raise ValueError(
+            f"height_cm {value:g} is outside the valid range: greater than 0 and at "
+            f"most {oh.MAX_EXPLICIT_HEIGHT_CM:g} cm. Pass null to clear the explicit "
+            "height instead of 0."
+        )
+    return value
+
+
 def is_plant_parent_type_name(object_type: str) -> bool:
     """Whether ``object_type`` names something a plant can be a child of.
 

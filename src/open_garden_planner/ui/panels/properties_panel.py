@@ -1754,7 +1754,7 @@ class PropertiesPanel(QWidget):
             return
 
         height_spin = LengthSpinBox(LengthStyle.PLANT_SIZE if is_plant_type(item.object_type) else LengthStyle.AUTO)
-        height_spin.setRange(0.0, 5000.0)
+        height_spin.setRange(0.0, oh.MAX_EXPLICIT_HEIGHT_CM)
         height_spin.setDecimals(0)
         height_spin.setSingleStep(10.0)
         height_spin.setSuffix(" cm")
@@ -1804,15 +1804,9 @@ class PropertiesPanel(QWidget):
         if new_value == old_value:
             return
 
-        def apply_func(itm: QGraphicsItem, val: float | None) -> None:
-            if val is None:
-                itm.metadata.pop(oh.METADATA_KEY, None)
-            else:
-                itm.metadata[oh.METADATA_KEY] = val
-
         cmd = ChangePropertyCommand(
             item, "object height", old_value, new_value,
-            apply_func=apply_func,
+            apply_func=oh.apply_explicit_height,
         )
         if self._command_manager:
             self._command_manager.execute(cmd)

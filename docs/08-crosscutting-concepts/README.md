@@ -4003,6 +4003,8 @@ in-memory, read-only `.ogp`-shaped dict (it does NOT run the journal-pin sync th
 the curated pydantic `schema.py` (`PlanSummary`); object classification inlines the
 bed/plant `ObjectType` name sets, drift-guarded by `tests/unit/test_agent_api_mapping.py`.
 
+**Site measurements and heights (FR-AGENT-32/33).** Nine more read tools answer "how far / how big / how tall" from the same snapshot (`agent_api/site_queries.py` over `core/site_measure.py`, Qt-free, no provider seam). Pick by question: centre-to-centre `measure_distance`, edge-to-edge `measure_clearance`, point-to-point `measure_points` (bearing uses the plan's `north_angle_deg`, not the canvas angle), along a route `measure_path`, point-to-edge `measure_to_object`. Inputs are untrusted: finite numbers within 100 km, at most 200 path points; unknown ids return null. A `{lat, lon}` point needs a georeference and otherwise errors. Heights are `core/object_height.resolve_height` at the snapshot's plan date.
+
 **Read/query tools (US-D1.2).** `build_server`/`AgentApiServer` take an
 `AgentProviders` bundle (Qt-free) of main-thread-marshaled callables (`snapshot`,
 `diagnostics`) — the extension seam for render/export/write later. Tools:

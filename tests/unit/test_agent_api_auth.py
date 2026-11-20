@@ -122,6 +122,7 @@ WRITE_TOOL_NAMES = frozenset(
         "delete_object",
         "resize_object",
         "rotate_object",
+        "set_object_height",
         "set_vertex",
         "add_vertex",
         "delete_vertex",

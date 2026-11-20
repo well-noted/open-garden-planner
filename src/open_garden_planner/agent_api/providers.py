@@ -228,6 +228,11 @@ class AgentProviders:
             ``(item_id, angle, relative)`` in degrees, positive =
             counter-clockwise; runs one undoable ``RotateItemCommand`` and
             returns a plain ``WriteResult``-shaped dict.
+        set_object_height: **Write.** Sets, or with ``None`` clears, an object's explicit
+            vertical height (``metadata["object_height_cm"]``). Takes
+            ``(item_id, height_cm)``; runs one undoable ``ChangePropertyCommand`` (the
+            Properties panel's own) and returns a ``SetObjectHeightResult``-shaped dict.
+            Optional (default ``None``) so a bundle built before it existed still works.
         set_vertex: **Write (D2.6).** Moves one polygon/polyline vertex to an
             absolute scene-frame point; exactly one undoable command.
         add_vertex: **Write (D2.6).** Inserts one polygon/polyline vertex at a
@@ -417,3 +422,4 @@ class AgentProviders:
     place_field_record: Callable[..., dict[str, Any]] | None = None
     reject_field_record: Callable[..., dict[str, Any]] | None = None
     plan_date: Callable[[], str] | None = None
+    set_object_height: Callable[[str, float | None], dict[str, Any]] | None = None
