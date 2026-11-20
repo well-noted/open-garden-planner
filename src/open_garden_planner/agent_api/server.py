@@ -568,8 +568,8 @@ def build_server(
 
         Objects are listed bottom→top as drawn — the same order
         ObjectRef.stack_index is computed from: first the ground surfaces
-        without a height (lawns, paths, terraces, driveways, ponds, in-ground
-        beds) of every layer, then everything else; each part in layer order,
+        without a height (lawns, mulch, paths, terraces, driveways, ponds,
+        in-ground beds) of every layer, then everything else; each part in layer order,
         then position within the layer. The ground surfaces lie under every
         other object and under the sun study's shadows. (get_diagnostics is
         NOT in this order.)
@@ -2822,7 +2822,7 @@ def build_server(
             single nearest object in its layer whose bounding box OVERLAPS it
             (a non-overlapping neighbour is skipped entirely).
 
-            A ground surface without a height (a lawn, path, terrace,
+            A ground surface without a height (a lawn, mulch, path, terrace,
             driveway, pond or in-ground bed) is always drawn below the other
             objects, so it is arranged among the ground surfaces of its layer
             only, and any other object among the rest only: at the edge of its

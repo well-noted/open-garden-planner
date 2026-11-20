@@ -141,11 +141,16 @@ MAX_RELIEF_VERTICES: Final = 4_096
 BLADE_CM: Final = 7.0
 #: How far a mulch bed's border chips are centred past its outline (cm), and how often
 #: one lies along it (before 0.45 of a step's slide and one in five left out). A chip is
-#: at most 9 x 3.6 cm, so none reaches further than 4.9 cm past its centre, and a centre
-#: slid past a corner lies at most hypot(2.5, 2.7) = 3.7 cm from the outline: 8.6 cm, inside
+#: at most ``EDGE_CHIP_LENGTH_CM`` x ``EDGE_CHIP_WIDTH_CM`` (11 x 4.4), so none reaches
+#: further than its half diagonal (5.9 cm) past its centre, and a centre slid past a corner
+#: lies at most hypot(2, 2.7) = 3.4 cm from the outline: ``MULCH_REACH_CM``, 9.3 cm, inside
 #: the truth gate (footprint plus 10 cm).
-MULCH_SPILL_CM: Final = 2.5
+MULCH_SPILL_CM: Final = 2.0
 EDGE_CHIP_EVERY_CM: Final = 6.0
+EDGE_CHIP_LENGTH_CM: Final = (6.0, 11.0)
+EDGE_CHIP_WIDTH_CM: Final = (2.6, 4.4)
+MULCH_REACH_CM: Final = (math.hypot(MULCH_SPILL_CM, 0.45 * EDGE_CHIP_EVERY_CM)
+                         + math.hypot(EDGE_CHIP_LENGTH_CM[1] / 2.0, EDGE_CHIP_WIDTH_CM[1] / 2.0))
 #: The fill pattern a mulch bed's relief belongs to; any other gets none.
 MULCH_PATTERN: Final = "MULCH"
 #: Loose chips on a mulch bed, low enough that a plant or a bench in the bed still
@@ -566,7 +571,7 @@ def _edge_chips(record: Record, rng: np.random.Generator) -> tuple[F64, F64, F64
     count = sum(len(c) for c in centres)
     if not count or count > MAX_MULCH_CHIPS:
         return np.zeros((0, 2)), np.zeros((0, 2)), np.zeros(0)
-    sizes = np.stack([rng.uniform(6.0, 11.0, count), rng.uniform(2.6, 4.4, count)], axis=1)
+    sizes = np.stack([rng.uniform(*EDGE_CHIP_LENGTH_CM, count), rng.uniform(*EDGE_CHIP_WIDTH_CM, count)], axis=1)
     return np.concatenate(centres), sizes, np.concatenate(angles)
 
 

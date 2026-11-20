@@ -13673,7 +13673,7 @@ The photo tools, the records window and Field Remote were first built on an olde
 
 ## ADR-082: Mulch is a ground-surface object type with chip relief (extends ADR-065)
 
-**Status**: Implemented on `feature/mulch-surface`; draft until the owner confirms manual testing.
+**Status**: Implemented; draft until the owner confirms manual testing.
 
 **Context**: Mulch existed only as a fill pattern. A user could not place it as a surface with its own tool, render style roles or 3D look.
 

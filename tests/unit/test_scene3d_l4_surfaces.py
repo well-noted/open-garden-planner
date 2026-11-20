@@ -385,9 +385,8 @@ def _mulch(ring, height=None, **params):  # noqa: ANN001, ANN202
 #: A chip: a bevelled slab, 38 triangles, 114 vertices (``bevelled_boxes``).
 CHIP_TRIANGLES = 38
 #: How far a border chip may reach past the outline: its centre's spill (slid past a
-#: corner by at most 0.45 of a step) plus the largest chip's half diagonal (9 x 3.6 cm).
-CHIP_REACH_CM = float(np.hypot(surfaces.MULCH_SPILL_CM, 0.45 * surfaces.EDGE_CHIP_EVERY_CM)
-                      + np.hypot(4.5, 1.8))
+#: corner by at most 0.45 of a step) plus the largest chip's half diagonal (``EDGE_CHIP_*_CM``).
+CHIP_REACH_CM = surfaces.MULCH_REACH_CM
 
 
 def _chips(part) -> np.ndarray:  # noqa: ANN001 - a MeshPart
