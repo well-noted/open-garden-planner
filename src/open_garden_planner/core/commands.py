@@ -183,7 +183,13 @@ class CommandManager(QObject):
             return
 
         command = self._undo_stack.pop()
-        command.undo()
+        try:
+            command.undo()
+        except Exception:
+            # A command whose undo is refused (e.g. a checked write that failed) must
+            # stay undoable, exactly as redo keeps a refused command redoable.
+            self._undo_stack.append(command)
+            raise
         self._redo_stack.append(command)
 
         self._mutation_serial += 1
@@ -4652,6 +4658,10 @@ class SetPlantRecipeCommand(Command):
         return QCoreApplication.translate("Commands", "Set plant 3D recipe")
 
     def _apply(self, value: dict[str, Any] | None, applying: bool) -> None:
+        # The mirror (custom library) goes FIRST: its write is a checked operation, so when
+        # it raises nothing of the plan has changed and the step is simply refused.
+        if self._on_apply is not None:
+            self._on_apply(applying)
         metadata = self._item.metadata  # type: ignore[attr-defined]
         container = metadata.get(self._key)
         if not isinstance(container, dict) and value is not None:
@@ -4670,8 +4680,6 @@ class SetPlantRecipeCommand(Command):
         if callable(note):
             note()
         self._item.update()
-        if self._on_apply is not None:
-            self._on_apply(applying)
 
     def execute(self) -> None:
         self._apply(self._new, True)

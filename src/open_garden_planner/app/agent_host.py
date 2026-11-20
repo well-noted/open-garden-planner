@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import contextlib
+import copy
 import datetime
 import logging
 from pathlib import Path
@@ -3066,14 +3067,6 @@ class AgentHost:
                 f"({', '.join(sorted(pid for pid, _ in matches))}); rename or remove the "
                 "duplicates, or use target='species'."
             )
-        # Refuse up front when the library file cannot be written: the library swallows
-        # write errors for the UI, which would let this tool report a recipe it did not keep.
-        try:
-            library.save_checked()
-        except OSError as exc:
-            raise ValueError(
-                f"the custom plant library cannot be saved ({exc}); nothing changed."
-            ) from exc
         match = matches[0]
         plant_id, plant = match
         prior = None if plant.traits3d_override is None else dict(plant.traits3d_override)
@@ -3081,12 +3074,21 @@ class AgentHost:
         def write(applying: bool) -> None:
             # Re-fetch: the user may have edited or removed the entry since the call, and
             # only the recipe is ours to change. Undo restores the LIBRARY's own prior value.
-            fresh = library.get_plant(plant_id)
-            if fresh is None:
+            current = library.get_plant(plant_id)
+            if current is None:
                 return
+            # A copy: the library rolls back to ITS object if the write fails.
+            fresh = copy.deepcopy(current)
             value = new_value if applying else prior
             fresh.traits3d_override = None if value is None else dict(value)
-            library.update_plant(plant_id, fresh)
+            try:
+                library.update_plant_checked(plant_id, fresh)
+            except OSError as exc:
+                # Raised BEFORE the command touches the plan (see SetPlantRecipeCommand),
+                # so a failed write leaves plan, library and undo history as they were.
+                raise ValueError(
+                    f"the custom plant library cannot be saved ({exc}); nothing changed."
+                ) from exc
 
         return write
 

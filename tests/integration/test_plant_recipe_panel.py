@@ -193,3 +193,71 @@ def test_the_users_fill_colour_wins_over_the_recipe_tint(canvas) -> None:
     assert item._plant_tint() is not None
     item.fill_color = QColor("#3366cc")
     assert item._plant_tint().name() == "#3366cc"
+
+
+def test_repeated_paints_reuse_the_tint_and_a_recipe_change_invalidates_it(
+    canvas, monkeypatch
+) -> None:
+    """§8.9.14: paint state is kept, not rebuilt in a paint (review P1a)."""
+    from open_garden_planner.core.commands import SetPlantRecipeCommand
+    from open_garden_planner.core.plant_art import recipe_edit
+
+    item = _tree(canvas)
+    calls = [0]
+    real = recipe_edit.recipe_tint_hex
+
+    def counting(*args, **kwargs):
+        calls[0] += 1
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(recipe_edit, "recipe_tint_hex", counting)
+    item.metadata["plant_species"] = {"common_name": "Oak"}
+    for _ in range(5):
+        item._plant_tint()
+    assert calls[0] == 1  # five paints, one computation
+
+    canvas.command_manager.execute(SetPlantRecipeCommand(item, {"palette": "redleaf"}))
+    first = item._plant_tint()
+    assert calls[0] == 2  # the recipe change invalidated it
+    for _ in range(3):
+        assert item._plant_tint() is first
+    assert calls[0] == 2
+    canvas.command_manager.undo()
+    item._plant_tint()
+    assert calls[0] == 3  # and so did the undo
+
+    item.plant_species = "Malus domestica"  # a species change
+    item._plant_tint()
+    assert calls[0] == 4
+
+
+def test_the_recipe_handlers_refuse_a_locked_layer_or_group_member(canvas, panel) -> None:
+    """The panel mirrors the agent path's locked-layer / group refusals (review P1d)."""
+    from open_garden_planner.ui.canvas.items.group_item import GroupItem
+
+    item = _tree(canvas)
+    manager = canvas.command_manager
+    depth = manager.undo_depth
+    layer = canvas.scene().layers[0]
+    item.layer_id = layer.id
+    item.metadata["plant_instance"] = {"traits3d_override": {"palette": "redleaf"}}
+    layer.locked = True
+    try:
+        panel._on_recipe_field_changed(item, ("branching", "basal_stems"), 3)
+        panel._on_recipe_reset(item)
+    finally:
+        layer.locked = False
+    assert manager.undo_depth == depth
+    assert item.metadata["plant_instance"]["traits3d_override"] == {"palette": "redleaf"}
+
+    # Unlocked, the same call goes through.
+    panel._on_recipe_reset(item)
+    assert manager.undo_depth == depth + 1
+
+    member = _tree(canvas)
+    group = GroupItem()
+    canvas.scene().addItem(group)
+    group.addToGroup(member)
+    before = manager.undo_depth
+    panel._on_recipe_field_changed(member, ("branching", "basal_stems"), 3)
+    assert manager.undo_depth == before

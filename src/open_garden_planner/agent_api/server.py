@@ -73,6 +73,7 @@ from open_garden_planner.agent_api import creates as agent_creates
 from open_garden_planner.agent_api import geo_recipes, queries
 from open_garden_planner.agent_api import prompts as agent_prompts
 from open_garden_planner.agent_api.diagnostics import diagnostics_from_records
+from open_garden_planner.agent_api.geo_recipes import RecipeTarget
 from open_garden_planner.agent_api.mapping import (
     layers_from_snapshot,
     plan_summary_from_snapshot,
@@ -2117,7 +2118,7 @@ def build_server(
         async def set_plant_recipe(
             item_id: str,
             recipe: dict[str, Any] | None = None,
-            target: Literal["instance", "species", "library"] = "instance",
+            target: RecipeTarget = "instance",
         ) -> WriteResult:
             """Set (or clear) the custom 3D model recipe of one plant.
 

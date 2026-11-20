@@ -2292,11 +2292,29 @@ class PropertiesPanel(QWidget):
         )
         self._register_refresh(status, refresh_all)
 
+    @staticmethod
+    def _recipe_item_editable(item: QGraphicsItem) -> bool:
+        """The agent path's ``_agent_resolve_plant`` refusals, for the panel: an item on a
+        locked layer or inside a group takes no recipe edit (the GUI normally keeps such an
+        item out of the selection; this is the backstop for a stale or programmatic call)."""
+        from open_garden_planner.ui.canvas.items.group_item import GroupItem
+
+        if isinstance(item.parentItem(), GroupItem):
+            return False
+        layer_id = getattr(item, "layer_id", None)
+        scene = item.scene()
+        lookup = getattr(scene, "get_layer_by_id", None)
+        if layer_id is not None and callable(lookup):
+            layer = lookup(layer_id)
+            if layer is not None and layer.locked:
+                return False
+        return True
+
     def _on_recipe_field_changed(
         self, item: QGraphicsItem, field: tuple[str | None, str], value: Any
     ) -> None:
         """One panel edit -> the specimen's new override -> one undoable command."""
-        if self._updating:
+        if self._updating or not self._recipe_item_editable(item):
             return
         from open_garden_planner.core.commands import SetPlantRecipeCommand
         from open_garden_planner.core.plant_art import recipe_edit as re_
@@ -2315,7 +2333,7 @@ class PropertiesPanel(QWidget):
 
     def _on_recipe_reset(self, item: QGraphicsItem) -> None:
         """Clear the specimen override (back to the species recipe) as one undo step."""
-        if self._updating:
+        if self._updating or not self._recipe_item_editable(item):
             return
         from open_garden_planner.core.commands import SetPlantRecipeCommand
 

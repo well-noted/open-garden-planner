@@ -435,20 +435,110 @@ def test_library_target_refuses_an_unnamed_or_ambiguous_species(app: Any) -> Non
         app._do_agent_set_plant_recipe(str(nameless.item_id), BUSH, "library")
 
 
-def test_library_target_refuses_when_the_library_cannot_be_saved(app: Any, tmp_path: Path) -> None:
+def test_library_write_is_checked_end_to_end_including_undo(app: Any, tmp_path: Path) -> None:
     item = _tree(app)
     pid = str(item.item_id)
     library = plant_library_module.get_plant_library()
     plant_id = library.add_plant(PlantSpeciesData.from_dict(item.metadata["plant_species"]))
+    good_path = library._library_path
+    manager = app.canvas_view.command_manager
+
+    # 1. the write fails on apply: error surfaced, plan + library + history untouched
     library._library_path = tmp_path  # a directory: opening it for writing raises OSError
     depth = _depth(app)
     with pytest.raises(ValueError, match="cannot be saved"):
         app._do_agent_set_plant_recipe(pid, BUSH, "library")
     assert _depth(app) == depth
     assert library.get_plant(plant_id).traits3d_override is None  # type: ignore[union-attr]
+    assert "traits3d_override" not in item.metadata["plant_species"]
+
+    # 2. apply works, then the disk goes bad: undo is refused loudly and stays undoable
+    library._library_path = good_path
+    app._do_agent_set_plant_recipe(pid, BUSH, "library")
+    assert library.get_plant(plant_id).traits3d_override == BUSH  # type: ignore[union-attr]
+    library._library_path = tmp_path
+    with pytest.raises(ValueError, match="cannot be saved"):
+        manager.undo()
+    assert item.metadata["plant_species"]["traits3d_override"] == BUSH  # plan unchanged
+    assert library.get_plant(plant_id).traits3d_override == BUSH  # type: ignore[union-attr]
+    assert manager.undo_depth == depth + 1  # still on the stack
+    library._library_path = good_path
+    manager.undo()
+    assert "traits3d_override" not in item.metadata["plant_species"]
+    assert library.get_plant(plant_id).traits3d_override is None  # type: ignore[union-attr]
+
+    library._library_path = tmp_path
     library._save()  # other callers still swallow the failure
     with pytest.raises(OSError):
         library.save_checked()
+
+
+def test_set_plant_recipe_schema_offers_every_target_the_host_accepts(
+    app: Any, qtbot: Any
+) -> None:
+    """The MCP input schema is derived from RECIPE_TARGETS, so plan_species is reachable
+    through the registered tool (review P0) - not just through the host method."""
+    from open_garden_planner.agent_api.geo_recipes import RECIPE_TARGETS
+
+    a, b = _tree(app), _tree(app)
+    server, _ = start_server(app._build_agent_providers(), write_token=TOKEN, writes_enabled=True)
+    state: dict[str, Any] = {}
+
+    async def body() -> None:
+        from mcp import ClientSession
+        from mcp.client.streamable_http import streamablehttp_client
+
+        async with (
+            streamablehttp_client(server.url, headers={"Authorization": f"Bearer {TOKEN}"})
+            as (r, w, _),
+            ClientSession(r, w) as session,
+        ):
+            await session.initialize()
+            tools = (await session.list_tools()).tools
+            tool = next(t for t in tools if t.name == "set_plant_recipe")
+            state["schema"] = tool.inputSchema
+            state["call"] = await session.call_tool(
+                "set_plant_recipe",
+                {"item_id": str(a.item_id), "recipe": BUSH, "target": "plan_species"},
+            )
+
+    def run() -> None:
+        try:
+            asyncio.run(body())
+        except Exception as exc:
+            state["error"] = exc
+        finally:
+            state["done"] = True
+
+    try:
+        threading.Thread(target=run, name="mcp-recipe-schema-client").start()
+        qtbot.waitUntil(lambda: state.get("done", False), timeout=20000)
+    finally:
+        server.stop()
+    assert state.get("error") is None, state.get("error")
+    enum = state["schema"]["properties"]["target"]["enum"]
+    assert set(enum) == set(RECIPE_TARGETS) and "plan_species" in enum
+    assert state["call"].isError is False, state["call"]
+    for item in (a, b):
+        assert item.metadata["plant_species"]["traits3d_override"] == BUSH
+
+
+def test_redo_then_undo_twice_leaves_no_trace_and_does_not_raise(app: Any) -> None:
+    from open_garden_planner.core.commands import SetPlantRecipeCommand
+
+    item = _tree(app)
+    item.metadata.pop("plant_instance", None)
+    cmd = SetPlantRecipeCommand(item, V_FORK, target="instance")
+    cmd.execute()
+    cmd.undo()
+    cmd.execute()  # redo
+    assert item.metadata["plant_instance"]["traits3d_override"] == V_FORK
+    cmd.undo()
+    assert "plant_instance" not in item.metadata
+    cmd.undo()  # a second undo is a harmless no-op
+    assert "plant_instance" not in item.metadata
+    cmd.execute()
+    assert item.metadata["plant_instance"]["traits3d_override"] == V_FORK
 
 
 def test_undo_removes_a_plant_instance_dict_the_command_created(app: Any) -> None:

@@ -191,6 +191,8 @@ class CircleItem(RotationHandleMixin, ResizeHandlesMixin, GardenItemMixin, QGrap
         self._radius = radius
         self._plant_category: PlantCategory | None = None
         self._plant_species: str = ""
+        #: (stamp, tint) of ``_plant_tint`` - see its docstring.
+        self._tint_cache: tuple[tuple[Any, ...], QColor | None] | None = None
 
         # Initialize resize and rotation handles
         self.init_resize_handles()
@@ -479,27 +481,64 @@ class CircleItem(RotationHandleMixin, ResizeHandlesMixin, GardenItemMixin, QGrap
 
         A plant is built with its type's default fill, so "the user chose a colour" means
         "the fill differs from that default": a chosen colour always wins over the recipe.
+        (Known limit, FR-RECIPE-07: a user who picks exactly the type's default colour is
+        indistinguishable from one who never chose.)
+
+        Called from ``paint`` (§8.9.14: paint state is kept, never rebuilt in a paint), so
+        the answer is cached against a cheap stamp of everything it reads - the fill, the
+        type, the species/category, and the two override dicts BY IDENTITY (the recipe
+        command always installs a fresh dict, and the stamp holds the references so an id
+        cannot be reused). A change to any of them recomputes on the next paint.
         """
+        metadata = getattr(self, "metadata", None)
+        meta = metadata if isinstance(metadata, dict) else {}
+        species = meta.get("plant_species")
+        instance = meta.get("plant_instance")
+        sp_override = species.get("traits3d_override") if isinstance(species, dict) else None
+        in_override = instance.get("traits3d_override") if isinstance(instance, dict) else None
         fill = self.fill_color
+        stamp = (
+            fill.rgba() if fill is not None else None,
+            self.object_type,
+            self._plant_species,
+            self._plant_category,
+            bool(species or instance),
+            sp_override,
+            in_override,
+        )
+        cached = self._tint_cache
+        if (
+            cached is not None
+            and cached[0][:5] == stamp[:5]
+            and cached[0][5] is stamp[5]
+            and cached[0][6] is stamp[6]
+        ):
+            return cached[1]
+        tint = self._compute_plant_tint(fill, meta, sp_override, in_override)
+        self._tint_cache = (stamp, tint)
+        return tint
+
+    def _compute_plant_tint(
+        self,
+        fill: QColor | None,
+        meta: dict[str, Any],
+        sp_override: Any,
+        in_override: Any,
+    ) -> QColor | None:
         default = get_style(self.object_type).fill_color if self.object_type else None
         if fill is not None and not (default is not None and fill.rgba() == default.rgba()):
             return fill
-        metadata = getattr(self, "metadata", None)
-        if not isinstance(metadata, dict) or not (
-            metadata.get("plant_species") or metadata.get("plant_instance")
-        ):
+        if not (meta.get("plant_species") or meta.get("plant_instance")):
             return fill
         from open_garden_planner.core.plant_art.recipe_edit import recipe_tint_hex
 
-        species = metadata.get("plant_species")
-        instance = metadata.get("plant_instance")
         category = self._plant_category
         hex_color = recipe_tint_hex(
             self.object_type.name if self.object_type is not None else "",
             self._plant_species,
             category.name if category is not None else None,
-            species.get("traits3d_override") if isinstance(species, dict) else None,
-            instance.get("traits3d_override") if isinstance(instance, dict) else None,
+            sp_override,
+            in_override,
         )
         return QColor(hex_color) if hex_color else fill
 

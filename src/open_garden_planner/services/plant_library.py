@@ -105,6 +105,27 @@ class PlantLibrary:
         self._save()
         return True
 
+    def update_plant_checked(self, plant_id: str, plant: PlantSpeciesData) -> bool:
+        """``update_plant`` that treats the write as part of the operation.
+
+        Returns False when the plant is unknown. When the file cannot be written the
+        in-memory entry is put back and ``OSError`` is raised, so the library never holds
+        a value the disk does not (the agent's ``set_plant_recipe`` ``library`` target,
+        including its undo, uses this instead of the swallowing ``update_plant``).
+        """
+        previous = self._plants.get(plant_id)
+        if previous is None:
+            return False
+        plant.data_source = "custom"
+        plant.source_id = plant_id
+        self._plants[plant_id] = plant
+        try:
+            self.save_checked()
+        except OSError:
+            self._plants[plant_id] = previous
+            raise
+        return True
+
     def remove_plant(self, plant_id: str) -> bool:
         """Remove a plant from the library.
 

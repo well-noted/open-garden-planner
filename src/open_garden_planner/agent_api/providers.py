@@ -354,7 +354,7 @@ class AgentProviders:
             (``fit_north_angle_deg``); a bare plan starts at ``rotation_deg`` 0, as
             ``set_georeference`` does.
         set_plant_recipe: **Write.** Sets or clears a custom 3D recipe on one plant
-            (``instance`` / ``species`` / ``library``); one undoable
+            (``instance`` / ``species`` / ``plan_species`` / ``library``); one undoable
             ``SetPlantRecipeCommand``.
     """
 

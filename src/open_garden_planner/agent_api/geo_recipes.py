@@ -9,7 +9,7 @@ arguments - lives here so it is unit-testable and shared.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Any
+from typing import Any, Literal, get_args
 
 from open_garden_planner.core.georeference import (
     ControlPoint,
@@ -32,7 +32,11 @@ from open_garden_planner.core.plant_art.traits3d import (
     LeafTraits,
 )
 
-RECIPE_TARGETS = ("instance", "species", "library", "plan_species")
+#: The single source of truth for ``set_plant_recipe``'s ``target``: the MCP tool's input
+#: schema (server.py) is this Literal, and the host's runtime check uses the tuple derived
+#: from it, so the two cannot drift apart again.
+RecipeTarget = Literal["instance", "species", "library", "plan_species"]
+RECIPE_TARGETS: tuple[str, ...] = get_args(RecipeTarget)
 
 
 def _bounds_schema(
@@ -144,7 +148,14 @@ def georeference_view(
         "calibration_note": (
             f"calibrated at north {georef.fit_north_angle_deg}; the conversion stays locked "
             "to that angle, so changing the plan's north does not move it"
-            if locked else None
+            if locked
+            else (
+                "calibrated by an older build that did not record the plan's north: the "
+                "conversion still follows the plan's current north, so changing north moves "
+                "it; run calibrate_georeference again to lock it"
+                if georef.affine_matrix is not None
+                else None
+            )
         ),
         "control_point_count": len(georef.control_points),
         "bounds": georeference_bounds(georef, canvas_width_cm, canvas_height_cm, north_angle_deg),
@@ -218,6 +229,7 @@ def calibrate(
 
 __all__ = [
     "RECIPE_TARGETS",
+    "RecipeTarget",
     "build_georeference",
     "calibrate",
     "georeference_view",

@@ -309,3 +309,21 @@ def test_huge_finite_inputs_that_overflow_are_refused() -> None:
         gps_to_scene(52.6, 13.4, big_affine)
     # an ordinary conversion still passes
     assert all(math.isfinite(v) for v in gps_to_scene(52.6, 13.5, BERLIN))
+
+
+def test_a_legacy_calibration_without_a_stored_north_says_it_follows_the_plans_north() -> None:
+    from dataclasses import replace
+
+    from open_garden_planner.agent_api.geo_recipes import georeference_view
+
+    cal = _calibrated_at(30.0)
+    locked = georeference_view(cal, 30.0, 1000.0, 1000.0)
+    assert locked["north_locked"] is True and "locked" in locked["calibration_note"]
+
+    legacy = replace(cal, fit_north_angle_deg=None)
+    view = georeference_view(legacy, 30.0, 1000.0, 1000.0)
+    assert view["calibrated"] is True and view["north_locked"] is False
+    assert "older build" in view["calibration_note"]
+
+    plain = georeference_view(replace(cal, affine_matrix=None, fit_north_angle_deg=None), 30.0, 1000.0, 1000.0)
+    assert plain["calibration_note"] is None
