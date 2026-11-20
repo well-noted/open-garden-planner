@@ -3338,6 +3338,7 @@ class PropertiesPanel(QWidget):
             combo.blockSignals(True)
             combo.setCurrentIndex(max(combo.findData(key), 0))
             combo.blockSignals(False)
+            combo.setToolTip(combo.currentText())
             combo.setVisible(gravel)
             label.setVisible(gravel)
 
@@ -3376,6 +3377,7 @@ class PropertiesPanel(QWidget):
             combo.blockSignals(True)
             combo.setCurrentIndex(max(combo.findData(key), 0))
             combo.blockSignals(False)
+            combo.setToolTip(combo.currentText())
             combo.setVisible(mulch)
             label.setVisible(mulch)
 
