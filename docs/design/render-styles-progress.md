@@ -140,6 +140,34 @@ Measured (this machine: Intel Iris Xe, Direct3D 11, Qt 6.12, 2026-11-19):
 - Pre-existing, not WP9: `test_at_rest_a_vertex_with_full_wind_weight...` fails on this Iris Xe
   at HEAD too (foliage offset exactly 0.5 px against `< 0.5`).
 
+Look pass (owner review of the Encanto render: flat lawn, tile/brick texture, speckled tree
+ink, no ink on window frames):
+- Effect is now five passes: edges, `npr_mass.frag` (depth dilated over `mass_share`, busy
+  share per block, half size), `npr_close.frag` (eroded back: the depth CLOSED), wash, compose.
+- Foliage: pass 1 marks leaf-size jumps (`busy_thresh`, near side only). Where a block is busy
+  the leaves draw no ink of their own, their wash is averaged (`foliage_soften_share`), and the
+  closed depth's outline is drawn instead, only where what lies beyond it is not foliage
+  (otherwise a crown's back layers drew comb-like ink in a street-level view).
+- Windows: a "step" class (`step_thresh` 0.0003, frame 3 cm proud = 0.001 at 30 m), inked only
+  where the scene colour changes too (`step_contrast`). Without the colour gate the depth
+  buffer's quantisation drew whole rows of ink across the drive (round 1, measured).
+- Surfaces: `built_detail.frag` `uStyleFlatten` (`surface_flatten`) fades roof tiles, courses,
+  plaster and their relief behind a guarded branch; `ground.frag` softens the tile picture by a
+  mip bias (`ground_soften`) and lays a world-anchored uneven wash (`ground_wash`,
+  `ground_wash_cm`), both inside the existing flatten guard.
+- Wash: 5 bands with a softer step, a dried rim along a band step on smooth surfaces
+  (`band_rim`), screen-anchored blooms (`wash_mottle`) and clumped granulation.
+- Default plain 3D still byte-identical (Encanto copy, high and street-level views, against a
+  `git archive` of 8ae38bd3). Truth view identical (render tier). New render-tier test: no ink
+  rows on flat ground. Cost: the shown-host grab probe (median of 30, interleaved runs) reads
+  plain 6.1-7.6 ms and Line & Wash 6.0-7.3 ms, old and new effect alike: the probe cannot
+  resolve the added passes (under 1 ms here).
+- Still weak: the crown outline is broken in places and slightly stair-stepped (half-size
+  closing); stray leaves outside a crown still draw small dashes; near leaves in a street-level
+  view keep one outline each; the hedge's dense dark texture is untouched; tonal bands remain
+  subtle on evenly lit lawn (the uneven wash carries most of the variation); grain, blooms and
+  granulation are screen-anchored (paper under a camera) and will not move with the scene.
+
 Assumptions:
 - Tone mapping: the design said "as illustrated"; the effect does its own exposure and ACES-fit
   curve and writes sRGB with the environment at None, so paper and ink are exact colours.

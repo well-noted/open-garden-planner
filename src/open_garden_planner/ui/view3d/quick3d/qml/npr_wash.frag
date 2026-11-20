@@ -1,4 +1,4 @@
-// Line & Wash, pass 2 (NprStyle.qml): the wash.
+// Line & Wash, pass 4 (NprStyle.qml): the wash.
 //
 // 1. The depth of field folded in (design Q5): while blurShare > 0, a 16-tap disc gather of
 //    the scene's linear colour, its radius the share of the picture's height that
@@ -6,6 +6,9 @@
 // 2. The exposure and a filmic curve (the environment's tone mapping stands down while the
 //    style is on), so the bands below are cut in DISPLAY lightness.
 // 3. Tonal bands: the lightness cut into `bands` steps with a soft edge, the chroma kept.
+//    Where a step crosses a SMOOTH surface (a lawn's slow change of value, not a leaf's or
+//    an object's edge) the pigment pools along it as a wash's edge dries: a rim bandRim
+//    darker, bandRimShare of the height wide, measured in pixels with fwidth.
 // 4. Pigment pools where the colour changes: darker against a 4-tap cross of its neighbours.
 //
 // out: rgb the wash, display-linear 0..1 (before the paper); a its band lightness 0..1
@@ -59,6 +62,13 @@ void MAIN()
     float stepped = (floor(q) + smoothstep(0.5 - bandSoft, 0.5 + bandSoft, fract(q))) / bands;
     float Lq = pow(clamp(stepped, 0.0, 1.0), 2.2);
     vec3 w = c * (Lq / L);
+    // the dried rim: how many pixels this one lies from the step (q crosses n + 0.5), only
+    // where q changes slowly across the pixel (fwidth: uniform control flow, before any branch)
+    float dq = fwidth(q);
+    float fromStep = abs(fract(q) - 0.5) / max(dq, 1e-5);
+    float rim = (1.0 - smoothstep(0.0, max(1.0, bandRimShare * OUTPUT_SIZE.y), fromStep))
+                * (1.0 - smoothstep(0.02, 0.12, dq));
+    w *= 1.0 - bandRim * rim;
     w = mix(vec3(luma(w)), w, washSaturation);
     // pigment pools where the colour changes
     vec2 px = vec2(max(1.0, 2.0 * edgeShare * OUTPUT_SIZE.y)) / INPUT_SIZE;

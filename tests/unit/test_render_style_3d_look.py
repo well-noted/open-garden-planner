@@ -4,7 +4,9 @@ Engine-free; what the GPU draws is ``tests/integration/test_render_style_3d.py``
 
 from __future__ import annotations
 
+import re
 from dataclasses import fields
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
@@ -22,6 +24,9 @@ from open_garden_planner.core.scene3d.look import (
 )
 from open_garden_planner.ui.view3d.quick3d.look import npr_properties, scene_properties
 
+QML_DIR = (Path(__file__).resolve().parents[2] / "src" / "open_garden_planner" / "ui" / "view3d"
+           / "quick3d" / "qml")
+
 NOON = SunState(elevation_deg=55.0, azimuth_deg=180.0)
 
 
@@ -30,11 +35,18 @@ NOON = SunState(elevation_deg=55.0, azimuth_deg=180.0)
 
 def test_the_table_holds_every_value_of_the_style_in_sane_ranges() -> None:
     spec = LINE_AND_WASH_NPR
-    shares = (spec.edge_share, spec.grain_share)
+    shares = (spec.edge_share, spec.grain_share, spec.silhouette_share, spec.band_rim_share,
+              spec.granulation_share, spec.foliage_soften_share)
     assert all(0.0 < share < 0.01 for share in shares), "shares of the picture's height"
-    assert 0.0 < spec.crease_thresh < spec.silhouette_thresh < 1.0
-    for name in ("crease_ink", "ink_spread", "busy_cut", "edge_darken", "wash_lift",
-                 "wash_saturation", "grain_strength", "ground_flatten", "saturation_scale",
+    assert 0.0 < spec.mass_share < 0.05 and 0.0 < spec.wash_mottle_share < 0.5
+    # a frame's step < a crease < a leaf's jump < an outline
+    assert 0.0 < spec.step_thresh < spec.crease_thresh < spec.silhouette_thresh < 1.0
+    assert spec.step_thresh < spec.busy_thresh < spec.silhouette_thresh
+    assert 0.0 < spec.mass_thresh < 1.0 and 0.0 < spec.step_contrast < 2.0
+    assert spec.ground_wash_cm > 0.0 and 0.0 <= spec.ground_soften <= 8.0
+    for name in ("crease_ink", "ink_spread", "busy_cut", "mass_ink", "band_rim", "edge_darken",
+                 "wash_lift", "wash_saturation", "grain_strength", "granulation", "wash_mottle",
+                 "ground_wash", "ground_flatten", "surface_flatten", "saturation_scale",
                  "wind_scale", "shadow_factor_scale"):
         assert 0.0 <= getattr(spec, name) <= 1.0, name
     assert 2.0 <= spec.bands <= 8.0 and 0.0 <= spec.band_soft <= 0.5
@@ -107,6 +119,7 @@ def test_every_look_for_is_plain() -> None:
 def test_the_plain_look_switches_the_effect_off_and_keeps_the_ground() -> None:
     props = npr_properties(None)
     assert props["nprStyle"] is False and props["groundFlatten"] == 0.0
+    assert props["surfaceFlatten"] == 0.0
 
 
 def test_the_styled_mapping_is_the_table() -> None:
@@ -114,6 +127,8 @@ def test_the_styled_mapping_is_the_table() -> None:
     spec = LINE_AND_WASH_NPR
     assert props["nprStyle"] is True
     assert props["groundFlatten"] == spec.ground_flatten
+    assert props["surfaceFlatten"] == spec.surface_flatten
+    assert props["nprMassShare"] == spec.mass_share and props["nprGroundWash"] == spec.ground_wash
     assert props["nprEdgeShare"] == spec.edge_share and props["nprBands"] == spec.bands
     assert props["nprShadowScale"] == spec.shadow_factor_scale
     assert props["nprPaper"] == pytest.approx(
@@ -127,12 +142,69 @@ def test_the_style_changes_only_the_overridden_scene_properties() -> None:
     look = look_for(NOON, "high")
     plain, styled = scene_properties(look), scene_properties(styled_look(look, "line_and_wash"))
     changed = {name for name in plain if plain[name] != styled[name]}
-    allowed = {"nprStyle", "groundFlatten", "glow", "reflections", "fog", "lawnBlades",
-               "saturation", "windStrength", "windSway", "aoStrengthGain"}
-    assert changed <= allowed and {"nprStyle", "groundFlatten"} <= changed
+    allowed = {"nprStyle", "groundFlatten", "surfaceFlatten", "glow", "reflections", "fog",
+               "lawnBlades", "saturation", "windStrength", "windSway", "aoStrengthGain"}
+    assert changed <= allowed and {"nprStyle", "groundFlatten", "surfaceFlatten"} <= changed
     # the truth view's shadow is the plain look's
     for name in ("shadowFactor", "pcfFactor", "shadowBias", "shadowMapQuality", "sunColor"):
         assert plain[name] == styled[name], name
+
+
+def _declared(qml: str) -> dict[str, float]:
+    code = (QML_DIR / qml).read_text(encoding="utf-8")
+    return {name: float(value) for name, value in
+            re.findall(r"property real (\w+): (-?[0-9.]+)", code)}
+
+
+def test_the_scene_and_the_effect_declare_the_table() -> None:
+    """A host that never saw a style holds the table's numbers: every effect value declared
+    in Garden.qml (``npr...``) and in NprStyle.qml is the table's (one table, no drift)."""
+    props = npr_properties(None)
+    garden, effect = _declared("Garden.qml"), _declared("NprStyle.qml")
+    checked = 0
+    for name, value in props.items():
+        if not isinstance(value, float) or name in ("groundFlatten", "surfaceFlatten"):
+            continue
+        assert garden[name] == pytest.approx(value), name
+        short = name[3].lower() + name[4:]
+        if short in effect:
+            assert effect[short] == pytest.approx(value), short
+            checked += 1
+    assert checked >= 25
+
+
+def test_the_drawn_style_flattens_built_surfaces_behind_a_guard() -> None:
+    """Roof tiles, courses and plaster fade under the style (``uStyleFlatten``), behind a
+    guarded branch so every other look runs the plain shader; both detail materials bind
+    it only while the effect is drawn (never in the truth view)."""
+    frag = (QML_DIR / "built_detail.frag").read_text(encoding="utf-8")
+    assert "if (uStyleFlatten > 0.0) {" in frag
+    assert "contrast *= keep;" in frag and "relief *= keep;" in frag
+    garden = (QML_DIR / "Garden.qml").read_text(encoding="utf-8")
+    binding = "property real uStyleFlatten: root.nprActive ? root.surfaceFlatten : 0.0"
+    assert garden.count(binding) == 2
+    assert garden.count("uStyleWash: Qt.vector3d(root.nprGroundWash, root.nprGroundWashCm, "
+                        "root.nprGroundSoften)") == 3
+    ground = (QML_DIR / "ground.frag").read_text(encoding="utf-8")
+    start = ground.index("if (uStyleFlatten > 0.0) {")
+    flatten = ground[start:ground.index("albedo *= groundLinear(uGroundTint)")]
+    assert "uStyleWash" in flatten, "the wash and the softening live inside the guard"
+
+
+def test_the_effect_closes_the_canopy_before_it_draws() -> None:
+    """Pass order: edges, the mass dilation and its erosion (half size), the wash, the
+    compose; the compose reads the closed depth and the dilation's busy share, and draws the
+    crown's outline only where what lies beyond it is not foliage."""
+    effect = (QML_DIR / "NprStyle.qml").read_text(encoding="utf-8")
+    order = [effect.index(f"shaders: [ {name} ]") for name in
+             ("edgesShader", "massShader", "closeShader", "washShader", "composeShader")]
+    assert order == sorted(order)
+    assert effect.count("sizeMultiplier: 0.5") == 2
+    compose = (QML_DIR / "npr_compose.frag").read_text(encoding="utf-8")
+    assert "closeSampler" in compose and "massSampler" in compose
+    assert "* open * step(1e-3, m.r)" in compose
+    edges = (QML_DIR / "npr_edges.frag").read_text(encoding="utf-8")
+    assert "smoothstep(stepContrast, 2.0 * stepContrast, contrast)" in edges
 
 
 # ── the look controller ────────────────────────────────────────────────────

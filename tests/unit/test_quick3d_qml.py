@@ -341,7 +341,8 @@ def test_shaders_named_by_the_scene_ship_beside_it_and_none_is_orphaned() -> Non
                                 "photoblur_layer.frag", "photoblur_rows.frag",
                                 "photoblur_compose.frag",
                                 # the 3D Line & Wash style (render styles WP9)
-                                "npr_edges.frag", "npr_wash.frag", "npr_compose.frag",
+                                "npr_edges.frag", "npr_mass.frag", "npr_close.frag",
+                                "npr_wash.frag", "npr_compose.frag",
                                 # a built surface's detail picture: roof tiles, wall courses (#801)
                                 "built_detail.vert", "built_detail.frag",
                                 "built_snow.frag", "built_snow.vert",   # snow on built tops (#687)
@@ -359,11 +360,12 @@ def test_the_ground_detail_shader_flips_v_itself() -> None:
     code = "\n".join(line.split("//")[0] for line in
                      (QML_DIR / "ground.frag").read_text(encoding="utf-8").splitlines())
     assert re.search(r"\buv\s*=\s*vec2\(\s*UV0\.x\s*,\s*1\.0\s*-\s*UV0\.y\s*\)", code)
-    # the tile itself (rgba: its alpha says where the ground is open, #798) and its four
-    # neighbours for the detail normals - every one through the flipped coordinate
+    # the tile itself (rgba: its alpha says where the ground is open, #798), its four
+    # neighbours for the detail normals and the Line & Wash style's softened colour (a mip
+    # bias, render styles WP9) - every one through the flipped coordinate
     starts = [found.end() for found in re.finditer(r"texture\(\s*uBaseMap\s*,\s*", code)]
     samples = [code[start:code.index(")", start)] for start in starts]
-    assert len(samples) == 5 and all(sample.startswith("uv") for sample in samples), samples
+    assert len(samples) == 6 and all(sample.startswith("uv") for sample in samples), samples
 
 
 def test_the_scene_uses_no_order_independent_transparency() -> None:
@@ -844,8 +846,9 @@ def test_the_ground_shader_lays_grass_only_where_the_ground_is_open() -> None:
     assert "vec4 tile = uHasTile > 0.5 ? texture(uBaseMap, uv) : vec4(uMeadow, 0.0);" in code
     # the grass is laid in WORLD space, the same on the meadow and on the plan
     assert "meadowGrass(VAR_WORLD_POSITION.xz, max(reach.x, reach.y), grassSlope)" in code
-    # every octave of the variation is clamped by the pixel's reach (it has no mips)
-    assert code.count("meadowOctave(") == 5 and "vec2 reach = fwidth(VAR_WORLD_POSITION.xz);" in code
+    # every octave of the variation is clamped by the pixel's reach (it has no mips): the
+    # meadow's four and the Line & Wash style's two of the ground's wash (render styles WP9)
+    assert code.count("meadowOctave(") == 7 and "vec2 reach = fwidth(VAR_WORLD_POSITION.xz);" in code
     # the snow and the rain still come after it, for every piece of ground at once
     assert code.index("albedo += open") < code.index("albedo *= groundLinear(uGroundTint)") < code.index(
         "mix(albedo, vec3(0.80, 0.84, 0.89), uSnowCover)")

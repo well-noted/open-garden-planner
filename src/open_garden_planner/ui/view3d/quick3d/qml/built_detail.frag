@@ -31,14 +31,25 @@ vec3 engineLinear(vec3 c)
 void MAIN()
 {
     vec4 detail = texture(uDetailMap, vDetailUV);
-    vec3 albedo = vColor.rgb * engineLinear(uTintSrgb) * mix(1.0, detail.r * 2.5, uDetailContrast);
+    float contrast = uDetailContrast;
+    float relief = uDetailNormal;
+    // Render styles WP9: a drawn style (Line & Wash) fades the picture to its flat mean
+    // colour (its mean multiplier is 1) and the relief to a plane, so roof tiles, brick
+    // courses and plaster read as one wash, not as ink noise. 0 (every look but a drawn
+    // style, and the truth view) skips the branch: the plain shader, bit for bit.
+    if (uStyleFlatten > 0.0) {
+        float keep = 1.0 - clamp(uStyleFlatten, 0.0, 1.0);
+        contrast *= keep;
+        relief *= keep;
+    }
+    vec3 albedo = vColor.rgb * engineLinear(uTintSrgb) * mix(1.0, detail.r * 2.5, contrast);
     albedo *= engineLinear(uWetTint);
     vec3 n = normalize(NORMAL);
     float lying = uSnowCover * smoothstep(0.35, 0.75, n.y);
 
     // the detail normal, faded by distance and under snow
     float dist = length(VAR_WORLD_POSITION - CAMERA_POSITION);
-    float strength = uDetailNormal * (1.0 - smoothstep(0.4 * uDetailFade, uDetailFade, dist))
+    float strength = relief * (1.0 - smoothstep(0.4 * uDetailFade, uDetailFade, dist))
                    * (1.0 - 0.8 * lying);
     vec2 slope = clamp((detail.gb - vec2(0.5)) * strength, vec2(-0.6), vec2(0.6));
     vec3 dp1 = dFdx(VAR_WORLD_POSITION);

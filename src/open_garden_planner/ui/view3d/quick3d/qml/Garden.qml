@@ -131,22 +131,41 @@ Item {
     property real nprEdgeShare: 0.0015
     property real nprSilhouetteThresh: 0.03
     property real nprCreaseThresh: 0.006
+    property real nprStepThresh: 0.0005
+    property real nprStepContrast: 0.3
     property real nprCreaseInk: 0.55
     property real nprInkSpread: 0.85
-    property real nprBusyCut: 0.35
-    property real nprBands: 4.0
-    property real nprBandSoft: 0.06
+    property real nprSilhouetteShare: 0.0012
+    property real nprBusyThresh: 0.008
+    property real nprBusyCut: 0.25
+    property real nprMassShare: 0.008
+    property real nprMassThresh: 0.015
+    property real nprMassInk: 1.0
+    property real nprFoliageSoftenShare: 0.004
+    property real nprBands: 5.0
+    property real nprBandSoft: 0.12
+    property real nprBandRim: 0.3
+    property real nprBandRimShare: 0.0012
     property real nprEdgeDarken: 0.35
-    property real nprWashLift: 0.15
-    property real nprWashSaturation: 1.0
+    property real nprWashLift: 0.2
+    property real nprWashSaturation: 0.85
     property real nprGrainShare: 0.0016
-    property real nprGrainStrength: 0.12
+    property real nprGrainStrength: 0.08
+    property real nprGranulation: 0.2
+    property real nprGranulationShare: 0.0045
+    property real nprWashMottle: 0.14
+    property real nprWashMottleShare: 0.18
+    property real nprGroundWash: 0.18
+    property real nprGroundWashCm: 800.0
+    property real nprGroundSoften: 3.0
     property vector3d nprPaper: Qt.vector3d(0.9568627451, 0.9333333333, 0.8745098039)
     property vector3d nprInk: Qt.vector3d(0.1647058824, 0.1411764706, 0.1137254902)
     property real nprFogNear: 6000.0
     property real nprFogFar: 14000.0
     // ground.frag's uStyleFlatten while the style is drawn: 0 keeps the plain ground
     property real groundFlatten: 0.0
+    // built_detail.frag's uStyleFlatten while the style is drawn: 0 keeps the plain surface
+    property real surfaceFlatten: 0.0
     // the shadow softened while the style is drawn (never in the truth view)
     property real nprShadowScale: 0.75
     property real nprPcfScale: 2.0
@@ -732,6 +751,7 @@ Item {
                 property real uDetailNormal: detailNormal
                 property real uDetailFade: detailFade
                 property real uDetailContrast: detailContrast
+                property real uStyleFlatten: root.nprActive ? root.surfaceFlatten : 0.0   // render styles WP9
                 property vector3d uTintSrgb: Qt.vector3d(tint.r * seasonTint.x, tint.g * seasonTint.y, tint.b * seasonTint.z)
                 property real uRough: surfaceRough
                 property real uSpecular: surfaceSpecular
@@ -848,6 +868,7 @@ Item {
                 property real uDetailNormal: detailNormal
                 property real uDetailFade: detailFade
                 property real uDetailContrast: detailContrast
+                property real uStyleFlatten: root.nprActive ? root.surfaceFlatten : 0.0   // render styles WP9
                 property vector3d uTintSrgb: Qt.vector3d(tint.r, tint.g, tint.b)
                 property real uRough: surfaceRough
                 property real uSpecular: surfaceSpecular
@@ -1026,6 +1047,7 @@ Item {
                 property real uSpecular: root.groundSpecular
                 property real uSnowCover: root.snowCover
                 property real uStyleFlatten: root.nprActive ? root.groundFlatten : 0.0   // render styles WP9
+                property vector3d uStyleWash: Qt.vector3d(root.nprGroundWash, root.nprGroundWashCm, root.nprGroundSoften)
                 shadingMode: CustomMaterial.Shaded
                 fragmentShader: "ground.frag"
             }
@@ -1296,16 +1318,30 @@ Item {
             edgeShare: root.nprEdgeShare
             silhouetteThresh: root.nprSilhouetteThresh
             creaseThresh: root.nprCreaseThresh
+            stepThresh: root.nprStepThresh
+            stepContrast: root.nprStepContrast
             creaseInk: root.nprCreaseInk
             inkSpread: root.nprInkSpread
+            silhouetteShare: root.nprSilhouetteShare
+            busyThresh: root.nprBusyThresh
             busyCut: root.nprBusyCut
+            massShare: root.nprMassShare
+            massThresh: root.nprMassThresh
+            massInk: root.nprMassInk
+            foliageSoftenShare: root.nprFoliageSoftenShare
             bands: root.nprBands
             bandSoft: root.nprBandSoft
+            bandRim: root.nprBandRim
+            bandRimShare: root.nprBandRimShare
             edgeDarken: root.nprEdgeDarken
             washLift: root.nprWashLift
             washSaturation: root.nprWashSaturation
             grainShare: root.nprGrainShare
             grainStrength: root.nprGrainStrength
+            granulation: root.nprGranulation
+            granulationShare: root.nprGranulationShare
+            washMottle: root.nprWashMottle
+            washMottleShare: root.nprWashMottleShare
             paperColor: root.nprPaper
             inkColor: root.nprInk
             fogNear: root.nprFogNear
@@ -1430,6 +1466,7 @@ Item {
                 property real uSpecular: root.groundSpecular   // 0.15 dry
                 property real uSnowCover: root.snowCover
                 property real uStyleFlatten: root.nprActive ? root.groundFlatten : 0.0   // render styles WP9
+                property vector3d uStyleWash: Qt.vector3d(root.nprGroundWash, root.nprGroundWashCm, root.nprGroundSoften)
                 shadingMode: CustomMaterial.Shaded
                 fragmentShader: "ground.frag"
             }
@@ -1464,6 +1501,7 @@ Item {
                 property real uSpecular: root.groundSpecular   // 0.15 dry
                 property real uSnowCover: root.snowCover
                 property real uStyleFlatten: root.nprActive ? root.groundFlatten : 0.0   // render styles WP9
+                property vector3d uStyleWash: Qt.vector3d(root.nprGroundWash, root.nprGroundWashCm, root.nprGroundSoften)
                 shadingMode: CustomMaterial.Shaded
                 fragmentShader: "ground.frag"
             }

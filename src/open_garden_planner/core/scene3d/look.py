@@ -677,25 +677,67 @@ class NprSpec:
     silhouette_thresh: float = 0.03
     #: ... and from which it is a crease (two surfaces meeting at a fold).
     crease_thresh: float = 0.006
+    #: A STEP (a window frame 3 cm proud of its wall reads 0.001 at 30 m) is inked from
+    #: this, far under a crease, but only where the colour changes across it too (log2
+    #: luminance by ``step_contrast``): the depth buffer's own quantisation draws rows of
+    #: such steps on a smooth, one-coloured ground, a frame against its wall is both.
+    step_thresh: float = 0.0005
+    step_contrast: float = 0.3
     #: A crease's ink against a silhouette's 1.
     crease_ink: float = 0.55
     #: The pen's width: ink a pixel takes from its strongest neighbour (0 one-pixel lines).
     ink_spread: float = 0.85
-    #: The share of a 3x3 neighbourhood carrying ink from which the ink fades out
-    #: (foliage would otherwise turn into black noise).
-    busy_cut: float = 0.35
+    #: A silhouette's pen: its half width as a share of the picture's height (the line
+    #: weight of an outline, heavier than a crease's one-pixel stroke).
+    silhouette_share: float = 0.0012
+    #: Leaf-level depth jumps (the relative 2nd difference above this) count as "busy":
+    #: foliage. Window frames and sills (a few cm proud) stay far below it.
+    busy_thresh: float = 0.008
+    #: The share of a block's pixels that are busy from which the fine ink fades out and the
+    #: canopy's mass outline takes over.
+    busy_cut: float = 0.25
+    #: The canopy mass: the leaves' depth CLOSED over this radius (share of the height), so
+    #: the gaps between leaves fill and one outline goes round the whole crown ...
+    mass_share: float = 0.008
+    #: ... drawn where the closed depth's relative 2nd difference passes this (a crown in
+    #: front of the ground behind it, not the leaves inside it) ...
+    mass_thresh: float = 0.015
+    #: ... and with this ink against a silhouette's 1.
+    mass_ink: float = 1.0
+    #: Inside the mass the leaves' own colour noise is washed into soft masses: the wash
+    #: averaged over this radius (share of the height) where the picture is foliage.
+    foliage_soften_share: float = 0.004
     #: Tonal bands from paper to ink, cut in display lightness; their soft step (0..0.5).
-    bands: float = 4.0
-    band_soft: float = 0.06
+    bands: float = 5.0
+    band_soft: float = 0.12
+    #: A band's dried edge: the pigment pooled along a step between two bands on a smooth
+    #: surface (0 none), the rim's width as a share of the height.
+    band_rim: float = 0.3
+    band_rim_share: float = 0.0012
     #: Pigment pooled where the wash's colour changes (0 none).
     edge_darken: float = 0.35
     #: The wash thinned towards the paper (0 full pigment, 1 bare paper).
-    wash_lift: float = 0.15
+    wash_lift: float = 0.2
     #: The wash's chroma against the scene's (1 kept).
-    wash_saturation: float = 1.0
+    wash_saturation: float = 0.85
     #: Paper grain: its cell as a share of the height, its darkening at full pigment.
     grain_share: float = 0.0016
-    grain_strength: float = 0.12
+    grain_strength: float = 0.08
+    #: Granulation: pigment settled in the paper's hollows - clumped specks (their cell a
+    #: share of the height) that darken a dense wash by up to this much.
+    granulation: float = 0.2
+    granulation_share: float = 0.0045
+    #: The wash laid unevenly: its density varies by this much (0 even) over blooms of
+    #: this size (share of the height) on every surface ...
+    wash_mottle: float = 0.14
+    wash_mottle_share: float = 0.18
+    #: ... and the ground's pigment, anchored to the ground (no swimming in a move), by
+    #: this much over patches of this size (cm): ``ground.frag`` under the flatten.
+    ground_wash: float = 0.18
+    ground_wash_cm: float = 800.0
+    #: ... and the ground's own pictures (gravel, decking, paving) softened to their local
+    #: mean: this many mip levels up (the plan's shapes stay; their edges soften a little).
+    ground_soften: float = 3.0
     paper_rgb: str = "#f4eedf"   # the 2D Line & Wash paper (ui/canvas/style/line_wash.PAPER)
     ink_rgb: str = "#2a241d"
     #: The paper fog: from here (cm along the view) the distance fades to paper ...
@@ -704,6 +746,10 @@ class NprSpec:
     fog_far_cm: float = 14000.0
     #: ``ground.frag``'s ``uStyleFlatten``: the ground's relief and grass variation fade.
     ground_flatten: float = 1.0
+    #: ``built_detail.frag``'s ``uStyleFlatten``: a built surface's detail picture (roof
+    #: tiles, brick courses, plaster) fades to its flat mean colour and its relief to a
+    #: plane; the geometry is untouched.
+    surface_flatten: float = 1.0
     # ---- the look's overrides (``styled_look``) ----
     #: Factor on the mood's saturation (after the effect: Qt's colour adjustment).
     saturation_scale: float = 0.9

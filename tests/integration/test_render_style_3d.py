@@ -86,3 +86,26 @@ def test_line_and_wash_draws_paper_and_ink(run: Run) -> None:
         assert ys.size > 50, "both boxes are in the frame"
         near[max(0, ys.min() - 4):ys.max() + 5, max(0, xs.min() - 4):xs.max() + 5] = True
     assert inked[near].sum() > 0.6 * inked.sum(), "the ink is on the boxes' outlines"
+
+
+def test_the_flat_ground_draws_no_ink_rows(run: Run) -> None:
+    """The step class (a window frame a few cm proud) is far under the depth buffer's own
+    quantisation, which draws whole rows of 'steps' across a flat ground; a step is inked
+    only where the colour changes too, so the open ground away from the boxes stays bare."""
+    plain, styled = _rgb(run, "plain"), _rgb(run, "styled")
+    ink = _hex(LINE_AND_WASH_NPR.ink_rgb)
+    dark = np.abs(styled - ink).max(axis=-1) < 70.0
+    red = (styled[..., 0] > 120) & (styled[..., 1] < 110) & (styled[..., 2] < 110)
+    blue = (styled[..., 2] > 120) & (styled[..., 0] < 110)
+    clear = np.ones_like(dark)
+    for mask in (red, blue):
+        ys, xs = np.nonzero(mask)
+        clear[max(0, ys.min() - 60):ys.max() + 61, max(0, xs.min() - 60):xs.max() + 61] = False
+    # the ground: below the horizon (the plain frame's sky is its top rows), the boxes and
+    # their shadows' surroundings left out
+    ground = clear.copy()
+    ground[: plain.shape[0] // 3] = False
+    assert ground.sum() > 0.2 * ground.size
+    rows = (dark & ground).sum(axis=1)
+    assert dark[ground].mean() < 0.002, dark[ground].mean()
+    assert rows.max() < 0.05 * plain.shape[1], "no row of ink across the ground"
