@@ -269,6 +269,9 @@ class CanvasScene(QGraphicsScene):
     _style_band = 0
     _style_rebuild_pending = False
     _style_miss_logged = False
+    #: CAD leader callouts (WP5): the flag, and the one layer item while it shows.
+    _cad_callouts = False
+    _callout_layer: Any = None
     diagnostics_changed = pyqtSignal()
     timeline_changed = pyqtSignal()
     active_layer_changed = pyqtSignal(object)  # Layer or None
@@ -1144,7 +1147,23 @@ class CanvasScene(QGraphicsScene):
         self.note_paint_changed()
         # The pad of a styled item's bounding rect changes with the style.
         self._notify_style_geometry()
-        if new is not RenderStyle.ILLUSTRATED:
+        self.ensure_style_state()  # also takes the callout layer off for illustrated
+        self.update()
+
+    @property
+    def cad_callouts(self) -> bool:
+        """Whether the CAD style draws leader callouts (a view preference like
+        the style itself; off by default, owner Q4)."""
+        return self._cad_callouts
+
+    def set_cad_callouts(self, enabled: bool) -> None:
+        """Turn the CAD leader callouts on or off: a paint change only."""
+        enabled = bool(enabled)
+        if enabled == self._cad_callouts:
+            return
+        self._cad_callouts = enabled
+        self.note_paint_changed()
+        if self._render_style is RenderStyle.CAD:
             self.ensure_style_state()
         self.update()
 
@@ -1170,11 +1189,23 @@ class CanvasScene(QGraphicsScene):
         built if it is missing. Called by the scene's own triggers (a style
         switch, a band change, a render's prewarm), never by a paint."""
         if self._render_style is RenderStyle.ILLUSTRATED:
+            self._sync_callouts(None)
             return None
-        return self._style_states.ensure(
+        state = self._style_states.ensure(
             self, self._render_style, self._paint_revision,
             self._style_band if band is None else band,
         )
+        self._sync_callouts(state)
+        return state
+
+    def _sync_callouts(self, state: StyleState | None) -> None:
+        """Put the CAD callout layer on (or take it off) the scene to match
+        ``state``; the layer is no plan item (``style.callouts``)."""
+        if state is None and self._callout_layer is None:
+            return
+        from open_garden_planner.ui.canvas.style.callouts import sync_callout_layer
+
+        sync_callout_layer(self, state)
 
     def style_state(self) -> StyleState | None:
         """The kept state, for a paint to read. Never builds (§8.9): on a miss
@@ -1264,6 +1295,7 @@ class CanvasScene(QGraphicsScene):
             self._style_output_dpi = previous_dpi
             if changed:
                 self._notify_style_geometry()
+                self.ensure_style_state()
 
     def style_band_for_render(
         self, px_per_cm: float, dpi: float | None = None
@@ -2421,6 +2453,8 @@ class CanvasScene(QGraphicsScene):
         self._plan_change_holds = 0
         self._plan_change_held = False
         self._plan_change_commit = False
+        # The callout layer dies with the scene's items (the C++ side is gone).
+        self._callout_layer = None
         self._compare_items.clear()
         self._compare_overlay_visible = False
         self._calibration_markers.clear()

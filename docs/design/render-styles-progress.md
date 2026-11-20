@@ -35,7 +35,11 @@ Branch `claude/render-styles-wp3-310d4a` (renamed on request if the name matters
 - WP4 (CAD painters): `ui/canvas/style/cad.py` registered in `STYLE_PAINTERS`; `core/render_style_roles.py`;
   seams in rectangle/ellipse/polygon/circle/polyline items (sprites, painted shadows, ridge/greenhouse/pergola
   pictures skipped in CAD), `styled_bounding_rect` adopted by those five `boundingRect`s,
-  `PathStylePaint(owner=)`, `CanopySpec`, `drawBackground` uses the style paper. Callouts stay WP5.
+  `PathStylePaint(owner=)`, `CanopySpec`, `drawBackground` uses the style paper. Callouts are WP5.
+
+- WP5 (CAD callouts): `ui/canvas/style/callouts.py` (layout + `StyleCalloutLayer`), hooked through
+  `CadPainter.build_state` and `CanvasScene.ensure_style_state`/`set_cad_callouts`; off by default;
+  tests in `tests/unit/style/test_cad_callouts.py` and `tests/integration/test_cad_callouts.py`; docs §8.38.1.
 
 - WP6 (Line & Wash 2D): `ui/canvas/style/line_wash.py` registered in `STYLE_PAINTERS`; paper grain via
   `drawBackground`; `styled_label_font` + `HaloTextItem._label_font`; tests `tests/unit/style/test_line_wash_style.py`,
@@ -184,3 +188,11 @@ lawns read as a flat digital green, not a wash); roof tiles and wall bricks keep
 foliage edges are speckled ink rather than a drawn outline; window frames get no ink (too
 shallow for the crease threshold). Not judged: other moods (golden hour, night), video flicker,
 WARP/llvmpipe, MSAA-resolved depth beyond this machine.
+
+## WP5 assumptions
+- Callout text is the common name (owner), else the object name, else Tree / Shrub / Plant; capped at 28 characters.
+- Plants are the three plant roles (tree, shrub, ground); a plant that finds no free slot in 3 rings gets no callout.
+- Boxes are reserved from a paper-mm text model (2.1 mm per character, 3.8 mm line), a generous over-estimate, so overlaps
+  cannot appear with another font or an export's retargeted size; the text itself is 8 pt, retargeted in exports.
+- Callouts follow the CAD paint revision only: a plant whose name changes shows the new name after the next rebuild.
+- Unverified: the owner's visual check of the placement; font rendering (the offscreen sample has no fonts, text shows as boxes).
