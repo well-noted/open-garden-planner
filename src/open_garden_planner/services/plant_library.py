@@ -1,5 +1,6 @@
 """Custom plant library for storing user-defined plant species."""
 
+import contextlib
 import json
 import uuid
 from typing import Any
@@ -44,21 +45,27 @@ class PlantLibrary:
             # If file is corrupted, start with empty library
             self._plants = {}
 
-    def _save(self) -> None:
-        """Save custom plants to the library file."""
+    def save_checked(self) -> None:
+        """Write the library file and RAISE ``OSError`` when that fails.
+
+        ``_save`` (used by every UI caller) deliberately swallows a write error; a caller
+        that must not report success without persistence (the agent's
+        ``set_plant_recipe`` ``library`` target) uses this instead.
+        """
         data = {
             "version": "1.0",
             "plants": {
                 plant_id: plant.to_dict() for plant_id, plant in self._plants.items()
             },
         }
+        with open(self._library_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
 
-        try:
-            with open(self._library_path, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=2)
-        except OSError:
-            # Silently fail if we can't write
-            pass
+    def _save(self) -> None:
+        """Save custom plants to the library file (a write failure is ignored)."""
+        # Silently fail if we can't write
+        with contextlib.suppress(OSError):
+            self.save_checked()
 
     def add_plant(self, plant: PlantSpeciesData) -> str:
         """Add a custom plant to the library.

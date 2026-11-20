@@ -2129,9 +2129,10 @@ def build_server(
             field by field. The recipe is validated strictly (unknown fields, out-of-range
             numbers, NaN/Inf and booleans-as-numbers are rejected) before anything changes.
 
-            target: 'instance' = this plant only; 'species' = this plant's own species
-            record on the plan; 'library' = that, and also the matching species in the
-            local custom plant library. recipe=null clears the target's recipe.
+            target: 'instance' = this plant only; 'species' = THIS plant's own species
+            snapshot only (other plants of the species are untouched); 'plan_species' =
+            every plant of that species on the plan; 'library' = this plant's species
+            snapshot, and also the matching species in the local custom plant library. recipe=null clears the target's recipe.
 
             One undoable step (Ctrl+Z reverses it). Fails if the object is not a plant,
             is on a locked layer, is a group member or journal pin, or if the recipe is
