@@ -71,7 +71,7 @@ from pydantic import Field, StrictFloat, StrictInt
 
 from open_garden_planner.agent_api import creates as agent_creates
 from open_garden_planner.agent_api import prompts as agent_prompts
-from open_garden_planner.agent_api import queries
+from open_garden_planner.agent_api import queries, site_queries
 from open_garden_planner.agent_api.diagnostics import diagnostics_from_records
 from open_garden_planner.agent_api.mapping import (
     layers_from_snapshot,
@@ -85,6 +85,8 @@ from open_garden_planner.agent_api.render import (
 )
 from open_garden_planner.agent_api.schema import (
     AmendmentPlanView,
+    AreaMeasurement,
+    Clearance,
     CompanionSuggestion,
     CompatibleSet,
     Diagnostic,
@@ -93,15 +95,22 @@ from open_garden_planner.agent_api.schema import (
     HistoryResult,
     HistoryState,
     Layer,
+    LengthMeasurement,
     ManualTaskResult,
     Measurement,
     ObjectDetail,
+    ObjectHeight,
+    ObjectHeightRow,
     ObjectRef,
+    PathMeasurement,
     PlacementCheck,
     PlanLifecycleResult,
     PlanSummary,
+    PointMeasurement,
+    PointToObject,
     Render3DMeta,
     RenderMeta,
+    SiteExtents,
     SoilMismatchBedsView,
     SoilStatusListView,
     SuccessionGap,
@@ -557,7 +566,13 @@ def build_server(
 
     @mcp.tool()
     async def measure_distance(id_a: str, id_b: str) -> Measurement | None:
-        """Centre-to-centre distance between two objects, or null if either is unknown.
+        """Centre-to-centre distance between two objects (bounding-box centres), cm.
+
+        Use THIS for "how far apart are these two things" by their reference
+        points. Other measure tools: measure_clearance (edge-to-edge gap),
+        measure_points (any two points, with bearing), measure_path (along a
+        route), measure_to_object (point to an edge). Returns null if either
+        id is unknown. Example: measure_distance(tree_id, bed_id).
 
         Args:
             id_a: UUID of the first object.
@@ -565,6 +580,176 @@ def build_server(
         """
         snapshot = await anyio.to_thread.run_sync(providers.snapshot)
         return queries.measure_distance(snapshot, id_a, id_b)
+
+    # --- site measurements (read-only; scene cm, Y-up; no mutation) -----------
+
+    @mcp.tool()
+    async def measure_area(item_id: str) -> AreaMeasurement | None:
+        """Area and perimeter of one closed object (rectangle, polygon, circle, ellipse).
+
+        Units: area in cm2 (and m2), perimeter in cm (and m). Rotation is
+        applied; polygon holes are subtracted; circle/ellipse use the same
+        closed forms as the canvas. Null if the id is unknown; an error if the
+        object is not a single closed outline. Example:
+        measure_area("<driveway id>") -> area_m2 188.2.
+        For a line/fence/wall length use measure_length.
+
+        Args:
+            item_id: UUID of a top-level object.
+        """
+        snapshot = await anyio.to_thread.run_sync(providers.snapshot)
+        return site_queries.measure_area(snapshot, item_id)
+
+    @mcp.tool()
+    async def measure_length(item_id: str) -> LengthMeasurement | None:
+        """Length of a polyline/path/fence/wall/irrigation line/arc/bezier, in cm (and m).
+
+        Sums the segments (curves measured along the curve) and reports the
+        vertex count. For a closed shape the length is its perimeter and
+        `closed` is true. Null if the id is unknown. Example:
+        measure_length("<fence id>") -> length_m 38.0.
+        For area use measure_area; for the gap between two objects use
+        measure_clearance.
+
+        Args:
+            item_id: UUID of a top-level object.
+        """
+        snapshot = await anyio.to_thread.run_sync(providers.snapshot)
+        return site_queries.measure_length(snapshot, item_id)
+
+    @mcp.tool()
+    async def measure_clearance(id_a: str, id_b: str) -> Clearance | None:
+        """Minimum EDGE-TO-EDGE distance between two objects, cm (and m).
+
+        Unlike measure_distance (centre to centre), this is the real gap: 0
+        with `overlaps` true when the shapes overlap or one contains the other,
+        0 with relation 'touching' when they only share an edge. Returns the
+        two closest points (scene cm) so you can locate the gap. Either id may
+        be the literal "boundary" for the plan's boundary wall/property line
+        (see site_extents.boundary). Null if an id is unknown. Example:
+        measure_clearance("<house id>", "boundary") -> distance_cm 254.
+        For a point instead of an object use measure_to_object.
+
+        Args:
+            id_a: UUID of the first object, or "boundary".
+            id_b: UUID of the second object, or "boundary".
+        """
+        snapshot = await anyio.to_thread.run_sync(providers.snapshot)
+        return site_queries.measure_clearance(snapshot, id_a, id_b)
+
+    @mcp.tool()
+    async def measure_points(a: dict[str, Any] | str, b: dict[str, Any] | str) -> PointMeasurement:
+        """Straight-line distance between ANY two points on the map, with bearing.
+
+        Each point is {"x_cm": .., "y_cm": ..} (plan cm, Y-up), {"lat": ..,
+        "lon": ..} (needs a georeferenced plan; otherwise a clear error), or an
+        object id string (its bounding-box centre, as measure_distance).
+        Returns distance (cm and m), dx/dy in cm, the bearing a->b as the plan
+        angle (clockwise from plan-up) and the TRUE compass bearing (0 N, 90 E)
+        using the plan's north angle. Example:
+        measure_points({"x_cm":0,"y_cm":0},{"x_cm":300,"y_cm":400}) -> 500 cm.
+        Along a route use measure_path; edge-to-edge between objects use
+        measure_clearance; centre-to-centre of two objects use measure_distance.
+
+        Args:
+            a: First point (plan point, geographic point, or object id).
+            b: Second point.
+        """
+        snapshot = await anyio.to_thread.run_sync(providers.snapshot)
+        return site_queries.measure_points(snapshot, a, b)
+
+    @mcp.tool()
+    async def measure_path(
+        points: list[dict[str, Any] | str], closed: bool = False
+    ) -> PathMeasurement:
+        """Total length along a polyline of 2 to 200 points, with per-leg lengths.
+
+        Points use the same forms as measure_points. `closed` adds the leg back
+        to the first point. Units cm (and m). Example: a path round a bed,
+        measure_path([{"x_cm":0,"y_cm":0},{"x_cm":100,"y_cm":0},
+        {"x_cm":100,"y_cm":100}]) -> total_cm 200. For two points only, or the
+        bearing, use measure_points; for an existing object's own length use
+        measure_length.
+
+        Args:
+            points: 2..200 points (plan points, geographic points or object ids).
+            closed: Also measure the closing leg from the last point to the first.
+        """
+        snapshot = await anyio.to_thread.run_sync(providers.snapshot)
+        return site_queries.measure_path(snapshot, points, closed)
+
+    @mcp.tool()
+    async def measure_to_object(
+        point: dict[str, Any] | str, item_id: str
+    ) -> PointToObject | None:
+        """Shortest distance from a point to an object's EDGE, cm (and m).
+
+        `point` uses the measure_points forms. Returns the nearest point on the
+        edge (scene cm). Inside a closed shape the distance is 0 and `inside`
+        is true (edge_distance_cm still gives the depth to the nearest edge).
+        Accepts "boundary" as item_id. Null if the id is unknown. Example:
+        measure_to_object({"x_cm":500,"y_cm":500}, "<bed id>").
+        For object-to-object gaps use measure_clearance.
+
+        Args:
+            point: Plan point, geographic point or object id.
+            item_id: UUID of the object (or "boundary").
+        """
+        snapshot = await anyio.to_thread.run_sync(providers.snapshot)
+        return site_queries.measure_to_object(snapshot, point, item_id)
+
+    @mcp.tool()
+    async def site_extents() -> SiteExtents:
+        """Bounded whole-plan summary: object bounding box, canvas size, boundary, layers, tallest.
+
+        Bounding box of every object (background image excluded) in cm and m,
+        after rotation; the canvas size; the boundary wall/property line's
+        area and perimeter when the plan has one (an open boundary line is
+        closed implicitly, flagged); object counts per layer name; and the
+        tallest object (vertical height). No per-object lists. Example:
+        site_extents() -> width_m 37.99, boundary.area_m2 1785.
+        """
+        snapshot = await anyio.to_thread.run_sync(providers.snapshot)
+        return site_queries.site_extents(snapshot)
+
+    @mcp.tool()
+    async def get_object_height(item_id: str) -> ObjectHeight | None:
+        """Vertical height of one object (cm and m) exactly as the 3D view and shadows resolve it.
+
+        `source` is one of custom (explicit object_height_cm), container (soil
+        fill), grown (growth projected to the plan date), current (measured
+        plant height), species (mature height) or default (type default); 'none'
+        and a null height mean the object has no height. `as_of_date` is the
+        plan date the growth projection used (never the wall clock). Plants also
+        report current vs mature height when known. NOT the footprint size
+        (that is height_cm of get_object/list_objects, a 2D extent). Null if
+        the id is unknown. Example: get_object_height("<house id>") ->
+        450 cm, source default.
+
+        Args:
+            item_id: UUID of a top-level object.
+        """
+        snapshot = await anyio.to_thread.run_sync(providers.snapshot)
+        return site_queries.get_object_height(snapshot, item_id)
+
+    @mcp.tool()
+    async def list_object_heights(
+        layer: str | None = None, type: str | None = None, limit: int = 50
+    ) -> list[ObjectHeightRow]:
+        """Objects that have a vertical height, tallest first (cm), bounded by `limit`.
+
+        Rows carry id, name, type, height_cm and source (see get_object_height).
+        Filter by layer (id or name) and/or type (as list_objects). `limit`
+        defaults to 50, maximum 200. Example: list_object_heights(type="tree",
+        limit=5) -> the five tallest trees.
+
+        Args:
+            layer: Optional layer id or name.
+            type: Optional type/category/geometry filter.
+            limit: Maximum rows, 1 to 200.
+        """
+        snapshot = await anyio.to_thread.run_sync(providers.snapshot)
+        return site_queries.list_object_heights(snapshot, layer=layer, type=type, limit=limit)
 
     @mcp.tool()
     async def get_diagnostics(kind: str | None = None) -> list[Diagnostic]:

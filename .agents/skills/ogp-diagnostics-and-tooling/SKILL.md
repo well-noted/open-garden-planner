@@ -196,6 +196,9 @@ state during a debugging session — no print instrumentation, no restart.
 | `objects_in(parent_id, raw?)` / `plants_in_bed(bed_id, raw?)` | containment |
 | `nearest_objects(x, y, k?, type?, raw?)` | k closest centres to a point |
 | `measure_distance(id_a, id_b)` | centre-to-centre distance in cm |
+| `measure_clearance(id_a, id_b)` / `measure_points(a, b)` / `measure_path(points, closed?)` / `measure_to_object(point, id)` | edge-to-edge gap, any two points (+ bearing), length along a route, point to an edge (cm, also m) |
+| `measure_area(id)` / `measure_length(id)` / `site_extents()` | area+perimeter, line length, whole-plan extents and boundary |
+| `get_object_height(id)` / `list_object_heights(layer?, type?, limit?)` | vertical height (cm) with its source, as the 3D view resolves it |
 | `get_diagnostics(kind?)` | the plan's **already-computed** canvas warnings (`companion_conflict`, `spacing_overlap`, `soil_mismatch`, `capacity_overrun`, `crop_rotation`, plus `outside_canvas`, which is computed live from each item's bounding box, not from a badge flag) |
 | `render_canvas_image(x?, y?, width?, height?, layers?, image_width_px?)` | PNG of the live canvas + `RenderMeta` |
 

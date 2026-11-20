@@ -321,6 +321,169 @@ class Measurement(BaseModel):
     dy_cm: float = Field(description="Y offset (object B centre − object A centre), cm.")
 
 
+# --- site measurements (read-only; all lengths cm, areas cm2, Y-up) --------
+
+
+class PlanPoint(BaseModel):
+    """A point in scene centimetres (CAD Y-up: +x east/right, +y north/up)."""
+
+    x_cm: float
+    y_cm: float
+
+
+class ResolvedPoint(PlanPoint):
+    """A measured point as the tool understood it."""
+
+    kind: str = Field(description="'plan' (x_cm/y_cm), 'geo' (lat/lon) or 'object' (an id).")
+    object_id: str | None = Field(default=None, description="Set when kind is 'object'.")
+
+
+class AreaMeasurement(BaseModel):
+    """Area and perimeter of one closed outline (measure_area)."""
+
+    item_id: str
+    name: str | None = None
+    object_type: str | None = None
+    geometry: str = Field(description="rectangle, polygon, circle or ellipse.")
+    area_cm2: float
+    area_m2: float
+    perimeter_cm: float = Field(description="Outer boundary length (circumference for a circle).")
+    perimeter_m: float
+    hole_count: int = Field(description="Holes already subtracted from area_cm2.")
+    hole_perimeter_cm: float = Field(description="Total length of the hole boundaries (0 without holes).")
+
+
+class LengthMeasurement(BaseModel):
+    """Length of a line, or the perimeter of a closed shape (measure_length)."""
+
+    item_id: str
+    name: str | None = None
+    object_type: str | None = None
+    geometry: str
+    length_cm: float
+    length_m: float
+    closed: bool = Field(description="True for a closed shape: length is then its perimeter.")
+    vertex_count: int | None = Field(description="Defining vertices/anchors; null for circle/ellipse.")
+    curved: bool = Field(description="True when curved segments were measured (arc, bezier, circle, ellipse).")
+
+
+class Clearance(BaseModel):
+    """Edge-to-edge distance between two objects (measure_clearance)."""
+
+    id_a: str
+    id_b: str
+    distance_cm: float = Field(description="Minimum edge-to-edge distance; 0 when they touch or overlap.")
+    distance_m: float
+    overlaps: bool = Field(description="True when the shapes overlap or one contains the other.")
+    relation: str = Field(description="'disjoint', 'touching', 'overlapping' or 'contained'.")
+    point_a: PlanPoint = Field(description="Closest point on object A, scene cm.")
+    point_b: PlanPoint = Field(description="Closest point on object B, scene cm.")
+
+
+class PointMeasurement(BaseModel):
+    """Straight-line distance between two points (measure_points)."""
+
+    a: ResolvedPoint
+    b: ResolvedPoint
+    distance_cm: float
+    distance_m: float
+    dx_cm: float = Field(description="b.x - a.x (east on a north-up plan).")
+    dy_cm: float = Field(description="b.y - a.y (north on a north-up plan).")
+    plan_bearing_deg: float | None = Field(
+        description="Direction a to b, clockwise from plan-up, [0, 360); null if a == b."
+    )
+    compass_bearing_deg: float | None = Field(
+        description="True compass bearing a to b (0 N, 90 E) using the plan's north angle; null if a == b."
+    )
+    north_angle_deg: float = Field(description="True north, clockwise from plan-up (0 = north up).")
+
+
+class PathMeasurement(BaseModel):
+    """Length along a polyline of points (measure_path)."""
+
+    points: list[ResolvedPoint]
+    leg_lengths_cm: list[float] = Field(description="One entry per leg, including the closing leg if closed.")
+    total_cm: float
+    total_m: float
+    closed: bool
+
+
+class PointToObject(BaseModel):
+    """Shortest distance from a point to an object's edge (measure_to_object)."""
+
+    item_id: str
+    name: str | None = None
+    point: ResolvedPoint
+    distance_cm: float = Field(description="0 when the point is inside a closed shape.")
+    distance_m: float
+    inside: bool
+    edge_distance_cm: float = Field(description="Distance to the nearest edge even when inside.")
+    nearest_point: PlanPoint = Field(description="Nearest point on the object's edge, scene cm.")
+
+
+class ObjectHeightSummary(BaseModel):
+    item_id: str
+    name: str | None = None
+    object_type: str | None = None
+    height_cm: float
+    source: str
+
+
+class SiteBoundary(BaseModel):
+    item_id: str | None = None
+    name: str | None = None
+    origin: str = Field(description="'object' (a boundary wall/line) or 'georef' (parcel boundary).")
+    area_cm2: float
+    area_m2: float
+    perimeter_cm: float
+    perimeter_m: float
+    closed_implicitly: bool = Field(description="True when the boundary was an open line and its ends were joined.")
+
+
+class SiteExtents(BaseModel):
+    """Bounded whole-plan summary (site_extents)."""
+
+    object_count: int
+    min_x_cm: float | None = None
+    min_y_cm: float | None = None
+    max_x_cm: float | None = None
+    max_y_cm: float | None = None
+    width_cm: float | None = None
+    height_cm: float | None = None
+    width_m: float | None = None
+    height_m: float | None = None
+    canvas_width_cm: float
+    canvas_height_cm: float
+    boundary: SiteBoundary | None = None
+    layer_counts: dict[str, int] = Field(description="Object count per layer name.")
+    tallest: ObjectHeightSummary | None = Field(description="Tallest object by vertical height, if any has one.")
+
+
+class ObjectHeight(BaseModel):
+    """Vertical height of one object, as the 3D view and shadows use it."""
+
+    item_id: str
+    name: str | None = None
+    object_type: str | None = None
+    height_cm: float | None = Field(description="Vertical height above its base; null when the object has none.")
+    height_m: float | None
+    source: str = Field(
+        description="custom (explicit), container (soil fill), grown (date-projected), current "
+        "(measured), species (mature), default (type default) or none."
+    )
+    as_of_date: str | None = Field(description="Plan date (ISO) the growth projection used.")
+    current_height_cm: float | None = Field(default=None, description="Plants: measured/projected current height.")
+    mature_height_cm: float | None = Field(default=None, description="Plants: species mature height.")
+
+
+class ObjectHeightRow(BaseModel):
+    item_id: str
+    name: str | None = None
+    object_type: str | None = None
+    height_cm: float
+    source: str
+
+
 # --- US-D1.3: vision tool ---------------------------------------------------
 #
 # render_canvas_image renders with y_flip=True (matching the live CAD view and
