@@ -275,3 +275,44 @@ def test_the_session_reports_a_lock_stale_when_no_pose_was_heard() -> None:
     assert session.ar_status(G)["source"] == "plan_locked"
     now[0] += 10.0  # the phone went to the background: nothing arrives
     assert session.ar_status(G)["source"] != "plan_locked"
+
+
+def _locked_session(now: list[float]):  # type: ignore[no-untyped-def]
+    from open_garden_planner.field_remote.session import RecordingSession
+
+    session = RecordingSession()
+    session._clock = lambda: now[0]
+    eng = session.engine_for(G)
+    session._feed_ar(eng, [(vio(T0, 0.0, 0.0), False)], [])
+    eng.ar_capture_a((0.0, 0.0), TRUE.apply(0.0, 0.0))
+    session._feed_ar(eng, [(vio(T0 + 0.5 * k, float(k), 0.0), False) for k in range(1, 21)], [])
+    eng.ar_capture_b((20.0, 0.0), TRUE.apply(20.0, 0.0), TL)
+    session._feed_ar(eng, [(vio(TL + 0.4, *P), False)], [])
+    return session
+
+
+def _fix(t: float, e: float, n: float):  # type: ignore[no-untyped-def]
+    from open_garden_planner.field_remote import projection
+
+    lat, lon = G.enu_to_gps(e, n)
+    return projection.Fix(t=t, lat=lat, lon=lon, accuracy_m=3.0)
+
+
+def test_an_engine_reset_after_a_clock_jump_says_why_the_lock_was_dropped() -> None:
+    now = [100.0]
+    session = _locked_session(now)
+    session.solver([_fix(TL + 0.5, *TRUE.apply(*P))], G)
+    assert session.ar_status(G)["state"] == "locked"
+    session.solver([_fix(TL + 7200.0, *TRUE.apply(*P))], G)  # the phone clock jumped two hours
+    status = session.ar_status(G)
+    assert status["state"] == "unlocked" and status["unlock_reason"] == "clock_jump"
+
+
+def test_a_stale_pose_stream_never_publishes_the_locked_track() -> None:
+    now = [100.0]
+    session = _locked_session(now)
+    fresh = session.solver([_fix(TL + 0.5, *TRUE.apply(*P))], G)
+    assert fresh["track_source"] == "vio" and fresh["fused"]["source"] == "plan_locked"
+    now[0] += 10.0  # no pose batch for 10 s, but the GNSS fix is still within the fused window
+    tele = session.solver([_fix(TL + 0.6, *TRUE.apply(*P))], G)
+    assert tele["track_source"] == "gnss" and tele["fused"]["source"] != "plan_locked"

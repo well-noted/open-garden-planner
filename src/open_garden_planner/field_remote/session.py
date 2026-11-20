@@ -106,8 +106,11 @@ class RecordingSession:
             engine = self.engine_for(geo)
             last_t = getattr(engine, "_last_t", None)
             if last_t is not None and abs(fixes[0].t - last_t) > MAX_CLOCK_JUMP_S and not self.recording:
+                was_locked = engine.ar_status()["state"] != "unlocked"
                 self._engine = None  # a new epoch (clock jump or a long gap): never refuse every later fix
                 engine = self.engine_for(geo)
+                if was_locked:
+                    engine.ar_unlock("clock_jump")  # the dropped lock says why, like any other unlock
             self._feed_ar(engine, vios, imus)
             estimate = None
             for f in fixes:
@@ -117,7 +120,7 @@ class RecordingSession:
                 )
                 estimate = got or estimate
             ref_t = max(f.t for f in fixes)
-            fused = engine.fused_estimate(ref_t)
+            fused = None if self._stream_stale() else engine.fused_estimate(ref_t)
             if estimate is None and fused is None:  # every fix refused before any was accepted: say so, plainly
                 return {
                     **projection.telemetry(fixes, geo), "gated": True, "reject_reason": engine.last_reject_reason,
@@ -133,7 +136,7 @@ class RecordingSession:
             engine = self.engine_for(geo)
             self._feed_ar(engine, vios, imus)
             ref_t = max((v.t for v, _ in vios), default=None)
-            fused = None if ref_t is None else engine.fused_estimate(ref_t)
+            fused = None if ref_t is None or self._stream_stale() else engine.fused_estimate(ref_t)
             if fused is None:
                 return {
                     "x_cm": None, "y_cm": None, "gated": False, "georeferenced": True,
@@ -142,10 +145,13 @@ class RecordingSession:
                 }
             return self._telemetry(engine, geo, fused, None, 0, ref_t)
 
-    def _status(self, engine: PositioningEngine, t: float | None) -> dict[str, Any]:
+    def _stream_stale(self) -> bool:
+        """No pose batch heard for a while: the locked track is not published (one answer, one source)."""
         heard = self._vio_heard
-        stale = heard is None or self._clock() - heard > VIO_STREAM_STALE_S
-        return engine.ar_status(t, stream_stale=stale)
+        return heard is None or self._clock() - heard > VIO_STREAM_STALE_S
+
+    def _status(self, engine: PositioningEngine, t: float | None) -> dict[str, Any]:
+        return engine.ar_status(t, stream_stale=self._stream_stale())
 
     def _telemetry(
         self,
