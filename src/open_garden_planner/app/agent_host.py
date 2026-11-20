@@ -2556,6 +2556,76 @@ class AgentHost:
         }
 
 
+    def _agent_set_object_height(
+        self, item_id: str, height_cm: float | None
+    ) -> dict[str, Any]:
+        """Set or clear an object's explicit height ON the Qt main thread (for the server)."""
+        host = self._host
+        return host._agent_bridge.run_on_main(
+            lambda: host._do_agent_set_object_height(item_id, height_cm)
+        )
+
+
+    def _do_agent_set_object_height(
+        self, item_id: str, height_cm: float | None
+    ) -> dict[str, Any]:
+        """Main-thread body of ``set_object_height`` - at most one undoable step.
+
+        The write path is the Properties panel's own (``ChangePropertyCommand`` with
+        ``object_height.apply_explicit_height``), so undo/redo, the dirty flag and the
+        3D/shadow refresh behave exactly as for a user edit. The same gate decides
+        which objects can carry a height (``shows_height_field``). A request that
+        changes nothing writes nothing (the panel returns early too). The resolved
+        height echoed back is read through the read tool's own resolver on a fresh
+        snapshot, so it cannot disagree with ``get_object_height``.
+        """
+        host = self._host
+        from open_garden_planner.agent_api import edits, site_queries
+        from open_garden_planner.core import object_height as oh
+        from open_garden_planner.core.commands import ChangePropertyCommand
+        from open_garden_planner.ui.canvas.footprints import item_has_footprint
+
+        item = host._resolve_agent_item(item_id)
+        new_value = edits.validate_object_height(height_cm)
+        if not hasattr(item, "object_type") or not isinstance(
+            getattr(item, "metadata", None), dict
+        ) or not oh.shows_height_field(
+            item.object_type, item.metadata, has_footprint=item_has_footprint(item)
+        ):
+            raise ValueError(
+                f"{item_id} is a {self._agent_object_type_name(item)}, which has no "
+                "vertical height to set."
+            )
+
+        old_value = oh.explicit_height_cm(item.metadata)
+        undo_description: str | None = None
+        if new_value != old_value:
+            cmd = ChangePropertyCommand(
+                item, "object height", old_value, new_value,
+                apply_func=oh.apply_explicit_height,
+            )
+            host.canvas_view.command_manager.execute(cmd)
+            undo_description = cmd.description
+
+        snapshot = host._project_manager.snapshot_dict(
+            host.canvas_scene, as_of_date=self._agent_plan_date()
+        )
+        info = site_queries.get_object_height(snapshot, item_id)
+        if info is None:  # pragma: no cover - the item was just resolved
+            raise ValueError(f"No object with id {item_id}")
+        return {
+            "item_id": item_id,
+            "changed": undo_description is not None,
+            "undo_description": undo_description,
+            "explicit_height_cm": oh.explicit_height_cm(item.metadata),
+            "previous_explicit_height_cm": old_value,
+            "height_cm": info.height_cm,
+            "height_m": info.height_m,
+            "source": info.source,
+            "as_of_date": info.as_of_date,
+        }
+
+
     def _agent_resolve_vertex_item(self, item_id: str, tool_name: str) -> Any:
         """Resolve a writable vertex-backed item and clear the D2 geometry gate."""
         host = self._host
@@ -3980,6 +4050,7 @@ class AgentHost:
             delete_object=host._agent_delete_object,
             resize_object=host._agent_resize_object,
             rotate_object=host._agent_rotate_object,
+            set_object_height=host._agent_set_object_height,
             set_vertex=host._agent_set_vertex,
             add_vertex=host._agent_add_vertex,
             delete_vertex=host._agent_delete_vertex,

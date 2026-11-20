@@ -62,6 +62,11 @@ from .growth_model import (
 
 METADATA_KEY = "object_height_cm"
 
+#: The largest explicit height (cm) the app accepts: the Properties panel's spin box
+#: range (0 = back to automatic, then up to this). One bound for the panel and the
+#: Agent API's ``set_object_height`` so the two cannot disagree.
+MAX_EXPLICIT_HEIGHT_CM = 5000.0
+
 # Default above-ground heights (cm) per ObjectType name. Chosen as sensible
 # central-European garden values; the owner confirms them at manual test
 # (see #257). Every object kind that stands up has one; types absent from this
@@ -261,6 +266,19 @@ def explicit_height_cm(metadata: dict[str, Any] | None) -> float | None:
     if not metadata:
         return None
     return _positive_number(metadata.get(METADATA_KEY))
+
+
+def apply_explicit_height(item: Any, value: float | None) -> None:
+    """Set (``value``) or clear (``None``) an item's explicit ``object_height_cm``.
+
+    The one mutation the Properties panel and the Agent API both hand to
+    ``ChangePropertyCommand`` as its ``apply_func``, so undo and redo take the same
+    path as the edit.
+    """
+    if value is None:
+        item.metadata.pop(METADATA_KEY, None)
+    else:
+        item.metadata[METADATA_KEY] = value
 
 
 def _measured_height_cm(
