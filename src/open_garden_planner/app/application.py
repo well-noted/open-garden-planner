@@ -1834,6 +1834,10 @@ class GardenPlannerApp(QMainWindow):
         menu.addActions(self._render_style_controller.actions())
         menu.addSeparator()
         menu.addAction(self._render_style_controller.callouts_action)
+        # the submenu and the toggle carry icons; the radio group is exempt (#310)
+        self._set_action_icon(menu.menuAction(), "theme")
+        self._set_action_icon(self._render_style_controller.callouts_action,
+                              "callout_annotation")
         self._render_style_menu = menu
         return menu
 
