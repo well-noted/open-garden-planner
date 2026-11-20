@@ -120,3 +120,29 @@ def test_the_build_floor_supports_pep_639() -> None:
     ]
     assert floors, requires
     assert floors[0] >= (77,), requires
+
+
+def test_the_spec_bundles_the_openssl_pair_beside_the_ssl_extension(tmp_path: Path) -> None:
+    """PF-CI-22: a stray libssl on PATH must not replace the pair beside `_ssl.pyd`."""
+    spec = (ROOT / "installer" / "ogp.spec").read_text(encoding="utf-8")
+    match = re.search(r"^def _pin_openssl_pair\(binaries\):\n(?:[ \t]+.*\n|\n)+", spec, re.M)
+    assert match, "installer/ogp.spec lost _pin_openssl_pair"
+    namespace: dict[str, object] = {"Path": Path}
+    exec(match.group(0), namespace)  # noqa: S102 - the spec's own pure helper
+    pin = namespace["_pin_openssl_pair"]
+
+    dlls = tmp_path / "DLLs"
+    stray = tmp_path / "git" / "mingw64" / "bin"
+    dlls.mkdir()
+    stray.mkdir(parents=True)
+    for folder in (dlls, stray):
+        for name in ("libssl-3-x64.dll", "libcrypto-3-x64.dll"):
+            (folder / name).write_bytes(b"")
+    binaries = [
+        ("_ssl.pyd", str(dlls / "_ssl.pyd"), "EXTENSION"),
+        ("libssl-3-x64.dll", str(stray / "libssl-3-x64.dll"), "BINARY"),
+        ("libcrypto-3-x64.dll", str(stray / "libcrypto-3-x64.dll"), "BINARY"),
+    ]
+    result = pin(binaries)  # type: ignore[operator]
+    pair = {name: Path(src).parent for name, src, _ in result if name.startswith("lib")}
+    assert pair == {"libssl-3-x64.dll": dlls, "libcrypto-3-x64.dll": dlls}
