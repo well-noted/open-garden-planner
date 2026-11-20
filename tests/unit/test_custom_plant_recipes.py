@@ -330,7 +330,7 @@ def test_species_and_instance_round_trip_the_recipe() -> None:
 
 
 def test_without_a_recipe_nothing_new_is_serialised() -> None:
-    assert "traits3d_override" not in _species().to_dict()
+    assert _species().to_dict()["traits3d_override"] is None
     assert "traits3d_override" not in PlantInstance().to_dict()
     assert _species().traits3d_override is None
     assert PlantSpeciesData.from_dict(_species().to_dict()).traits3d_override is None
@@ -358,12 +358,25 @@ def test_serialised_recipes_are_copies() -> None:
         {"x": object()},
     ],
 )
-def test_malformed_stored_recipes_fail_closed_in_the_models(bad: Any) -> None:
+def test_malformed_stored_recipes_are_dropped_by_the_readers_and_rejected_by_the_validator(
+    bad: Any,
+) -> None:
     data = _species().to_dict() | {"traits3d_override": bad}
+    assert PlantSpeciesData.from_dict(data).traits3d_override is None  # the species still loads
+    assert PlantInstance.from_dict({"traits3d_override": bad}).traits3d_override is None
+    from open_garden_planner.models.plant_data import validate_traits3d_override as structural
+
     with pytest.raises(ValueError):
-        PlantSpeciesData.from_dict(data)
+        structural(bad)
+
+
+@pytest.mark.parametrize("bad", [{"palette": ["x"]}, {"archetype": {}}, {"blossom_spec": [1]},
+                                 {"autumn_palette": {"a": 1}}])
+def test_unhashable_values_are_a_value_error_never_a_type_error(bad: Any) -> None:
     with pytest.raises(ValueError):
-        PlantInstance.from_dict({"traits3d_override": bad})
+        validate_traits3d_override(bad)
+    assert layered_recipe_json(bad, None) == ""
+    assert layered_recipe_json({"crown": {"droop": 0.2}}, bad) == '{"crown":{"droop":0.2}}'
 
 
 def test_the_bundled_catalogue_names_every_valid_key() -> None:

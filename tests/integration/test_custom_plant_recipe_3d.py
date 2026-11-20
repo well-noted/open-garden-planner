@@ -211,6 +211,36 @@ def test_library_target_mirrors_into_the_custom_library_in_one_undo_step(app: An
     assert again is not None and again.traits3d_override is None
 
 
+def test_undoing_the_library_target_restores_the_librarys_own_prior_recipe(app: Any) -> None:
+    item = _tree(app)
+    pid = str(item.item_id)
+    library = plant_library_module.get_plant_library()
+    prior = {"crown": {"droop": 0.7}}
+    plant = PlantSpeciesData.from_dict(item.metadata["plant_species"])
+    plant.traits3d_override = prior
+    plant_id = library.add_plant(plant)
+
+    app._do_agent_set_plant_recipe(pid, BUSH, "library")
+    assert library.get_plant(plant_id).traits3d_override == BUSH  # type: ignore[union-attr]
+    # The user edits another field of the library entry before undoing.
+    edited = library.get_plant(plant_id)
+    edited.common_name = "Edited"  # type: ignore[union-attr]
+    library.update_plant(plant_id, edited)  # type: ignore[arg-type]
+
+    app.canvas_view.command_manager.undo()
+    back = library.get_plant(plant_id)
+    assert back is not None and back.traits3d_override == prior
+    assert back.common_name == "Edited"  # the user's edit survives the undo
+    app.canvas_view.command_manager.redo()
+    assert library.get_plant(plant_id).traits3d_override == BUSH  # type: ignore[union-attr]
+
+
+def test_a_recipe_with_an_unhashable_value_in_a_file_never_breaks_the_snapshot(app: Any) -> None:
+    item = _tree(app)
+    item.metadata["plant_species"]["traits3d_override"] = {"palette": ["x"]}
+    assert PARAM_TRAITS3D_OVERRIDE not in _record(app, item).params
+
+
 # --- the 3D rebuild ---------------------------------------------------------------------
 
 
@@ -318,7 +348,7 @@ def _call(server: Any, qtbot: Any, calls: list[tuple[str, dict[str, Any]]],
     def run() -> None:
         try:
             asyncio.run(body())
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             state["error"] = exc
         finally:
             state["done"] = True

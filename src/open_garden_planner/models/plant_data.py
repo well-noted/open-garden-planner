@@ -1,6 +1,7 @@
 """Plant data models for storing botanical information from APIs."""
 
 import json
+import logging
 import math
 from copy import deepcopy
 from dataclasses import dataclass, field
@@ -56,6 +57,19 @@ def validate_traits3d_override(raw: Any) -> dict[str, Any] | None:
     if len(json.dumps(clean, sort_keys=True, separators=(",", ":"))) > MAX_TRAITS3D_OVERRIDE_CHARS:
         raise ValueError("traits3d_override is too large")
     return clean or None
+
+
+def _tolerant_override(raw: Any) -> dict[str, Any] | None:
+    """The reader's view of a stored recipe: a malformed one is dropped with a log line.
+
+    An optional 3D field must never make a species (and its calendar, soil and bed
+    checks) unreadable; the strict ``validate_traits3d_override`` stays on every write.
+    """
+    try:
+        return validate_traits3d_override(raw)
+    except ValueError:
+        logging.getLogger(__name__).warning("plant recipe: dropping a malformed traits3d_override")
+        return None
 
 
 class PermacultureLayer(Enum):
@@ -325,8 +339,7 @@ class PlantSpeciesData:
             "k_demand": self.k_demand,
             "raw_data": self.raw_data,
         }
-        if self.traits3d_override:
-            result["traits3d_override"] = deepcopy(self.traits3d_override)
+        result["traits3d_override"] = deepcopy(self.traits3d_override) or None
         return result
 
     @classmethod
@@ -419,7 +432,7 @@ class PlantSpeciesData:
             p_demand=data.get("p_demand"),
             k_demand=data.get("k_demand"),
             raw_data=raw_data,
-            traits3d_override=validate_traits3d_override(data.get("traits3d_override")),
+            traits3d_override=_tolerant_override(data.get("traits3d_override")),
         )
 
 
@@ -497,7 +510,7 @@ class PlantInstance:
             notes=data.get("notes", ""),
             custom_fields=data.get("custom_fields", {}),
             species_data=species_data,
-            traits3d_override=validate_traits3d_override(data.get("traits3d_override")),
+            traits3d_override=_tolerant_override(data.get("traits3d_override")),
         )
 
 

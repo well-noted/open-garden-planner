@@ -4629,13 +4629,13 @@ class SetPlantRecipeCommand(Command):
         new_override: dict[str, Any] | None,
         *,
         target: str = "instance",
-        on_apply: Callable[[dict[str, Any] | None], None] | None = None,
+        on_apply: Callable[[bool], None] | None = None,
     ) -> None:
         if target not in self._KEYS:
             raise ValueError(f"target must be 'instance' or 'species', got {target!r}")
         self._item = item
         self._key = self._KEYS[target]
-        #: Called with the value each execute/undo applies, so a mirror (the custom
+        #: Called with True on execute and False on undo, so a mirror (the custom
         #: plant library) follows the same undo step as the plan.
         self._on_apply = on_apply
         meta = getattr(item, "metadata", None)
@@ -4648,31 +4648,30 @@ class SetPlantRecipeCommand(Command):
     def description(self) -> str:
         return QCoreApplication.translate("Commands", "Set plant 3D recipe")
 
-    def _apply(self, value: dict[str, Any] | None) -> None:
+    def _apply(self, value: dict[str, Any] | None, applying: bool) -> None:
         metadata = self._item.metadata  # type: ignore[attr-defined]
         container = metadata.get(self._key)
-        if not isinstance(container, dict):
-            if value is None:
-                return
+        if not isinstance(container, dict) and value is not None:
             container = {}
             metadata[self._key] = container
-        if value is None:
-            container.pop("traits3d_override", None)
-        else:
-            container["traits3d_override"] = deepcopy(value)
+        if isinstance(container, dict):
+            if value is None:
+                container.pop("traits3d_override", None)
+            else:
+                container["traits3d_override"] = deepcopy(value)
         scene = self._item.scene()
         note = getattr(scene, "note_plan_changed", None)
         if callable(note):
             note()
         self._item.update()
         if self._on_apply is not None:
-            self._on_apply(deepcopy(value))
+            self._on_apply(applying)
 
     def execute(self) -> None:
-        self._apply(self._new)
+        self._apply(self._new, True)
 
     def undo(self) -> None:
-        self._apply(self._old)
+        self._apply(self._old, False)
 
 
 class AddJournalNoteCommand(Command):

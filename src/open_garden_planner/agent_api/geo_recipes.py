@@ -135,6 +135,11 @@ def georeference_view(
         "georeference": georef.to_dict(),
         "north_angle_deg": north_angle_deg,
         "calibrated": georef.affine_matrix is not None,
+        "calibration_note": (
+            "the calibration was fitted at the plan's north angle of that time; after "
+            "changing the north angle, calibrate again"
+            if georef.affine_matrix is not None else None
+        ),
         "control_point_count": len(georef.control_points),
         "bounds": georeference_bounds(georef, canvas_width_cm, canvas_height_cm, north_angle_deg),
         "conversion": "ok: scene (x_cm, y_cm) <-> (lat, lon), +x east / +y north on a "

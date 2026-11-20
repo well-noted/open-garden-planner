@@ -904,6 +904,9 @@ def validate_traits3d_override(raw: Any) -> dict[str, Any] | None:
     if unknown:
         raise ValueError(f"unknown traits3d_override field(s): {sorted(unknown)}")
     clean: dict[str, Any] = {}
+    for key in ("archetype", "palette", "autumn_palette", "blossom_spec"):
+        if raw.get(key) is not None and not isinstance(raw[key], str):
+            raise ValueError(f"{key} must be a string")  # never an unhashable TypeError
     if raw.get("archetype") is not None:
         if raw["archetype"] not in ARCHETYPES:
             raise ValueError(f"archetype must be one of {sorted(ARCHETYPES)}")
@@ -982,7 +985,7 @@ def layered_recipe_json(species_raw: object, instance_raw: object) -> str:
     for raw in (species_raw, instance_raw):
         try:
             layers.append(validate_traits3d_override(raw))
-        except ValueError:
+        except (ValueError, TypeError):
             _LOG.warning("plant recipe: ignoring an invalid stored traits3d_override")
             layers.append(None)
     return override_signature(merge_overrides(layers[0], layers[1]))

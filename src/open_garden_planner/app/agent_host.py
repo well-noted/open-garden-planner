@@ -2947,7 +2947,7 @@ class AgentHost:
         )
         current = container.get("traits3d_override") if isinstance(container, dict) else None
         on_apply = (
-            host._agent_library_recipe_writer(item.metadata["plant_species"])
+            host._agent_library_recipe_writer(item.metadata["plant_species"], clean)
             if target == "library"
             else None
         )
@@ -2964,7 +2964,9 @@ class AgentHost:
             "y": cy,
         }
 
-    def _agent_library_recipe_writer(self, species: dict[str, Any]) -> Any:
+    def _agent_library_recipe_writer(
+        self, species: dict[str, Any], new_value: dict[str, Any] | None
+    ) -> Any:
         """A callback that mirrors a recipe into the custom-library species matching ``species``.
 
         Raises ``ValueError`` now (before any change) when the library has no such species.
@@ -3000,10 +3002,17 @@ class AgentHost:
                 "library; add it there first or use target='species'."
             )
         plant_id, plant = match
+        prior = None if plant.traits3d_override is None else dict(plant.traits3d_override)
 
-        def write(value: dict[str, Any] | None) -> None:
-            plant.traits3d_override = None if value is None else dict(value)
-            library.update_plant(plant_id, plant)
+        def write(applying: bool) -> None:
+            # Re-fetch: the user may have edited or removed the entry since the call, and
+            # only the recipe is ours to change. Undo restores the LIBRARY's own prior value.
+            fresh = library.get_plant(plant_id)
+            if fresh is None:
+                return
+            value = new_value if applying else prior
+            fresh.traits3d_override = None if value is None else dict(value)
+            library.update_plant(plant_id, fresh)
 
         return write
 

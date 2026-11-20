@@ -281,7 +281,7 @@ def _call(server: Any, qtbot: Any, calls: list[tuple[str, dict[str, Any]]],
     def run() -> None:
         try:
             asyncio.run(body())
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             state["error"] = exc
         finally:
             state["done"] = True

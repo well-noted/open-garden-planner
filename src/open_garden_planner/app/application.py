@@ -892,8 +892,10 @@ class GardenPlannerApp(QMainWindow):
     ) -> dict[str, Any]:
         return self._agent_host._do_agent_set_plant_recipe(item_id, recipe, target)
 
-    def _agent_library_recipe_writer(self, species: dict[str, Any]) -> Any:
-        return self._agent_host._agent_library_recipe_writer(species)
+    def _agent_library_recipe_writer(
+        self, species: dict[str, Any], new_value: dict[str, Any] | None
+    ) -> Any:
+        return self._agent_host._agent_library_recipe_writer(species, new_value)
 
     def _agent_get_georeference(self) -> dict[str, Any]:
         return self._agent_host._agent_get_georeference()
