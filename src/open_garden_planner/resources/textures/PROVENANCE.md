@@ -71,7 +71,7 @@ and never regenerated apart from its tile.
 | `flagstone.png` | `generate_flagstone` — domain-warped torus Voronoi slabs, sandy joints, rim → crown slabs | replaces legacy; its wrap seam (3.35/3.82) is gone |
 | `glass.png` | `generate_glass` — 4×2 panes (64×128 cm), glazing bars, sheen bands mirror-symmetric about the pane centre, screws | replaces legacy; its wrap seam (2.14/2.20) is gone — default greenhouse fill |
 | `grass.png` | `generate_grass` — mottled ground, dark blade shadow layer, 2400 two-tone blades | replaces legacy |
-| `gravel.png` | `generate_gravel` — 2000 shaded stones with halos, greys/tans/whites | replaces legacy |
+| `gravel.png` | `generate_gravel` — ~3700 packed, rounded Arizona-style stones (tans, greys, rust, pink granite) in four sizes with contact shadows, plus a 30 cm light/dark patch mottle | replaces legacy |
 | `hedge.png` | `generate_hedge` — 300 occluded pointed almond leaves, two-tone (#281 language) | #281 pilot re-rendered (2026-07-27 → 2026-08-18) |
 | `lattice.png` | `generate_lattice` — two analytic diagonal lath families (8 each), woven over/under with contact occlusion, foliage ground | replaces legacy |
 | `mulch.png` | `generate_mulch` — 640 layered flakes/chunks in eight browns, occlusion, splinters | replaces legacy |
