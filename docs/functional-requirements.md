@@ -1399,3 +1399,19 @@ Pins: `tests/unit/test_shape_split.py`, `tests/integration/test_split_shapes.py`
   `line_wash.PAPER_TEXTURE_IN_VECTOR` for that export.
 
 Pins: `tests/unit/test_render_style_ui.py`, `tests/integration/test_render_style_ui.py`.
+
+## FR-36: Custom plant recipes and the plan georeference (ADR-079)
+
+- **FR-RECIPE-01:** A plant can carry a custom 3D recipe (`traits3d_override`): per species (`PlantSpeciesData`, the custom plant library, plant lists, and the item's `plant_species` metadata) or per specimen (`PlantInstance`, the item's `plant_instance` metadata). It layers specimen over species over the bundled recipe, field by field. Absent means the bundled plant, byte-identical to before.
+- **FR-RECIPE-02:** A recipe may set the archetype (a tree becomes a bush), palette, autumn palette, deciduousness, blossom, bloom and fruit months, the crown (shape, trunk share, taper, droop, aspect, canopy lean azimuth and strength), the branching (attractors, pipe exponent, trunk ratio, apical bias, gnarl, bark colour and shade, **basal stems 1..5, fork height, fork spread**) and the leaf. Every field is bounded; unknown fields, out-of-range numbers, `NaN`/`Inf` and booleans-as-numbers are rejected before anything is stored. Malformed stored data is dropped with a log line by every reader (the species still loads); writers reject it.
+- **FR-RECIPE-03:** Editing a recipe re-forges the plant at once in the 3D view, never from a stale cache, and changes its seasons (a recipe that says evergreen is not bare in winter). Undo restores the previous mesh.
+- **FR-RECIPE-04:** Agent: `list_plant_archetypes` (read) lists the valid keys, bounds, defaults and examples. `set_plant_recipe(item_id, recipe, target)` (write-gated) stores or clears a recipe on `instance`, `species` or `library` (the library also updates the matching custom species) as one undoable step; it refuses a non-plant, a locked layer and an invalid recipe.
+- **FR-RECIPE-05:** `recipe=null` clears. Setting the recipe a plant already has is refused rather than creating an empty undo step.
+- **FR-GEO-01:** A plan can hold one georeference: the GPS position of a scene point, the plan scale and rotation, and optional ground-control points. It is stored as `metadata.georeference` in the `.ogp` file (additive; no `FILE_VERSION` bump) and read tolerantly: an unreadable value opens the plan with none.
+- **FR-GEO-02:** `gps_to_scene` and `scene_to_gps` convert between WGS84 and scene cm with the plan's north angle applied (+x east, +y north on a north-up plan); they are exact inverses to a tenth of a millimetre over a property.
+- **FR-GEO-03:** Calibration with 1 point locks the translation, 2 fit a similarity, 3 or more a least-squares affine; the residual of every point is reported in cm. Collinear, duplicate and over-64 point sets are refused.
+- **FR-GEO-04:** Importing a satellite background binds the georeference automatically (picture centre = canvas centre); a plan that already has a different one asks first. Each change is one undo step.
+- **FR-GEO-05:** Agent: `get_georeference` (read) returns the anchor, the canvas corners and extent in lat/lon and the calibration state, or `configured: false`. `set_georeference` and `calibrate_georeference` (write-gated) are one `SetGeoreferenceCommand` each; non-finite, boolean and out-of-range inputs are refused before any change.
+- **FR-GEO-06:** `new_plan` and "New" clear the georeference; a season copy keeps it.
+
+Pins: `tests/unit/test_custom_plant_recipes.py`, `tests/unit/test_georeference.py`, `tests/integration/test_custom_plant_recipe_3d.py`, `tests/integration/test_georeference_workflow.py`.

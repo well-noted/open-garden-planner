@@ -250,12 +250,19 @@ def _crown_leaf_palette(record: Record, state: PhenologyState
     its crown's own on the date of ``state`` — deterministic per item, never two trees'
     clones."""
     from ..plant_art import DEFAULT_PALETTE, traits_for
+    from ..plant_art.traits3d import traits_with_override_json
     from ..plant_forge.foliage import palette_leaf_colors
     from .builders.plants import plant_sprite
+    from .record import PARAM_TRAITS3D_OVERRIDE
 
     sprite = plant_sprite(record)
     try:
-        palette = traits_for(sprite).palette if sprite is not None else DEFAULT_PALETTE
+        palette = (
+            traits_with_override_json(
+                traits_for(sprite), record.params.get(PARAM_TRAITS3D_OVERRIDE)
+            ).palette
+            if sprite is not None else DEFAULT_PALETTE
+        )
     except KeyError:
         palette = DEFAULT_PALETTE
     rng = np.random.default_rng(_stable_seed("leaf-palette", record.item_id))

@@ -882,6 +882,43 @@ class GardenPlannerApp(QMainWindow):
     ) -> dict[str, Any]:
         return self._agent_host._do_agent_set_species(item_id, species, apply_database_size)
 
+    def _agent_set_plant_recipe(
+        self, item_id: str, recipe: dict[str, Any] | None, target: str
+    ) -> dict[str, Any]:
+        return self._agent_host._agent_set_plant_recipe(item_id, recipe, target)
+
+    def _do_agent_set_plant_recipe(
+        self, item_id: str, recipe: dict[str, Any] | None, target: str
+    ) -> dict[str, Any]:
+        return self._agent_host._do_agent_set_plant_recipe(item_id, recipe, target)
+
+    def _agent_library_recipe_writer(
+        self, species: dict[str, Any], new_value: dict[str, Any] | None
+    ) -> Any:
+        return self._agent_host._agent_library_recipe_writer(species, new_value)
+
+    def _agent_get_georeference(self) -> dict[str, Any]:
+        return self._agent_host._agent_get_georeference()
+
+    def _do_agent_get_georeference(self) -> dict[str, Any]:
+        return self._agent_host._do_agent_get_georeference()
+
+    def _agent_set_georeference(self, georef: dict[str, Any] | None) -> dict[str, Any]:
+        return self._agent_host._agent_set_georeference(georef)
+
+    def _do_agent_set_georeference(self, georef: dict[str, Any] | None) -> dict[str, Any]:
+        return self._agent_host._do_agent_set_georeference(georef)
+
+    def _agent_calibrate_georeference(
+        self, control_points: list[dict[str, Any]], append: bool
+    ) -> dict[str, Any]:
+        return self._agent_host._agent_calibrate_georeference(control_points, append)
+
+    def _do_agent_calibrate_georeference(
+        self, control_points: list[dict[str, Any]], append: bool
+    ) -> dict[str, Any]:
+        return self._agent_host._do_agent_calibrate_georeference(control_points, append)
+
     def _agent_set_parent_bed(self, item_id: str, bed_id: str | None) -> dict[str, Any]:
         return self._agent_host._agent_set_parent_bed(item_id, bed_id)
 
@@ -6205,6 +6242,7 @@ class GardenPlannerApp(QMainWindow):
         self.canvas_view.fit_in_view()
 
         self._project_manager.mark_dirty()
+        self._bind_satellite_georeference(image_item)
         if result.source == "google_js_view_capture":
             self.statusBar().showMessage(
                 self.tr(
@@ -6229,6 +6267,43 @@ class GardenPlannerApp(QMainWindow):
                     h_m=length_text(canvas_h_cm),
                 )
             )
+
+    def _bind_satellite_georeference(self, image_item: Any) -> None:
+        """Bind the plan's georeference to a freshly imported satellite picture.
+
+        The picture's centre (lat, lon) is the canvas centre. A plan with no georeference
+        takes it silently; one that already has a different anchor is asked first, and a
+        refusal keeps it. ONE undoable ``SetGeoreferenceCommand`` either way.
+        """
+        from open_garden_planner.core.commands import SetGeoreferenceCommand
+        from open_garden_planner.core.georeference import (
+            GeoreferenceError,
+            georeference_from_satellite,
+        )
+
+        pm = self._project_manager
+        centre = self.canvas_scene.canvas_rect.center()
+        try:
+            georef = georeference_from_satellite(
+                image_item.geo_metadata or {}, centre.x(), centre.y(), pm.north_angle_deg
+            )
+        except GeoreferenceError:
+            return
+        current = pm.georeference
+        if current == georef:
+            return
+        if current is not None:
+            answer = QMessageBox.question(
+                self,
+                self.tr("Update georeference?"),
+                self.tr(
+                    "This plan already has a georeference. Replace it with the location "
+                    "of the imported satellite picture?"
+                ),
+            )
+            if answer != QMessageBox.StandardButton.Yes:
+                return
+        self.canvas_view.command_manager.execute(SetGeoreferenceCommand(pm, georef))
 
     def _on_set_location(self) -> None:
         """Handle Set Garden Location action."""

@@ -27,7 +27,7 @@ from ...core.phenology import (
     PhenologyState,
     evaluate_phenology_for_records,
 )
-from ...core.plant_art import PLANT_KINDS, traits_for
+from ...core.plant_art import PLANT_KINDS
 from ...core.plant_forge import (
     DEFAULT_FORGE_CACHE,
     PARAM_CLIMBER_SUPPORT,
@@ -35,6 +35,7 @@ from ...core.plant_forge import (
     climber_support_signature,
     enrich_climber_record,
     forge_record,
+    recipe_traits,
     select_lod,
     validate_lod,
 )
@@ -186,7 +187,7 @@ class ForgeWorker:
     @staticmethod
     def _is_climber(record: Record) -> bool:
         sprite = plant_sprite(record)
-        return sprite is not None and traits_for(sprite).archetype == "climber"
+        return sprite is not None and recipe_traits(record, sprite).archetype == "climber"
 
     def _structure_key(self, item_id: str) -> object:
         # Appearance never enters a geometry key. Support dependencies do.

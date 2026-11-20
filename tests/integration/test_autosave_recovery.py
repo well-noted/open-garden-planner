@@ -25,6 +25,7 @@ def populated_project(scene: CanvasScene) -> ProjectManager:
     metadata = {
         "location": {"latitude": 52.52, "longitude": 13.405, "name": "Berlin"},
         "north_angle_deg": 37.0,
+        "georeference": {"origin_lat": 52.52, "origin_lon": 13.405, "origin_x_cm": 10.0},
         "task_completions": ["task"],
         "seed_inventory": [{"id": "packet", "species_key": "tomato", "quantity": 5}],
         "propagation_overrides": {"tomato": {"sow": {"start": "2026-03-01"}}},

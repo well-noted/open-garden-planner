@@ -501,6 +501,24 @@ class PlanLifecycleResult(BaseModel):
 # bed_membership_changed/new_parent_bed_id surface what it did.
 
 
+class GeoreferenceResult(BaseModel):
+    """Result of ``set_georeference`` / ``calibrate_georeference`` (one undo step)."""
+
+    action: Literal["set_georeference", "clear_georeference", "calibrate_georeference"] = Field(
+        description="The mutation performed."
+    )
+    undo_description: str = Field(description="Label of the one undo step this created.")
+    georeference: dict[str, Any] | None = Field(
+        default=None,
+        description="The georeference now stored on the plan (null after a clear).",
+    )
+    calibration: dict[str, Any] | None = Field(
+        default=None,
+        description="calibrate_georeference only: method (translation / similarity / affine), "
+        "rms_error_cm, max_error_cm and the per-point residuals in cm.",
+    )
+
+
 class WriteResult(BaseModel):
     """Result of a scene-mutating Agent API write tool.
 
@@ -542,6 +560,8 @@ class WriteResult(BaseModel):
         # the plan-wide default. The manual-task writes (US-D3.3) return
         # ManualTaskResult instead, which needs no action discriminator.
         "record_soil_test",
+        # A custom 3D plant recipe on one plant.
+        "set_plant_recipe",
     ] = Field(description="The mutation performed.")
     undo_description: str = Field(
         description="Human-readable label of the primary undo step this created "

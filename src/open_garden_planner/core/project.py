@@ -22,6 +22,11 @@ from PyQt6.QtWidgets import QGraphicsItem, QGraphicsScene
 from open_garden_planner.config.settings import active_language, get_settings
 from open_garden_planner.core import camera_tours as plan_tours
 from open_garden_planner.core.fill_patterns import FillPattern
+from open_garden_planner.core.georeference import (
+    GeoreferenceError,
+    PlanGeoreference,
+    georeference_from_plan,
+)
 from open_garden_planner.core.item_look import (
     adopt_pen,
     fill_brush,
@@ -95,6 +100,10 @@ class ProjectData:
     # #663: the direction of true north on the plan, clockwise from plan-up
     # (0 = north up). Additive: old files read 0, old apps ignore the key.
     north_angle_deg: float = DEFAULT_NORTH_ANGLE_DEG
+    # The plan's WGS84 (lat, lon) <-> scene (x, y) anchor, stored RAW as the additive
+    # ``metadata.georeference`` key (``core/georeference``; old files read None, old apps
+    # ignore it). ``ProjectManager`` is the one parser.
+    georeference: dict[str, Any] | None = None
     task_completions: list[str] = field(default_factory=list)
     seed_inventory: list[dict[str, Any]] = field(default_factory=list)
     # US-9.5: per-species user overrides for propagation step dates
@@ -176,6 +185,8 @@ class ProjectData:
             data["location"] = self.location
         if self.north_angle_deg:
             data["north_angle_deg"] = self.north_angle_deg
+        if self.georeference:
+            data["metadata"]["georeference"] = self.georeference
         if self.task_completions:
             data["task_completions"] = sorted(self.task_completions)
         if self.seed_inventory:
@@ -230,6 +241,10 @@ class ProjectData:
             guides=data.get("guides", []),
             location=data.get("location") or None,
             north_angle_deg=north_angle_from_plan(data.get("north_angle_deg")),
+            georeference=(
+                meta.get("georeference") or None if isinstance(meta := data.get("metadata"), dict)
+                else None
+            ),
             task_completions=data.get("task_completions", []),
             seed_inventory=data.get("seed_inventory", []),
             propagation_overrides=data.get("propagation_overrides", {}),
@@ -270,6 +285,7 @@ class ProjectManager(QObject):
     before_save = pyqtSignal()
     location_changed = pyqtSignal(object)  # dict or None
     north_angle_changed = pyqtSignal(float)  # degrees clockwise from plan-up (#663)
+    georeference_changed = pyqtSignal(object)  # PlanGeoreference | None
     task_completions_changed = pyqtSignal(object)  # set[str]
     seed_inventory_changed = pyqtSignal(object)    # list[SeedPacket]
     propagation_overrides_changed = pyqtSignal(object)  # dict
@@ -305,6 +321,7 @@ class ProjectManager(QObject):
         self._dirty_serial = 0
         self._location: dict[str, Any] | None = None
         self._north_angle_deg: float = DEFAULT_NORTH_ANGLE_DEG
+        self._georeference: PlanGeoreference | None = None
         self._task_completions: set[str] = set()
         self._seed_inventory: list[dict[str, Any]] = []
         self._propagation_overrides: dict[str, Any] = {}
@@ -410,6 +427,30 @@ class ProjectManager(QObject):
             return
         self._north_angle_deg = angle
         self.north_angle_changed.emit(angle)
+        self.mark_dirty()
+
+    @property
+    def georeference(self) -> PlanGeoreference | None:
+        """The plan's WGS84 <-> scene anchor, or None when never set."""
+        return self._georeference
+
+    def set_georeference(self, georef: PlanGeoreference | dict[str, Any] | None) -> None:
+        """Set or clear the plan's georeference and mark the project dirty.
+
+        The ONE writer besides load and new: the undoable ``SetGeoreferenceCommand``
+        calls it for execute and for undo. Raises ``GeoreferenceError`` (a
+        ``ValueError``) for an invalid value, before anything is mutated.
+        """
+        if georef is None or isinstance(georef, PlanGeoreference):
+            parsed = georef
+        elif isinstance(georef, dict):
+            parsed = PlanGeoreference.from_dict(georef)
+        else:
+            raise GeoreferenceError("georeference must be a PlanGeoreference, dict or None")
+        if parsed == self._georeference:
+            return
+        self._georeference = parsed
+        self.georeference_changed.emit(parsed)
         self.mark_dirty()
 
     @property
@@ -1021,6 +1062,7 @@ class ProjectManager(QObject):
         self._dirty = False
         self._location = None
         self._north_angle_deg = DEFAULT_NORTH_ANGLE_DEG
+        self._georeference = None
         self._task_completions = set()
         self._seed_inventory = []
         self._propagation_overrides = {}
@@ -1046,6 +1088,7 @@ class ProjectManager(QObject):
         self.dirty_changed.emit(False)
         self.location_changed.emit(None)
         self.north_angle_changed.emit(DEFAULT_NORTH_ANGLE_DEG)
+        self.georeference_changed.emit(None)
         self.task_completions_changed.emit(set())
         self.seed_inventory_changed.emit([])
         self.propagation_overrides_changed.emit({})
@@ -1103,6 +1146,9 @@ class ProjectManager(QObject):
         data = self._serialize_scene(scene)
         data.location = self._location
         data.north_angle_deg = self._north_angle_deg
+        data.georeference = (
+            self._georeference.to_dict() if self._georeference is not None else None
+        )
         data.task_completions = sorted(self._task_completions)
         data.seed_inventory = list(self._seed_inventory)
         data.propagation_overrides = dict(self._propagation_overrides)
@@ -1357,6 +1403,8 @@ class ProjectManager(QObject):
         self.location_changed.emit(self._location)
         self._north_angle_deg = normalize_north_angle(data.north_angle_deg)
         self.north_angle_changed.emit(self._north_angle_deg)
+        self._georeference = georeference_from_plan(data.georeference)
+        self.georeference_changed.emit(self._georeference)
         self._task_completions = set(data.task_completions)
         self.task_completions_changed.emit(self._task_completions)
         self._seed_inventory = list(data.seed_inventory)
@@ -1428,6 +1476,9 @@ class ProjectManager(QObject):
         current_data.auto_assign_permaculture_layers = self.auto_assign_permaculture_layers
         current_data.location = self._location
         current_data.north_angle_deg = self._north_angle_deg
+        current_data.georeference = (
+            self._georeference.to_dict() if self._georeference is not None else None
+        )
         current_data.task_completions = []
         current_data.seed_inventory = list(self._seed_inventory)
         current_data.propagation_overrides = dict(self._propagation_overrides)

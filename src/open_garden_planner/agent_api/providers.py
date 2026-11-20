@@ -343,6 +343,16 @@ class AgentProviders:
             — and returns a ``WriteResult``. Raises before building the record
             on any out-of-range reading, leaving ``soil_tests`` and the undo
             stack untouched. Lab ppm values are refused by design.
+        get_georeference: **Read.** The plan's georeference anchor (or ``configured:
+            false``), the canvas corners in (lat, lon) and the conversion status.
+        set_georeference: **Write.** Sets or clears (``None``) the plan's georeference;
+            exactly one undoable ``SetGeoreferenceCommand``.
+        calibrate_georeference: **Write.** Fits ground-control pairs onto the georeference
+            (1 point = translation, 2 = similarity, >= 3 = least-squares affine) and
+            reports per-point residuals in cm; one undoable ``SetGeoreferenceCommand``.
+        set_plant_recipe: **Write.** Sets or clears a custom 3D recipe on one plant
+            (``instance`` / ``species`` / ``library``); one undoable
+            ``SetPlantRecipeCommand``.
     """
 
     snapshot: Callable[[], dict[str, Any]]
@@ -404,3 +414,12 @@ class AgentProviders:
     # The user's current render style id, for ``list_render_styles`` (None: not known).
     render_style: Callable[[], str] | None = None
     plan_date: Callable[[], str] | None = None
+    # Georeference (WGS84 <-> scene cm) and custom plant recipes. Optional so a bundle built
+    # without them still serves everything else; a tool whose provider is None says so.
+    get_georeference: Callable[[], dict[str, Any]] | None = None
+    # (georeference dict or None to clear) -> one SetGeoreferenceCommand.
+    set_georeference: Callable[[dict[str, Any] | None], dict[str, Any]] | None = None
+    # (control_points, append) -> one SetGeoreferenceCommand + the per-point residuals.
+    calibrate_georeference: Callable[[list[dict[str, Any]], bool], dict[str, Any]] | None = None
+    # (item_id, recipe or None to clear, target) -> one SetPlantRecipeCommand.
+    set_plant_recipe: Callable[[str, dict[str, Any] | None, str], dict[str, Any]] | None = None

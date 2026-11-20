@@ -116,8 +116,110 @@ def _sample_crown_attractors(
         pts[:, 0] *= envelope
         pts[:, 1] *= envelope
 
+    if crown.lobe_bias_strength > 0.0:
+        # A canopy that leans to one side (growing away from a wall): shift the whole
+        # attractor cloud towards the compass-free scene azimuth (0 = +y, clockwise).
+        # No rng is drawn, so a symmetric crown keeps its exact seed-driven outline.
+        bias = math.radians(crown.lobe_bias_az_deg)
+        pts[:, 0] += math.sin(bias) * rx * crown.lobe_bias_strength
+        pts[:, 1] += math.cos(bias) * ry * crown.lobe_bias_strength
+
     pts[:, 2] = np.clip(pts[:, 2], max(z0 * 0.65, height_cm * 0.14), height_cm)
     return pts
+
+
+def _seed_forked_base(
+    pos: np.ndarray,
+    parent: np.ndarray,
+    order: np.ndarray,
+    dirs: np.ndarray,
+    cap: int,
+    rng: np.random.Generator,
+    height_cm: float,
+    crown: CrownTraits,
+    branching: BranchingTraits,
+    step: float,
+    trunk_base_xy: tuple[float, float],
+) -> int:
+    """Seed a multi-stem / forked base: one shared column, then ``basal_stems`` stems.
+
+    ``fork_height_share`` is where the split starts (0 = at the soil line, a bush);
+    each stem leans out ``fork_spread_deg`` from vertical and carries its own primary
+    scaffold limbs. Returns the node count. Only used when ``basal_stems > 1`` - the
+    single-trunk path is untouched so the bundled recipes stay byte-identical.
+    """
+    stems = max(2, min(int(branching.basal_stems), 5))
+    trunk_top_z = height_cm * max(crown.trunk_share, 0.18)
+    split_z = min(height_cm * float(branching.fork_height_share), trunk_top_z * 0.95)
+
+    pos[0] = [trunk_base_xy[0], trunk_base_xy[1], 0.0]
+    dirs[0] = [0.0, 0.0, 1.0]
+    n = 1
+    if split_z > step * 0.5:
+        col_steps = max(2, min(8, int(round(split_z / step))))
+        dz = split_z / col_steps
+        for _i in range(col_steps):
+            if n >= cap:
+                break
+            wobble = rng.normal(0.0, step * 0.05, size=2)
+            nxt = pos[n - 1] + np.array([wobble[0], wobble[1], dz])
+            nxt[2] = max(nxt[2], pos[n - 1, 2] + dz * 0.5)
+            pos[n] = nxt
+            parent[n] = n - 1
+            order[n] = 0
+            dirs[n] = normalize_vec((pos[n] - pos[n - 1])[None, :])[0]
+            n += 1
+    split_node = n - 1
+
+    remain_z = max(trunk_top_z - float(pos[split_node, 2]), step)
+    arm_steps = max(2, min(8, int(round(remain_z / step))))
+    dz_arm = remain_z / arm_steps
+    radial = dz_arm * math.tan(math.radians(float(branching.fork_spread_deg)))
+    az0 = float(rng.uniform(0.0, 2.0 * math.pi))
+    stem_az = az0 + np.linspace(0.0, 2.0 * math.pi, stems, endpoint=False) + rng.uniform(
+        -0.25, 0.25, size=stems
+    )
+    collars: list[int] = []
+    for s_az in stem_az:
+        prev = split_node
+        for _k in range(arm_steps):
+            if n >= cap:
+                break
+            wobble = rng.normal(0.0, step * 0.06, size=2)
+            nxt = pos[prev] + np.array([
+                math.cos(float(s_az)) * radial + wobble[0],
+                math.sin(float(s_az)) * radial + wobble[1],
+                dz_arm,
+            ])
+            nxt[2] = max(nxt[2], pos[prev, 2] + dz_arm * 0.5)
+            pos[n] = nxt
+            parent[n] = prev
+            order[n] = 0
+            dirs[n] = normalize_vec((pos[n] - pos[prev])[None, :])[0]
+            prev = n
+            n += 1
+        collars.append(prev)
+
+    per_stem = max(2, int(rng.integers(2, 4)))
+    for collar in collars:
+        scaf_az = np.linspace(0.0, 2.0 * math.pi, per_stem, endpoint=False) + rng.uniform(
+            -0.42, 0.42, size=per_stem
+        )
+        for k in range(per_stem):
+            if n >= cap:
+                break
+            elev = float(rng.uniform(0.32, 0.72))
+            d = normalize_vec(np.array([[
+                math.cos(scaf_az[k]) * math.cos(elev),
+                math.sin(scaf_az[k]) * math.cos(elev),
+                math.sin(elev),
+            ]]))[0]
+            pos[n] = pos[collar] + d * step
+            parent[n] = collar
+            order[n] = 1
+            dirs[n] = d
+            n += 1
+    return n
 
 
 def grow_skeleton(
@@ -146,51 +248,57 @@ def grow_skeleton(
     order = np.zeros(cap, dtype=np.int32)
     dirs = np.zeros((cap, 3), dtype=np.float64)
 
-    # 1. Grow trunk from base to crown base with subtle seed-dependent lean
-    trunk_top_z = height_cm * max(crown.trunk_share, 0.18)
-    trunk_steps = max(3, min(14, int(round(trunk_top_z / step))))
-    lean_angle = float(rng.uniform(0.0, 2.0 * math.pi))
-    lean_mag = float(rng.uniform(0.03, 0.14)) * min(radius_cm, height_cm * 0.22)
-    lean_dx = math.cos(lean_angle) * lean_mag / trunk_steps
-    lean_dy = math.sin(lean_angle) * lean_mag / trunk_steps
-    dz = trunk_top_z / trunk_steps
+    stems = max(1, min(int(branching.basal_stems), 5))
+    if stems > 1:
+        n = _seed_forked_base(
+            pos, parent, order, dirs, cap, rng, height_cm, crown, branching, step, trunk_base_xy,
+        )
+    else:
+        # 1. Grow trunk from base to crown base with subtle seed-dependent lean
+        trunk_top_z = height_cm * max(crown.trunk_share, 0.18)
+        trunk_steps = max(3, min(14, int(round(trunk_top_z / step))))
+        lean_angle = float(rng.uniform(0.0, 2.0 * math.pi))
+        lean_mag = float(rng.uniform(0.03, 0.14)) * min(radius_cm, height_cm * 0.22)
+        lean_dx = math.cos(lean_angle) * lean_mag / trunk_steps
+        lean_dy = math.sin(lean_angle) * lean_mag / trunk_steps
+        dz = trunk_top_z / trunk_steps
 
-    pos[0] = [trunk_base_xy[0], trunk_base_xy[1], 0.0]
-    dirs[0] = [0.0, 0.0, 1.0]
-    n = 1
-    for _i in range(1, trunk_steps + 1):
-        if n >= cap:
-            break
-        wobble = rng.normal(0.0, step * 0.05, size=2)
-        nxt = pos[n - 1] + np.array([lean_dx + wobble[0], lean_dy + wobble[1], dz])
-        nxt[2] = max(nxt[2], pos[n - 1, 2] + dz * 0.5)
-        pos[n] = nxt
-        parent[n] = n - 1
-        order[n] = 0
-        dirs[n] = normalize_vec((pos[n] - pos[n - 1])[None, :])[0]
-        n += 1
+        pos[0] = [trunk_base_xy[0], trunk_base_xy[1], 0.0]
+        dirs[0] = [0.0, 0.0, 1.0]
+        n = 1
+        for _i in range(1, trunk_steps + 1):
+            if n >= cap:
+                break
+            wobble = rng.normal(0.0, step * 0.05, size=2)
+            nxt = pos[n - 1] + np.array([lean_dx + wobble[0], lean_dy + wobble[1], dz])
+            nxt[2] = max(nxt[2], pos[n - 1, 2] + dz * 0.5)
+            pos[n] = nxt
+            parent[n] = n - 1
+            order[n] = 0
+            dirs[n] = normalize_vec((pos[n] - pos[n - 1])[None, :])[0]
+            n += 1
 
-    # 2. Seed primary scaffold limbs at the crown collar so branches reach all lobes
-    collar_idx = n - 1
-    n_scaffold = int(rng.integers(3, 6))
-    scaf_az = np.linspace(0.0, 2.0 * math.pi, n_scaffold, endpoint=False) + rng.uniform(
-        -0.42, 0.42, size=n_scaffold
-    )
-    for k in range(n_scaffold):
-        if n >= cap:
-            break
-        elev = float(rng.uniform(0.32, 0.72))
-        d = normalize_vec(
-            np.array(
-                [[math.cos(scaf_az[k]) * math.cos(elev), math.sin(scaf_az[k]) * math.cos(elev), math.sin(elev)]]
-            )
-        )[0]
-        spawn_parent = max(1, collar_idx - int(rng.integers(0, min(2, collar_idx))))
-        pos[n] = pos[spawn_parent] + d * step
-        parent[n] = spawn_parent
-        order[n] = 1
-        dirs[n] = d
-        n += 1
+        # 2. Seed primary scaffold limbs at the crown collar so branches reach all lobes
+        collar_idx = n - 1
+        n_scaffold = int(rng.integers(3, 6))
+        scaf_az = np.linspace(0.0, 2.0 * math.pi, n_scaffold, endpoint=False) + rng.uniform(
+            -0.42, 0.42, size=n_scaffold
+        )
+        for k in range(n_scaffold):
+            if n >= cap:
+                break
+            elev = float(rng.uniform(0.32, 0.72))
+            d = normalize_vec(
+                np.array(
+                    [[math.cos(scaf_az[k]) * math.cos(elev), math.sin(scaf_az[k]) * math.cos(elev), math.sin(elev)]]
+                )
+            )[0]
+            spawn_parent = max(1, collar_idx - int(rng.integers(0, min(2, collar_idx))))
+            pos[n] = pos[spawn_parent] + d * step
+            parent[n] = spawn_parent
+            order[n] = 1
+            dirs[n] = d
+            n += 1
 
     # Incremental nearest-node tables for active attractors
     diff0 = attr[:, None, :] - pos[None, :n, :]

@@ -4576,6 +4576,104 @@ class SetPlanNorthCommand(Command):
         self._pm.set_north_angle(self._old)
 
 
+class SetGeoreferenceCommand(Command):
+    """Set, calibrate or clear the plan's georeference anchor — ONE undo step.
+
+    The new value is validated at construction (``PlanGeoreference.from_dict``)
+    before anything reaches the undo stack. It touches no canvas item, so both
+    O(items) restack scans are skipped (the containment flag is set below).
+    """
+
+    changes_ground_band = False
+
+    def __init__(self, project_manager: "Any", new_georef: "Any") -> None:
+        from open_garden_planner.core.georeference import PlanGeoreference
+
+        self._pm = project_manager
+        self._old = project_manager.georeference
+        if new_georef is None or isinstance(new_georef, PlanGeoreference):
+            self._new = new_georef
+        else:
+            self._new = PlanGeoreference.from_dict(new_georef)
+
+    @property
+    def description(self) -> str:
+        return QCoreApplication.translate("Commands", "Set plan georeference")
+
+    def execute(self) -> None:
+        self._pm.set_georeference(self._new)
+
+    def undo(self) -> None:
+        self._pm.set_georeference(self._old)
+
+
+class SetPlantRecipeCommand(Command):
+    """Set or clear a custom 3D plant recipe on a plant item — ONE undo step.
+
+    ``target`` picks where the override lives in the item's metadata:
+    ``"instance"`` writes ``metadata['plant_instance']['traits3d_override']`` (this
+    specimen only); ``"species"`` writes ``metadata['plant_species']['traits3d_override']``
+    (the item's own species snapshot). The 3D view reads both through
+    ``plant_art.traits3d.merge_overrides`` - instance over species over the bundled
+    recipe - so the geometry signature changes and the plant is re-forged.
+    The override is validated by the caller (``validate_traits3d_override``).
+    """
+
+    changes_ground_band = False
+
+    _KEYS = {"instance": "plant_instance", "species": "plant_species"}
+
+    def __init__(
+        self,
+        item: QGraphicsItem,
+        new_override: dict[str, Any] | None,
+        *,
+        target: str = "instance",
+        on_apply: Callable[[bool], None] | None = None,
+    ) -> None:
+        if target not in self._KEYS:
+            raise ValueError(f"target must be 'instance' or 'species', got {target!r}")
+        self._item = item
+        self._key = self._KEYS[target]
+        #: Called with True on execute and False on undo, so a mirror (the custom
+        #: plant library) follows the same undo step as the plan.
+        self._on_apply = on_apply
+        meta = getattr(item, "metadata", None)
+        container = meta.get(self._key) if isinstance(meta, dict) else None
+        old = container.get("traits3d_override") if isinstance(container, dict) else None
+        self._old: dict[str, Any] | None = deepcopy(old)
+        self._new: dict[str, Any] | None = deepcopy(new_override)
+
+    @property
+    def description(self) -> str:
+        return QCoreApplication.translate("Commands", "Set plant 3D recipe")
+
+    def _apply(self, value: dict[str, Any] | None, applying: bool) -> None:
+        metadata = self._item.metadata  # type: ignore[attr-defined]
+        container = metadata.get(self._key)
+        if not isinstance(container, dict) and value is not None:
+            container = {}
+            metadata[self._key] = container
+        if isinstance(container, dict):
+            if value is None:
+                container.pop("traits3d_override", None)
+            else:
+                container["traits3d_override"] = deepcopy(value)
+        scene = self._item.scene()
+        note = getattr(scene, "note_plan_changed", None)
+        if callable(note):
+            note()
+        self._item.update()
+        if self._on_apply is not None:
+            self._on_apply(applying)
+
+    def execute(self) -> None:
+        self._apply(self._new, True)
+
+    def undo(self) -> None:
+        self._apply(self._old, False)
+
+
 class AddJournalNoteCommand(Command):
     """Place a garden journal pin and persist its note dict — undoable (US-12.9).
 
@@ -4881,6 +4979,8 @@ CONTAINMENT_NEUTRAL_COMMANDS = (
     CreateItemsCommand,
     DeleteItemsCommand,
     SetPlanNorthCommand,
+    SetGeoreferenceCommand,
+    SetPlantRecipeCommand,
     _CameraToursCommand,
     SaveCameraTourCommand,
     RenameCameraTourCommand,

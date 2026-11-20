@@ -119,6 +119,10 @@ PARAM_SPECIES_NAME: Final = "species_name"  # str — common name (labels; NOT t
 #: string (#445) — the name of the species assigned, not the record's data name.
 PARAM_SPRITE_SPECIES: Final = "sprite_species"
 PARAM_PLANT_CATEGORY: Final = "plant_category"  # str — PlantCategory name
+#: str — a plant's custom 3D recipe, canonical JSON of the validated, LAYERED override
+#: (``plant_art.traits3d.merge_overrides``: specimen over species). Absent when the plant has
+#: none. It is geometry (``params`` is in ``geometry_sig``), so editing a recipe re-forges the plant.
+PARAM_TRAITS3D_OVERRIDE: Final = "traits3d_override"
 PARAM_PATH_STYLE: Final = "path_style"  # str — PathFenceStyle name, when not NONE
 PARAM_CONTAINER_MATERIAL: Final = "container_material"  # str — container_model key
 #: ``(x, y)`` — where the record's local origin lies in the ITEM's own coordinates
@@ -474,7 +478,7 @@ EMPTY_PARAMS: Final = Params()
 #: of them alone rebuilds a mesh and re-paints no tile (``Record.same_ground_geometry``).
 BUILD_ONLY_PARAMS: Final[frozenset[str]] = frozenset({
     PARAM_ROOF_STYLE, PARAM_ROOF_PITCH, PARAM_ROOF_OVERHANG, PARAM_DOOR_WALL,
-    PARAM_SURFACE_PATTERN, PARAM_LAWN_CUTOUTS, PARAM_LAWN_BLADES,
+    PARAM_SURFACE_PATTERN, PARAM_LAWN_CUTOUTS, PARAM_LAWN_BLADES, PARAM_TRAITS3D_OVERRIDE,
 })
 
 

@@ -154,6 +154,11 @@ WRITE_TOOL_NAMES = frozenset(
         # graph. Gated exactly like delete_object - it replaces or deletes a
         # stored plan.
         "set_succession_plan",
+        # Custom 3D plant recipes (an appearance edit on one plant) and the plan's
+        # georeference anchor (ProjectData state): both one undoable command.
+        "set_plant_recipe",
+        "set_georeference",
+        "calibrate_georeference",
     }
 )
 

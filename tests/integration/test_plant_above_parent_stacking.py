@@ -210,6 +210,9 @@ def test_only_add_and_delete_commands_are_containment_neutral() -> None:
         commands_module.DeleteItemsCommand,
         # A plan-level angle touches no scene item (#663).
         commands_module.SetPlanNorthCommand,
+        # The georeference and a plant's recipe touch no scene item's containment.
+        commands_module.SetGeoreferenceCommand,
+        commands_module.SetPlantRecipeCommand,
         # Camera tours (#737) live in the plan's own list, not in the scene.
         commands_module._CameraToursCommand,
         commands_module.SaveCameraTourCommand,
