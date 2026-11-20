@@ -63,7 +63,7 @@ Branch `claude/render-styles-wp3-310d4a` (renamed on request if the name matters
 ## Deferred (P2 from the review, not done)
 - Re-sync the LOD band when `devicePixelRatio` changes (moving the window between screens).
 - `CanvasScene.drawBackground` still paints the canvas colour, not the style paper.
-- The Agent API render tool takes no `render_style` argument yet (WP11).
+- Agent API render tool: `render_style`/`callouts` arguments done in WP11 (see the WP11 section).
 
 ## Not done
 - Agent (WP11). WP9 (3D Line & Wash) is done: see the WP9 section.
@@ -181,6 +181,10 @@ Assumptions:
 - CAD stays plain 3D (Q6). The Agent API `render_3d_view` takes no `render_style` yet (WP11).
 - Live switching: done in WP7 (`Workspace.set_render_style` -> `LookController.set_render_style`).
 
+- CAD stays plain 3D (Q6). `render_3d_view` takes `render_style` since WP11.
+- Live switching of the style in a running app has no caller yet: nothing emits a style change
+  to the 3D workspace until the WP7 menu calls `LookController.set_render_style`.
+
 Look, honestly (4 rounds, then stopped): ink silhouettes and roof creases read well; the sky and
 far ground are paper with a soft ragged edge. Weak: tonal bands are hard to see (large flat
 lawns read as a flat digital green, not a wash); roof tiles and wall bricks keep their texture;
@@ -188,6 +192,7 @@ foliage edges are speckled ink rather than a drawn outline; window frames get no
 shallow for the crease threshold). Not judged: other moods (golden hour, night), video flicker,
 WARP/llvmpipe, MSAA-resolved depth beyond this machine.
 
+<<<<<<< HEAD
 ## WP5 assumptions
 - Callout text is the common name (owner), else the object name, else Tree / Shrub / Plant; capped at 28 characters.
 - Plants are the three plant roles (tree, shrub, ground); a plant that finds no free slot in 3 rings gets no callout.
@@ -206,3 +211,27 @@ Tests: `tests/unit/test_render_style_ui.py`, `tests/integration/test_render_styl
 Assumptions: the Leader callouts toggle only stores the preference (no callout layer until WP5); the PDF report
 places plan pages as pictures, so its grain checkbox has no effect there; the toolbar combo is its own toolbar.
 Unverified: no manual click-through; the real Quick3D host (the integration test uses the recording FakeHost).
+=======
+## WP11: Agent (MCP) surface
+
+- `render_canvas_image(..., render_style=None, callouts=None)` and `render_3d_view(..., render_style=None)`.
+  The schema enum is built from `RENDER_STYLES` (`server.RenderStyleId`); a test pins it. An unknown id
+  is an error listing the valid ids (`parse_render_style`).
+- Default (owner Q9): the user's CURRENT style (the scene's `render_style`; for 3D the look
+  controller's). Results echo `render_style` and `warnings`; passing the echo reproduces the picture.
+- One picture only: 2D goes through `render_scene_region(render_style=)` -> `style_for_render`
+  (no paint revision, no repaint of the user's canvas, preference untouched); 3D goes to
+  `Quick3DHost.capture(render_style=)`, which puts the view's look back. The picture's background
+  is `style_background(style)`. The top-down truth views are not reachable from the agent and still
+  ignore the style (WP9).
+- 3D: `cad` has no 3D look and draws plain (echoed as `illustrated`, with a warning). `callouts`
+  outside CAD is ignored with a warning; in CAD no callouts are drawn yet (no painter), so the
+  response says `callouts: false` and warns.
+- `list_render_styles` (read-only): `{current, styles: [{id, label_en, svg_vector, supports_3d,
+  options}]}` from `core/render_style.render_style_catalogue`; `svg_vector` is `approximate` for
+  Line & Wash (paper grain is left out of vector files).
+- Provider seam: `AgentProviders.render`/`render_3d` receive `render_style`/`callouts` keywords only
+  when the call gave them; `AgentProviders.render_style` returns the current style id.
+- Tests: `tests/integration/test_agent_api_render_style.py`, `tests/unit/test_agent_api_render_style_args.py`,
+  additions in `test_agent_api_render_3d.py` and `test_directors_cut.py`.
+>>>>>>> feature/render-styles-agent

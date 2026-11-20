@@ -152,20 +152,30 @@ class AgentHost:
         region: tuple[float, float, float, float] | None,
         layers: list[str] | None,
         image_width_px: int,
+        render_style: str | None = None,
+        callouts: bool | None = None,
     ) -> dict[str, Any]:
-        """Render a PNG of the live plan ON the Qt main thread (for the server)."""
+        """Render a PNG of the live plan ON the Qt main thread (for the server).
+        ``render_style``/``callouts`` apply to this picture only (WP11)."""
         host = self._host
         from open_garden_planner.agent_api.render import render_canvas_image
 
         return host._sun_export_gate.run_worker(host._agent_bridge,
-            lambda: render_canvas_image(host.canvas_scene, region, layers, image_width_px)
+            lambda: render_canvas_image(host.canvas_scene, region, layers, image_width_px,
+                                        render_style, callouts)
         )
+
+    def _agent_render_style(self) -> str:
+        """The user's current render style id (the scene's own), for ``list_render_styles``."""
+        host = self._host
+        return host._agent_bridge.run_on_main(lambda: host.canvas_scene.render_style.value)
 
 
     def _agent_render_3d(
         self,
         camera: tuple[tuple[float, float, float], tuple[float, float, float], float] | None,
         size: tuple[int, int],
+        render_style: str | None = None,
     ) -> dict[str, Any]:
         """A picture of the 3D view ON the Qt main thread (L6.3, ADR-034 addendum). The
         worker waits up to 30 s: a 2048 px frame is milliseconds on a GPU, but about a
@@ -176,7 +186,7 @@ class AgentHost:
             from open_garden_planner.ui.view3d.quick3d.shots import PerspectiveShot
 
             shot = None if camera is None else PerspectiveShot(*camera)
-            return host._workspace.capture.agent_picture(size, shot)
+            return host._workspace.capture.agent_picture(size, shot, render_style)
 
         return host._agent_bridge.run_on_main(picture, timeout=30.0)
 
@@ -3700,6 +3710,7 @@ class AgentHost:
             diagnostics=host._agent_diagnostics,
             render=host._agent_render,
             render_3d=host._agent_render_3d,
+            render_style=host._agent_render_style,
             save_plan=host._agent_save_plan,
             new_plan=host._agent_new_plan,
             open_plan=host._agent_open_plan,

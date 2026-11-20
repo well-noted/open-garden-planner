@@ -865,11 +865,22 @@ class WorkspaceCaptureCoordinator(QObject):
             return "warming_up"
         return None
 
-    def agent_picture(self, size: tuple[int, int], shot: Any = None) -> dict[str, Any]:
+    def agent_picture(self, size: tuple[int, int], shot: Any = None,
+                      render_style: str | None = None) -> dict[str, Any]:
         """A picture for an agent, as PNG bytes and what it shows (``render_3d_view``). The
         view's look without photo mode's development: an agent asks what the plan looks like.
-        ``CaptureRefused`` instead of a timeout. Reads, and changes nothing."""
+        ``CaptureRefused`` instead of a timeout. Reads, and changes nothing.
+
+        ``render_style`` (render styles WP11): this picture's drawing style, validated
+        strictly; ``None`` is the view's own (the user's current one). It goes to
+        ``Quick3DHost.capture`` only, which puts the view's look back, so the user's
+        view and preference never change. The picture's style is echoed; ``cad`` has no
+        3D look and draws plain (illustrated), which a warning says."""
+        from open_garden_planner.core.render_style import RenderStyle, parse_render_style
+
         from .quick3d.lifecycle import HostStateError
+
+        requested = None if render_style is None else parse_render_style(render_style)
 
         blocker = self.capture_blocker()
         if blocker is not None:
@@ -879,7 +890,8 @@ class WorkspaceCaptureCoordinator(QObject):
             self._aim_lamps(shot.target)   # its own lamps, not the view's (#687)
         try:
             image = host.capture(size, shot, photo=NO_PHOTO, label="agent",
-                                 fitted_shadows=True)   # a still picture (#734)
+                                 fitted_shadows=True,   # a still picture (#734)
+                                 render_style=None if requested is None else requested.value)
         except HostStateError as error:   # resized or hidden a moment ago: "not now"
             _LOG.info("render_3d_view: no frame right now (%s)", log_text(error))
             raise CaptureRefused("warming_up") from error
@@ -895,8 +907,17 @@ class WorkspaceCaptureCoordinator(QObject):
             self._get_camera_now()
         clock, controller, look = self._get_clock(), self._get_controller(), self._get_look()
         sun = controller.sync.sun if controller is not None else None
+        view_style = RenderStyle(look.render_style) if look is not None             else RenderStyle.ILLUSTRATED
+        used = view_style if requested is None else requested
+        warnings: list[str] = []
+        if used is RenderStyle.CAD:
+            warnings.append("the 'cad' style has no 3D look of its own: this picture is "
+                            "plain 3D (illustrated).")
+            used = RenderStyle.ILLUSTRATED
         return {
             "png_bytes": png,
+            "render_style": used.value,
+            "warnings": warnings,
             "image_width_px": image.width(),
             "image_height_px": image.height(),
             "eye": _point(eye),
