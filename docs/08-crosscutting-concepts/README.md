@@ -10070,3 +10070,11 @@ repaints, and touches no `plan_changed`, no undo stack, no modified flag and no
   `style_geometry_changed()`. A style switch or band change also calls
   `update()` on every item: a device-cached item would otherwise keep the picture
   of the previous style.
+
+### 8.38.1 CAD leader callouts (WP5)
+
+A callout names a plant (common name, else the object name, else "Tree" / "Shrub" / "Plant") with a leader to an anchor dot on its centre. It is generated view decoration: never a `CalloutItem`, never saved, never selectable, off by default (`appearance/cad_callouts`, owner Q4; the style-menu toggle is WP7, so today the setting and `CanvasScene.set_cad_callouts`).
+
+- **One layer item.** `StyleCalloutLayer` (`style/callouts.py`, z 9000, empty `shape()`, no mouse buttons) draws the leaders and owns the text as `QGraphicsSimpleTextItem` children with `ItemIgnoresTransformations`, so `retarget_constant_size_text` sizes them in an export like an object label. It exists only while the scene paints in CAD with the flag on, and is added and removed through `QGraphicsScene` directly, so it moves no paint revision and is no plan change.
+- **Layout is state.** `compute_callouts` runs inside `CadPainter.build_state` and lives in `StyleState.data["callouts"]`, keyed `(style, paint_revision, band)`; `CanvasScene.ensure_style_state` syncs the layer after it, never a paint. Greedy, fixed order (top to bottom, left to right, id), 8 compass slots at 12 mm of paper, start slot from the crc32 seed of the item id, further rings of 6 mm before a plant goes without a callout. A slot is rejected when its box meets a placed box, a building outline or another plant's anchor dot. Boxes come from a paper-mm text model, not font metrics, so the layout does not depend on the installed font.
+- **Determinism.** No `hash()`, random or time (the AST lint in `tests/unit/style` covers the module). Pinned by `tests/unit/style/test_cad_callouts.py` and `tests/integration/test_cad_callouts.py` (PNG, SVG, no overlaps at bands -1..1).

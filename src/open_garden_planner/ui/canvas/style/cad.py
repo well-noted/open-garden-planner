@@ -57,6 +57,7 @@ from open_garden_planner.ui.canvas.style.base import (
     pen_for_painter,
     px_per_mm,
 )
+from open_garden_planner.ui.canvas.style.callouts import compute_callouts
 from open_garden_planner.ui.canvas.style.geometry import (
     hatch_segments,
     style_seed,
@@ -489,8 +490,13 @@ class CadPainter:
     def bounding_pad_cm(self, item: Any, band: int) -> float:  # noqa: ARG002
         return _mm_to_cm(BOUNDING_PAD_MM, band)
 
-    def build_state(self, scene: Any, band: int) -> dict[str, Any]:  # noqa: ARG002
-        return {"irrigation_layer_ids": _irrigation_ids(scene)}
+    def build_state(self, scene: Any, band: int) -> dict[str, Any]:
+        data: dict[str, Any] = {"irrigation_layer_ids": _irrigation_ids(scene)}
+        if getattr(scene, "cad_callouts", False):
+            # Leader callouts (WP5): the layout lives in the state, so it follows
+            # the paint revision and the band like every scene-wide entry.
+            data["callouts"] = compute_callouts(scene, band)
+        return data
 
 
 def register() -> None:
