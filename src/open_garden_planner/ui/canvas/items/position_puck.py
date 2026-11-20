@@ -19,6 +19,8 @@ from PyQt6.QtCore import QPointF, QRectF, Qt
 from PyQt6.QtGui import QBrush, QColor, QFont, QPainter, QPainterPath, QPen
 from PyQt6.QtWidgets import QGraphicsItem, QGraphicsObject, QStyleOptionGraphicsItem, QWidget
 
+from open_garden_planner.core.measurement_display import length_text
+
 #: Short badge text per ``fix_mode`` (technical acronyms, not translated).
 _BADGE = {
     "standard": "GPS",
@@ -129,7 +131,7 @@ class PositionPuckItem(QGraphicsObject):
         self.sigma_m = sigma_m
         label = _BADGE.get(fix_mode, "GPS")
         if sigma_m is not None and math.isfinite(sigma_m):
-            label = f"{label} ±{sigma_m:.1f} m"
+            label = f"{label} ±{length_text(sigma_m * 100.0)}"
         self._marker.badge_text = label
         self._marker.heading_canvas_deg = heading_canvas_deg
         self._marker.update()

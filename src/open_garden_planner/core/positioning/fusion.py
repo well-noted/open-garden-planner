@@ -17,9 +17,16 @@ from enum import StrEnum
 
 import numpy as np
 
+from open_garden_planner.core.units import format_length
+
 from .types import FixMode, ImuSample, VioSample
 
 Point2 = tuple[float, float]
+
+
+def _metres(m: float) -> str:
+    """Diagnostic text for a distance held in metres, through the shared length formatter."""
+    return format_length(m * 100.0)
 
 # --- tuning (keep every number here) ---
 LOCK_MIN_BASELINE_M = 2.0
@@ -244,11 +251,11 @@ class PlanLockedAligner:
             return ScaleCheck(float("nan"), False, "plan points coincide: scale undefined")
         ratio = dv / dp
         if abs(ratio - 1.0) <= SCALE_TOL:
-            return ScaleCheck(ratio, True, f"scale check ok: measured {dv:.2f} m vs plan {dp:.2f} m")
+            return ScaleCheck(ratio, True, f"scale check ok: measured {_metres(dv)} vs plan {_metres(dp)}")
         return ScaleCheck(
             ratio,
             False,
-            f"plan points disagree with the measured distance (measured {dv:.2f} m vs plan {dp:.2f} m, "
+            f"plan points disagree with the measured distance (measured {_metres(dv)} vs plan {_metres(dp)}, "
             f"{(ratio - 1.0) * 100.0:+.1f} %): bad plan point or tracking drift",
         )
 
@@ -375,7 +382,7 @@ class PlanLockedAligner:
             return None
         d = math.dist((fix.e_m, fix.n_m), est)
         self.gnss_alert = (
-            f"locked frame and filtered GNSS disagree by {d:.1f} m (> {GNSS_ALERT_SIGMAS:g} x {sigma:.1f} m)"
+            f"locked frame and filtered GNSS disagree by {_metres(d)} (> {GNSS_ALERT_SIGMAS:g} x {_metres(sigma)})"
             if d > GNSS_ALERT_SIGMAS * sigma
             else None
         )

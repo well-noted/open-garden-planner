@@ -33,9 +33,10 @@ from PyQt6.QtWidgets import (
 )
 
 from open_garden_planner.core.i18n import format_decimal
+from open_garden_planner.core.measurement_display import length_text
 from open_garden_planner.services import field_record_placement as frp
 from open_garden_planner.services import field_records as fr
-from open_garden_planner.ui.theme import set_text_role
+from open_garden_planner.ui.theme import set_text_role, theme_qcolor
 
 _ID_ROLE = Qt.ItemDataRole.UserRole
 _GROUP_ROLE = Qt.ItemDataRole.UserRole + 1
@@ -91,7 +92,7 @@ class _MapPreview(QWidget):
         def to_px(x: float, y: float) -> QPointF:  # scene is Y-up, the widget is Y-down
             return QPointF(ox + x * scale, oy + (h - y) * scale)
 
-        accent = QColor(200, 60, 40)
+        accent = theme_qcolor("error")
         if not self._points:
             painter.setPen(self.palette().text().color())
             painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, self.tr("No position on the plan"))
@@ -265,7 +266,7 @@ class FieldRecordsPanel(QWidget):
             if value:
                 lines.append(f"{label}: {value}")
         if rec.accuracy_m is not None:
-            lines.append(self.tr("Accuracy: {m} m").format(m=format_decimal(rec.accuracy_m, 1)))
+            lines.append(self.tr("Accuracy: {value}").format(value=length_text(rec.accuracy_m * 100.0)))
         if rec.bearing_deg is not None:
             lines.append(self.tr("Bearing: {deg}°").format(deg=format_decimal(rec.bearing_deg, 0)))
         if rec.fix_mode:
