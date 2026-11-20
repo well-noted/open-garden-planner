@@ -157,7 +157,7 @@ Item {
     property real nprWashMottleShare: 0.18
     property real nprGroundWash: 0.18
     property real nprGroundWashCm: 800.0
-    property real nprGroundSoften: 3.0
+    property real nprGroundSoften: 1.5
     property vector3d nprPaper: Qt.vector3d(0.9568627451, 0.9333333333, 0.8745098039)
     property vector3d nprInk: Qt.vector3d(0.1647058824, 0.1411764706, 0.1137254902)
     property real nprFogNear: 6000.0
