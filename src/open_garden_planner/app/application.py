@@ -1271,6 +1271,7 @@ class GardenPlannerApp(QMainWindow):
             self.tr("Review field records and place them on the plan")
         )
         field_records_action.triggered.connect(self._on_show_field_records)
+        self._set_action_icon(field_records_action, "journal_pin")
         menu.addAction(field_records_action)
 
         menu.addSeparator()
@@ -1831,13 +1832,14 @@ class GardenPlannerApp(QMainWindow):
         menu.addSeparator()
 
         # Field Remote: the phone's position on the canvas (shown only while positions arrive)
-        self._phone_position_action = QAction(self.tr("Show &Phone Position"), self)
+        self._phone_position_action = QAction(self.tr("Show Pho&ne Position"), self)
         self._phone_position_action.setCheckable(True)
         self._phone_position_action.setChecked(True)
         self._phone_position_action.setStatusTip(
             self.tr("Show the position a paired phone reports (not saved with the plan)")
         )
         self._phone_position_action.toggled.connect(self._on_toggle_phone_position)
+        self._set_action_icon(self._phone_position_action, "location")
         menu.addAction(self._phone_position_action)
 
         # Fullscreen Preview
