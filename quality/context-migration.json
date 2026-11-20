@@ -393,7 +393,7 @@
         {
           "path": ".agents/skills/debug-verbose/references/077-case-study-10-second-shutdown-that-only-happened-with-a-client-attached-issue-373-fix.md",
           "sha256": "1d43b45766d4feaf86a6c338b4ae329ee3c677eae5f047d1e96f6d23d0bc8886",
-          "current_sha256": "1d43b45766d4feaf86a6c338b4ae329ee3c677eae5f047d1e96f6d23d0bc8886"
+          "current_sha256": "74cff22a8c2c03c21183706700f05a7e34e8feaa0d91936702134362745e587b"
         },
         {
           "path": ".agents/skills/debug-verbose/references/078-case-study-six-defects-where-a-plausible-value-was-not-the-value-the-engine-means-iss.md",
@@ -1793,7 +1793,7 @@
         {
           "path": ".claude/skills/debug-verbose/references/077-case-study-10-second-shutdown-that-only-happened-with-a-client-attached-issue-373-fix.md",
           "sha256": "1d43b45766d4feaf86a6c338b4ae329ee3c677eae5f047d1e96f6d23d0bc8886",
-          "current_sha256": "1d43b45766d4feaf86a6c338b4ae329ee3c677eae5f047d1e96f6d23d0bc8886"
+          "current_sha256": "74cff22a8c2c03c21183706700f05a7e34e8feaa0d91936702134362745e587b"
         },
         {
           "path": ".claude/skills/debug-verbose/references/078-case-study-six-defects-where-a-plausible-value-was-not-the-value-the-engine-means-iss.md",
