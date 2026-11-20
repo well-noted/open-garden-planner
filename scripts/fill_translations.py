@@ -21,6 +21,7 @@ from scripts.permaculture_translations import TRANSLATIONS as _F1_F2_TRANSLATION
 from scripts.translation_gate_translations import TRANSLATIONS as _GATE_TRANSLATIONS
 from scripts.translations_examples import DE as _EXAMPLES_TRANSLATIONS
 from scripts.translations_exports import DE as _EXPORTS_TRANSLATIONS
+from scripts.translations_field_records import DE as _FIELD_RECORDS_TRANSLATIONS
 from scripts.translations_field_remote import DE as _FIELD_REMOTE_TRANSLATIONS
 from scripts.translations_f4 import DE as _F4_TRANSLATIONS
 from scripts.translations_georef import DE as _GEOREF_TRANSLATIONS
@@ -3580,6 +3581,10 @@ for _ctx, _strings in _GEOREF_TRANSLATIONS.items():
 
 # ── Field Remote preferences, pairing dialog and status (ADR-081) ──
 for _ctx, _strings in _FIELD_REMOTE_TRANSLATIONS.items():
+    TRANSLATIONS.setdefault(_ctx, {}).update(_strings)
+
+# ── Field records review panel (WP-R) ──
+for _ctx, _strings in _FIELD_RECORDS_TRANSLATIONS.items():
     TRANSLATIONS.setdefault(_ctx, {}).update(_strings)
 
 # ── Export fixes: PDF report pages and legend (#787, #788, #789) ──

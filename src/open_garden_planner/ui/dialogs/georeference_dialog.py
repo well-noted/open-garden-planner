@@ -9,6 +9,7 @@ residual of every point, so a mistyped corner shows up at once.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Any
 
 from PyQt6.QtCore import Qt
@@ -63,6 +64,7 @@ class GeoreferenceDialog(QDialog):
         georef: GeoReference | None = None,
         north_angle_deg: float = 0.0,
         location: dict[str, Any] | None = None,
+        extra_points: Sequence[ReferencePoint] = (),
     ) -> None:
         super().__init__(parent)
         self.setWindowTitle(self.tr("Georeference"))
@@ -102,6 +104,8 @@ class GeoreferenceDialog(QDialog):
             spin.valueChanged.connect(self._on_hand_edit)
         self._enabled.toggled.connect(self._mark_touched)
         self._ready = True
+        if extra_points:
+            self._queue_points(extra_points)
 
     # -- UI ----------------------------------------------------------------
 
@@ -202,6 +206,17 @@ class GeoreferenceDialog(QDialog):
         self._source = "manual"
         self._fit = None
         self._fit_rms = None
+
+    def _queue_points(self, points: Sequence[ReferencePoint]) -> None:
+        """Field-record reference points (WP-R): added as rows, then fitted so the RMS shows."""
+        if not self._enabled.isChecked():
+            self._enabled.setChecked(True)
+        for p in points:
+            self._add_row(p.name, p.lat, p.lon, p.x, p.y)
+        if self._table.rowCount() >= 2:
+            self._on_fit()
+        else:
+            self._status.setText(self.tr("Field point added; add a second point to fit."))
 
     def _add_row(self, name: str, lat: float, lon: float, x: float, y: float) -> None:
         row = self._table.rowCount()

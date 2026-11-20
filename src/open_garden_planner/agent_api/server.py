@@ -105,8 +105,10 @@ from open_garden_planner.agent_api.schema import (
     PhotoGeotagResult,
     PlaceFeatureResult,
     PlacementCheck,
+    PlaceRecordResult,
     PlanLifecycleResult,
     PlanSummary,
+    RejectRecordResult,
     Render3DMeta,
     RenderMeta,
     SoilMismatchBedsView,
@@ -525,7 +527,11 @@ def build_server(
 
     @mcp.tool()
     async def list_field_records(
-        only_unplaced: bool = False, limit: int = 200
+        only_unplaced: bool = False,
+        limit: int = 200,
+        status: str | None = None,
+        kind: str | None = None,
+        group_id: str | None = None,
     ) -> FieldRecordList:
         """List the field records stored beside the plan (newest first).
 
@@ -539,12 +545,19 @@ def build_server(
         Args:
             only_unplaced: Only records still waiting (pending or approved), not placed.
             limit: Maximum records returned (1-500).
+            status: Only this status (pending, approved, rejected, placed, superseded).
+            kind: Only this kind (plant, irrigation_path, reference_point, note,
+                measurement, placement_request).
+            group_id: Only the candidates of one placement-request group. ``groups``
+                in the result lists the returned records that share a group_id.
         """
         if providers.list_field_records is None:
             raise ValueError("list_field_records is not available in this build.")
         fn = providers.list_field_records
         result = await anyio.to_thread.run_sync(
-            lambda: fn(only_unplaced=only_unplaced, limit=limit)
+            lambda: fn(
+                only_unplaced=only_unplaced, limit=limit, status=status, kind=kind, group_id=group_id
+            )
         )
         return FieldRecordList(**result)
 
@@ -2001,6 +2014,60 @@ def build_server(
                 )
             )
             return PlaceFeatureResult(**result)
+
+        @mcp.tool()
+        async def place_field_record(
+            record_id: str, allow_duplicate: bool = False
+        ) -> PlaceRecordResult:
+            """Approve one field record: place it on the plan exactly as the desktop panel does.
+
+            By kind: a plant, note, measurement or placement_request becomes a plant or a
+            callout (ONE undo step); an irrigation_path becomes one polyline on the
+            "Irrigation" layer, which is created if absent, in ONE undo step (an existing
+            locked Irrigation layer is refused, never unlocked); a reference_point is fitted
+            into the georeference with the plan's other reference points (ONE undo step,
+            at least two points in all; the fit RMS is returned). Approving one candidate of
+            a placement-request group marks its siblings ``superseded``.
+
+            Refused, leaving plan and undo stack untouched: the record is already decided or
+            placed (unless allow_duplicate), no position, no georeference when the record
+            needs one, no species match for a plant, a locked layer. The sidecar update
+            (``status=placed``) is not part of the undo step.
+
+            This is a write tool and requires the Agent API token.
+
+            Args:
+                record_id: A field record id from list_field_records.
+                allow_duplicate: Place even when the record is already placed.
+            """
+            _require_write_auth(write_token)
+            if providers.place_field_record is None:
+                raise ValueError("place_field_record is not available in this build.")
+            fn = providers.place_field_record
+            result = await anyio.to_thread.run_sync(
+                lambda: fn(record_id=record_id, allow_duplicate=allow_duplicate)
+            )
+            return PlaceRecordResult(**result)
+
+        @mcp.tool()
+        async def reject_field_record(
+            record_id: str | None = None, group_id: str | None = None
+        ) -> RejectRecordResult:
+            """Reject a field record, or every open candidate of a placement-request group.
+
+            Sets ``status=rejected`` (the record is kept). A placed record is refused. Changes
+            no plan object and no undo step. Give exactly one of ``record_id`` or ``group_id``.
+
+            This is a write tool and requires the Agent API token.
+            """
+            _require_write_auth(write_token)
+            if providers.reject_field_record is None:
+                raise ValueError("reject_field_record is not available in this build.")
+            fn = providers.reject_field_record
+            result = await anyio.to_thread.run_sync(
+                lambda: fn(record_id=record_id, group_id=group_id)
+            )
+            return RejectRecordResult(**result)
 
         # --- US-D3.2: succession write --------------------------------------
 
