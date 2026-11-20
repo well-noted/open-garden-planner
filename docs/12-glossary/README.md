@@ -400,3 +400,8 @@ yearly plan copy and from task reminder reference dates (ADR-062).
 - **Render style controller:** `ui/render_style_controller.RenderStyleController`, the one owner of the chosen style; the View menu radio group, the toolbar combo and the 3D pane's button are views of it.
 - **Follow canvas:** The default of an export dialog's Style combo (`export/render_style_override` = `follow`): the output is drawn in the style the canvas shows.
 - **Paper texture (vector):** The opt-in raster of the Line & Wash paper grain embedded in an SVG or PDF (`PAPER_TEXTURE_IN_VECTOR`); off, vector outputs omit the grain.
+
+- **Plant recipe override:** `traits3d_override`, an optional bounded JSON object on a species or a specimen that changes the plant's `Traits3D` (archetype, crown, branching, leaf, phenology); layered specimen over species over the bundled recipe (`core/plant_art/traits3d.py`, ADR-079).
+- **Georeference:** `PlanGeoreference`, the plan's anchor between WGS84 latitude/longitude and scene centimetres, stored as `metadata.georeference` (`core/georeference.py`, ADR-079).
+- **Control point:** A matched pair of a GPS position and the scene position it really has; one point locks a translation, two a similarity, three or more an affine fit, with the residual of each reported in cm.
+- **Basal stems / fork:** The multi-stem form of a recipe: 1 = single trunk, 2 = V-fork, 3..5 = bush, with the split's height share and spread angle (`BranchingTraits`).

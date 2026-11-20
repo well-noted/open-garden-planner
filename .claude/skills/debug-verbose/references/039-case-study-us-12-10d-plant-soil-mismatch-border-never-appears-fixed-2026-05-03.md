@@ -19,7 +19,7 @@ from_dict: ..., nutrient_demand=...,                            raw_data=...
 
 Three brand-new fields were declared on the dataclass (US-12.10d) but never added to either serialization site. So the live data flow `library → plant_database_panel.set_plant_data() → metadata["plant_species"] = data.to_dict() → ... → PlantSpeciesData.from_dict(metadata["plant_species"])` silently dropped every per-nutrient demand value, leaving `n_demand=p_demand=k_demand=None` on the reconstructed spec. The N rule still fired via the `nutrient_demand="heavy"` legacy fallback in `_effective_demand`, but it now used the *fallback* mapping, not the direct field — and any test that set the direct fields would silently no-op.
 
-**Root cause**: `models/plant_data.py:210` `to_dict` and `models/plant_data.py:275` `from_dict` — neither was updated when `n_demand`/`p_demand`/`k_demand` were added to the dataclass.
+**Root cause**: `models/plant_data.py:265` `to_dict` and `models/plant_data.py:333` `from_dict` — neither was updated when `n_demand`/`p_demand`/`k_demand` were added to the dataclass.
 
 **Fix**: Add the three keys to both serialization sites. Add a regression test [tests/unit/test_plant_data_serialization.py](tests/unit/test_plant_data_serialization.py) that iterates over every `dataclasses.fields(PlantSpeciesData)` and asserts presence in `to_dict()` output, plus a full equality round-trip.
 
