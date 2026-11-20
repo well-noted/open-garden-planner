@@ -111,6 +111,11 @@ from open_garden_planner.agent_api.schema import (
     TaskListView,
     WriteResult,
 )
+from open_garden_planner.core.render_style import (
+    RENDER_STYLES,
+    parse_render_style,
+    render_style_catalogue,
+)
 from open_garden_planner.services.bundled_species_db import get_species_db
 
 if TYPE_CHECKING:
@@ -276,6 +281,11 @@ _GRACEFUL_STOP_S = 1.0
 _STOP_GRACE_S = 5.0
 # The thread name, so a leak is identifiable in a thread dump and assertable.
 SERVER_THREAD_NAME = "agent-api-mcp"
+#: The ``render_style`` argument of the render tools: the enum comes from the shared
+#: constant, never a copied literal (a test pins it). ``Literal[...]`` of a tuple is the
+#: union of its members.
+RenderStyleId = Literal[tuple(style.value for style in RENDER_STYLES)]  # type: ignore[valid-type]
+
 #: How far from the plan's origin ``render_3d_view`` lets a camera stand, cm: the orbit
 #: camera's own limit (600 m) with room to spare, and it keeps out what no plan can mean.
 _MAX_CAMERA_CM = 1_000_000.0
@@ -1140,6 +1150,23 @@ def build_server(
         """
         return agent_creates.list_creatable_types()
 
+    @mcp.tool()
+    async def list_render_styles() -> dict[str, Any]:
+        """List the drawing styles render_canvas_image and render_3d_view accept.
+
+        Returns ``current`` (the user's own style: what a render without
+        ``render_style`` uses; null when unknown) and ``styles``: one entry per
+        style with ``id`` (the value to pass), ``label_en``, ``svg_vector``
+        (``full``: an SVG/PDF carries it as vectors alone; ``approximate``: part of
+        the picture, such as paper grain, is left out of a vector file),
+        ``supports_3d`` and ``options`` (extra arguments only this style honours,
+        e.g. ``callouts``). Read-only.
+        """
+        current = None
+        if providers.render_style is not None:
+            current = await anyio.to_thread.run_sync(providers.render_style)
+        return {"current": current, "styles": render_style_catalogue()}
+
     # structured_output=False: Image is not pydantic-representable, so the
     # default schema-generation path crashes build_server() at decoration time
     # (verified against mcp 1.28.1). This skips schema/model creation and lets
@@ -1153,6 +1180,8 @@ def build_server(
         height: float | None = None,
         layers: list[str] | None = None,
         image_width_px: int = DEFAULT_IMAGE_PX,
+        render_style: RenderStyleId | None = None,
+        callouts: bool | None = None,
     ) -> list[Image | RenderMeta]:
         """Render a PNG screenshot of the garden plan canvas, plus render metadata.
 
@@ -1171,6 +1200,13 @@ def build_server(
             image_width_px: Output width in pixels, clamped to [128, 2048];
                 default 1024. Output height is derived from the region's
                 aspect ratio and independently clamped to the same bounds.
+            render_style: Drawing style of this picture: illustrated, cad or
+                line_and_wash (list_render_styles lists them). Omit to use the
+                user's current style. It applies to this picture only and never
+                changes the plan or the user's own view or preference. The result
+                echoes the style used.
+            callouts: Draw leader callouts. Belongs to the cad style only: with any
+                other style it is ignored and the result's warnings say so.
         """
         region: tuple[float, float, float, float] | None
         if x is None and y is None and width is None and height is None:
@@ -1181,8 +1217,13 @@ def build_server(
             raise ValueError(
                 "x, y, width, and height must all be given together, or all omitted."
             )
+        extra: dict[str, Any] = {}
+        if render_style is not None:
+            extra["render_style"] = parse_render_style(render_style).value
+        if callouts is not None:
+            extra["callouts"] = bool(callouts)
         result = await anyio.to_thread.run_sync(
-            lambda: providers.render(region, layers, image_width_px)
+            lambda: providers.render(region, layers, image_width_px, **extra)
         )
         return [
             Image(data=result["png_bytes"], format="png"),
@@ -1195,6 +1236,9 @@ def build_server(
                 image_height_px=result["image_height_px"],
                 px_per_cm=result["px_per_cm"],
                 layers_rendered=result["layers_rendered"],
+                render_style=result.get("render_style"),
+                callouts=result.get("callouts"),
+                warnings=list(result.get("warnings", [])),
             ),
         ]
 
@@ -1210,6 +1254,7 @@ def build_server(
         fov_deg: float = 40.0,
         image_width_px: int = 1280,
         image_height_px: int = 720,
+        render_style: RenderStyleId | None = None,
     ) -> list[Image | Render3DMeta]:
         """Render a PNG of the garden in the 3D view, plus what the picture shows.
 
@@ -1236,6 +1281,11 @@ def build_server(
                 given here.
             image_width_px: Output width, clamped to [128, 2048]; default 1280.
             image_height_px: Output height, clamped to [128, 2048]; default 720.
+            render_style: Drawing style of this picture: illustrated or line_and_wash
+                (the 3D Line & Wash look). cad has no 3D look and draws as illustrated,
+                which the result's warnings say. Omit to use the user's current style.
+                It applies to this picture only and never changes the user's view or
+                preference. The result echoes the style used.
         """
         render_3d = providers.render_3d
         if render_3d is None:
@@ -1259,7 +1309,10 @@ def build_server(
             shot = (numbers[:3], numbers[3:], float(fov_deg))
         size = (max(MIN_IMAGE_PX, min(MAX_IMAGE_PX, int(image_width_px))),
                 max(MIN_IMAGE_PX, min(MAX_IMAGE_PX, int(image_height_px))))
-        result = await anyio.to_thread.run_sync(lambda: render_3d(shot, size))
+        extra: dict[str, Any] = {}
+        if render_style is not None:
+            extra["render_style"] = parse_render_style(render_style).value
+        result = await anyio.to_thread.run_sync(lambda: render_3d(shot, size, **extra))
         return [
             Image(data=result["png_bytes"], format="png"),
             Render3DMeta(**{key: value for key, value in result.items() if key != "png_bytes"}),

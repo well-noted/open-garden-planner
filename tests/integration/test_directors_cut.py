@@ -79,11 +79,13 @@ class CapturingHost(FakeHost):
         return False
 
     def capture(self, size: tuple[int, int], shot: Any = None, *, wind_time_s: float | None = None,
-                photo: Any = None, label: str = "", fitted_shadows: bool = False) -> QImage:
+                photo: Any = None, label: str = "", fitted_shadows: bool = False,
+                render_style: str | None = None) -> QImage:
         if self.capture_error is not None:
             raise self.capture_error
         self.pictures.append({"size": size, "shot": shot, "wind": wind_time_s, "photo": photo,
-                              "label": label, "fitted_shadows": fitted_shadows})
+                              "label": label, "fitted_shadows": fitted_shadows,
+                              "render_style": render_style})
         image = QImage(size[0], size[1], QImage.Format.Format_RGBX8888)
         image.fill(Qt.GlobalColor.darkGreen)
         return image
@@ -390,6 +392,38 @@ def test_the_owners_view_is_what_an_agent_gets_when_it_names_no_camera(rig: Rig)
     assert answer["eye"] == pytest.approx(pose.eye)
     assert answer["target"] == pytest.approx(pose.target_scene)
     assert rig.host.pictures[-1]["shot"] is None
+
+
+def test_an_agent_picture_in_a_named_style_leaves_the_views_style_alone(rig: Rig) -> None:
+    """Render styles WP11: the style of one picture goes to the capture alone; the view's
+    look controller (the user's preference) is never switched, and the answer echoes the
+    style drawn, with a warning when cad has no 3D look."""
+    rig.open_3d()
+    capture, look = rig.workspace.capture, rig.workspace._look
+    assert look.render_style == "illustrated"
+    default = capture.agent_picture((640, 360))
+    assert default["render_style"] == "illustrated" and default["warnings"] == []
+    assert rig.host.pictures[-1]["render_style"] is None, "no argument: the view's own"
+    washed = capture.agent_picture((640, 360), None, "line_and_wash")
+    assert washed["render_style"] == "line_and_wash" and washed["warnings"] == []
+    assert rig.host.pictures[-1]["render_style"] == "line_and_wash"
+    cad = capture.agent_picture((640, 360), None, "cad")
+    assert cad["render_style"] == "illustrated"
+    assert len(cad["warnings"]) == 1 and "cad" in cad["warnings"][0]
+    assert look.render_style == "illustrated", "the user's style was never switched"
+    with pytest.raises(ValueError, match="valid values: illustrated, cad, line_and_wash"):
+        capture.agent_picture((640, 360), None, "watercolour")
+
+
+def test_an_agent_picture_without_a_style_follows_the_views_current_one(rig: Rig) -> None:
+    rig.open_3d()
+    rig.workspace._look.set_render_style("line_and_wash")
+    answer = rig.workspace.capture.agent_picture((640, 360))
+    assert answer["render_style"] == "line_and_wash"
+    assert rig.host.pictures[-1]["render_style"] is None
+    rig.workspace._look.set_render_style("cad")
+    answer = rig.workspace.capture.agent_picture((640, 360))
+    assert answer["render_style"] == "illustrated" and answer["warnings"]
 
 
 def test_a_frame_that_cannot_be_had_right_now_is_warming_up_not_an_error(rig: Rig) -> None:

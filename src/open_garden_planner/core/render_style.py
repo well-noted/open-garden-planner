@@ -22,6 +22,30 @@ class RenderStyle(StrEnum):
 RENDER_STYLES: Final = tuple(RenderStyle)
 
 
+#: What the Agent API tells a client about each style (``list_render_styles``).
+#: Machine ids and English labels are not UI text and are not translated. ``svg_vector``:
+#: ``"full"`` when an SVG/PDF carries the style as vector paths alone, ``"approximate"`` when
+#: part of the picture (Line & Wash's paper grain) is left out of a vector output.
+RENDER_STYLE_INFO: Final[dict[RenderStyle, dict[str, object]]] = {
+    RenderStyle.ILLUSTRATED: {
+        "label_en": "Illustrated", "svg_vector": "full", "supports_3d": True, "options": [],
+    },
+    RenderStyle.CAD: {
+        "label_en": "CAD", "svg_vector": "full", "supports_3d": True, "options": ["callouts"],
+    },
+    RenderStyle.LINE_AND_WASH: {
+        "label_en": "Line & Wash", "svg_vector": "approximate", "supports_3d": True,
+        "options": [],
+    },
+}
+
+
+def render_style_catalogue() -> list[dict[str, object]]:
+    """The styles as the Agent API lists them: ``{id, label_en, svg_vector, supports_3d,
+    options}`` in ``RENDER_STYLES`` order."""
+    return [{"id": style.value, **RENDER_STYLE_INFO[style]} for style in RENDER_STYLES]
+
+
 def _lookup(value: object) -> RenderStyle | None:
     if isinstance(value, RenderStyle):
         return value

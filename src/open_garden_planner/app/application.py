@@ -276,15 +276,22 @@ class GardenPlannerApp(QMainWindow):
         region: tuple[float, float, float, float] | None,
         layers: list[str] | None,
         image_width_px: int,
+        render_style: str | None = None,
+        callouts: bool | None = None,
     ) -> dict[str, Any]:
-        return self._agent_host._agent_render(region, layers, image_width_px)
+        return self._agent_host._agent_render(
+            region, layers, image_width_px, render_style, callouts)
+
+    def _agent_render_style(self) -> str:
+        return self._agent_host._agent_render_style()
 
     def _agent_render_3d(
         self,
         camera: tuple[tuple[float, float, float], tuple[float, float, float], float] | None,
         size: tuple[int, int],
+        render_style: str | None = None,
     ) -> dict[str, Any]:
-        return self._agent_host._agent_render_3d(camera, size)
+        return self._agent_host._agent_render_3d(camera, size, render_style)
 
     def _agent_save_plan(self, file_path: str | None) -> dict[str, Any]:
         return self._agent_host._agent_save_plan(file_path)

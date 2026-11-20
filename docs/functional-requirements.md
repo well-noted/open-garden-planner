@@ -1170,6 +1170,15 @@ tier `tests/integration/test_scene3d_ground_render.py` and the frozen
   in a clean sentence, and nothing has changed. While a camera tour is moving the clock, **agent
   reads report the owner's held date** (not the frame's) as `as_of_date`, and **a plant an agent
   creates is stamped with that date**, so a recording cannot plant next week's crop in a video.
+- **FR-RS-AGENT** (render styles WP11): `render_canvas_image` and `render_3d_view` take an optional
+  `render_style` (`illustrated`, `cad`, `line_and_wash`; the schema enum is the shared `RENDER_STYLES`
+  constant). Omitted, the picture uses the user's current style (owner decision Q9). A style given for one
+  call draws that picture only: the plan, the user's saved preference and the user's canvas or 3D view are
+  not changed. Unknown ids are refused with the valid ids listed. `render_canvas_image` also takes
+  `callouts` (CAD only; ignored with a warning for other styles). Both results echo `render_style` (the
+  style drawn; `cad` in 3D has no look of its own and is drawn and echoed as `illustrated`, with a
+  warning) and `warnings`. `list_render_styles` lists `{id, label_en, svg_vector, supports_3d, options}`
+  and the current style. The top-down truth views ignore the style. No `FILE_VERSION` change.
 
 Acceptance (L6): `tests/integration/test_directors_cut.py` (§8.10 — photo mode, the click, Save Photo,
 the dialog, a recording end to end, every refusal, the blur/point invariant, the owner's date during

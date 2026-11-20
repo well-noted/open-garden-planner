@@ -168,6 +168,8 @@ class AgentProviders:
             ``png_bytes`` and what it shows
             (``ui.view3d.workspace_capture.WorkspaceCaptureCoordinator.agent_picture``).
             Raises with a clean sentence when the view is not open or still warming up.
+        render_style: Returns the user's current render style id (the scene's own), so the
+            agent can see which style a render without ``render_style`` will use.
         save_plan: Saves the live plan to its ``.ogp`` file (or a new path,
             i.e. Save As). Takes an optional destination path; returns a plain
             dict (``agent_api.exports.save_plan_file``).
@@ -363,10 +365,9 @@ class AgentProviders:
     recommend_amendments: Callable[..., dict[str, Any]]
     get_soil_mismatches: Callable[..., dict[str, Any]]
     record_soil_test: SetSoilTestProvider
-    render: Callable[
-        [tuple[float, float, float, float] | None, list[str] | None, int],
-        dict[str, Any],
-    ]
+    # (region, layers, image_width_px) and, only when the call gave them, the keywords
+    # ``render_style`` (a validated id) and ``callouts`` (render styles WP11).
+    render: Callable[..., dict[str, Any]]
     save_plan: Callable[[str | None], dict[str, Any]]
     new_plan: Callable[[float | None, float | None, bool], dict[str, Any]]
     open_plan: Callable[[str, bool], dict[str, Any]]
@@ -398,9 +399,8 @@ class AgentProviders:
     undo: Callable[[], dict[str, Any]]
     redo: Callable[[], dict[str, Any]]
     get_plant_lists: Callable[[], list[dict[str, Any]]] | None = None
-    render_3d: Callable[
-        [tuple[tuple[float, float, float], tuple[float, float, float], float] | None,
-         tuple[int, int]],
-        dict[str, Any],
-    ] | None = None
+    # (camera, size) and, only when the call gave it, the keyword ``render_style``.
+    render_3d: Callable[..., dict[str, Any]] | None = None
+    # The user's current render style id, for ``list_render_styles`` (None: not known).
+    render_style: Callable[[], str] | None = None
     plan_date: Callable[[], str] | None = None
