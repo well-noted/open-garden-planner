@@ -815,6 +815,16 @@ class GardenPlannerApp(QMainWindow):
     ) -> dict[str, Any]:
         return self._agent_host._do_agent_rotate_object(item_id, angle, relative)
 
+    def _agent_set_object_height(
+        self, item_id: str, height_cm: float | None
+    ) -> dict[str, Any]:
+        return self._agent_host._agent_set_object_height(item_id, height_cm)
+
+    def _do_agent_set_object_height(
+        self, item_id: str, height_cm: float | None
+    ) -> dict[str, Any]:
+        return self._agent_host._do_agent_set_object_height(item_id, height_cm)
+
     # --- US-D2.6: low-level geometry escape hatches --------------------------
 
     def _agent_resolve_vertex_item(self, item_id: str, tool_name: str) -> Any:

@@ -110,6 +110,7 @@ from open_garden_planner.agent_api.schema import (
     PointToObject,
     Render3DMeta,
     RenderMeta,
+    SetObjectHeightResult,
     SiteExtents,
     SoilMismatchBedsView,
     SoilStatusListView,
@@ -329,7 +330,7 @@ def build_server(
             write tools (``create_object``/``move_object``/
             ``set_object_position``/``delete_object``/``resize_object``/
             ``rotate_object``/``set_vertex``/``add_vertex``/``delete_vertex``/
-            ``set_species``/``set_parent_bed``/``arrange_object``, the US-D2.4 layer tools
+            ``set_species``/``set_parent_bed``/``arrange_object``/``set_object_height``, the US-D2.4 layer tools
             ``set_object_layer``/``create_layer``/``rename_layer``/
             ``delete_layer``/``set_active_layer``/``set_layer_property``, and
             the global history tools ``undo``/``redo``) are registered. When
@@ -2075,6 +2076,42 @@ def build_server(
                 lambda: providers.rotate_object(item_id, angle, relative)
             )
             return WriteResult(**result)
+
+        @mcp.tool()
+        async def set_object_height(
+            item_id: str, height_cm: float | None
+        ) -> SetObjectHeightResult:
+            """Set, or clear, an object's explicit VERTICAL height in cm.
+
+            This is the height the 3D view and the sun/shade study extrude and
+            cast from (what get_object_height reads), NOT the 2D footprint size
+            (resize_object). Pass height_cm greater than 0 and at most 5000 to
+            set it (source becomes 'custom'); pass null to clear the override so
+            the height falls back to the container fill, plant growth/measured/
+            species height or the type default. 0, negative, NaN and over-range
+            values are refused with the valid range.
+
+            One undo step, the same as editing "Object height" in the Properties
+            panel. Setting the value the object already has changes nothing
+            (changed=false, no undo step). The result echoes the explicit value,
+            the previous explicit value and the NEW resolved height with its
+            source and plan date, exactly as get_object_height would report.
+
+            Fails if the id is unknown, the object is a group member, a journal
+            pin, on a locked layer, or has no footprint to give a height to
+            (for example the background image). Example:
+            set_object_height("<house id>", 520) -> height_cm 520, source custom.
+
+            Args:
+                item_id: The object's stable UUID (from list_objects/get_object).
+                height_cm: Vertical height in cm (0 < h <= 5000), or null to clear.
+            """
+            _require_write_auth(write_token)
+            if providers.set_object_height is None:
+                raise ValueError("set_object_height is not available on this host")
+            setter = providers.set_object_height
+            result = await anyio.to_thread.run_sync(lambda: setter(item_id, height_cm))
+            return SetObjectHeightResult(**result)
 
         # --- US-D2.6: low-level vertex geometry ----------------------------
 

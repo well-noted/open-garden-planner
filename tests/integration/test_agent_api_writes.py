@@ -27,6 +27,7 @@ crosses a BaseModel is a contract, and only the transport exercises it.
 from __future__ import annotations
 
 import asyncio
+import shutil
 import threading
 from collections.abc import Callable
 from pathlib import Path
@@ -59,6 +60,8 @@ from open_garden_planner.ui.canvas.items import (
 from tests.agent_api_helpers import start_server
 
 TOKEN = "test-write-token-12345"
+
+ENCANTO = Path("C:/Users/tetuo/Documents/OpenGardenPlanner/3830-E-Encanto-St.ogp")
 
 
 _APP_BY_VIEW: dict[int, GardenPlannerApp] = {}
@@ -2270,3 +2273,79 @@ def test_clamped_house_create_and_position_are_one_undo_step_each(
     assert tree is not None
     assert tree.sceneBoundingRect().left() >= canvas_rect.left() - 0.01
     assert tree.sceneBoundingRect().top() >= canvas_rect.top() - 0.01
+
+
+@pytest.mark.skipif(not ENCANTO.exists(), reason="Encanto plan copy not available")
+
+def test_set_object_height_on_the_encanto_plan(canvas: Any, qtbot: Any, tmp_path: Path) -> None:
+    """The write tool over the real MCP, on a temp copy of the Encanto plan."""
+    plan = tmp_path / "encanto.ogp"
+    shutil.copy(ENCANTO, plan)
+    view = canvas
+    scene = view.scene()
+    app = _APP_BY_VIEW[id(view)]
+    manager = app._project_manager
+    manager.load(scene, plan)
+    manager.mark_clean()
+    house = next(o for o in manager.snapshot_dict(scene)["objects"] if o.get("object_type") == "HOUSE")
+    hid = house["item_id"]
+    assert not (house.get("metadata") or {}).get("object_height_cm")
+    stack = view.command_manager
+
+    server, _ = start_server(_providers(view), write_token=TOKEN, writes_enabled=True)
+    out: dict[str, Any] = {}
+
+    async def body(ctx: Any) -> None:
+        http_client, ClientSession, url = ctx
+        async with (
+            http_client(url, headers={"Authorization": f"Bearer {TOKEN}"}) as (r, w, _),
+            ClientSession(r, w) as session,
+        ):
+            await session.initialize()
+
+            async def call(name: str, args: dict[str, Any]) -> Any:
+                res = await session.call_tool(name, args)
+                sc = res.structuredContent
+                return res.isError, (sc["result"] if sc and set(sc) == {"result"} else sc)
+
+            out["before"] = (await call("get_object_height", {"item_id": hid}))[1]
+            out["set"] = await call("set_object_height", {"item_id": hid, "height_cm": 520})
+            out["after"] = (await call("get_object_height", {"item_id": hid}))[1]
+            out["again"] = await call("set_object_height", {"item_id": hid, "height_cm": 520})
+            out["bad"] = [await call("set_object_height", {"item_id": hid, "height_cm": v})
+                          for v in (0, -5, 99999)]
+            out["unknown"] = await call(
+                "set_object_height", {"item_id": "00000000-0000-0000-0000-000000000000", "height_cm": 10})
+            out["undo"] = await call("undo", {})
+            out["undone"] = (await call("get_object_height", {"item_id": hid}))[1]
+            out["redo"] = await call("redo", {})
+            out["redone"] = (await call("get_object_height", {"item_id": hid}))[1]
+            out["clear"] = await call("set_object_height", {"item_id": hid, "height_cm": None})
+            out["cleared"] = (await call("get_object_height", {"item_id": hid}))[1]
+
+    dirty_before = manager.is_dirty
+    try:
+        _run(server, body, qtbot)
+    finally:
+        server.stop()
+
+    assert out["before"]["source"] == "default" and out["before"]["height_cm"] == 450.0
+    is_err, res = out["set"]
+    assert not is_err
+    assert res["changed"] is True and res["explicit_height_cm"] == 520.0
+    assert res["previous_explicit_height_cm"] is None
+    assert res["height_cm"] == 520.0 and res["source"] == "custom"
+    assert out["after"]["height_cm"] == 520.0 and out["after"]["source"] == "custom"
+    # Idempotent: the same value is not a second undo step.
+    assert out["again"][1]["changed"] is False and out["again"][1]["undo_description"] is None
+    assert all(is_err for is_err, _ in out["bad"])
+    assert out["unknown"][0] is True
+    # One undo restores the previous resolved height; one redo reapplies it.
+    assert out["undone"]["height_cm"] == 450.0 and out["undone"]["source"] == "default"
+    assert out["redone"]["height_cm"] == 520.0 and out["redone"]["source"] == "custom"
+    assert out["clear"][1]["explicit_height_cm"] is None
+    assert out["clear"][1]["previous_explicit_height_cm"] == 520.0
+    assert out["cleared"]["source"] == "default" and out["cleared"]["height_cm"] == 450.0
+    assert dirty_before is False
+    assert manager.is_dirty is True
+    assert stack.can_undo

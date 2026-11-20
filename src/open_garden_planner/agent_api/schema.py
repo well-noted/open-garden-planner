@@ -476,6 +476,36 @@ class ObjectHeight(BaseModel):
     mature_height_cm: float | None = Field(default=None, description="Plants: species mature height.")
 
 
+class SetObjectHeightResult(BaseModel):
+    """Result of ``set_object_height``: the explicit value and the height it resolves to."""
+
+    item_id: str
+    action: Literal["set_object_height"] = "set_object_height"
+    changed: bool = Field(
+        description="False when the object already had exactly this explicit height "
+        "(or none, for a clear): nothing was written and no undo step was created."
+    )
+    undo_description: str | None = Field(
+        description="Label of the one undo step created; null when nothing changed."
+    )
+    explicit_height_cm: float | None = Field(
+        description="The explicit height now stored on the object; null after a clear."
+    )
+    previous_explicit_height_cm: float | None = Field(
+        description="The explicit height before this call; null if it had none."
+    )
+    height_cm: float | None = Field(
+        description="The NEW resolved vertical height, as get_object_height reports it "
+        "(null when the object has none)."
+    )
+    height_m: float | None
+    source: str = Field(
+        description="Where height_cm comes from now: custom after a set; after a clear "
+        "container, grown, current, species, default or none."
+    )
+    as_of_date: str | None = Field(description="Plan date (ISO) a growth projection used.")
+
+
 class ObjectHeightRow(BaseModel):
     item_id: str
     name: str | None = None

@@ -388,3 +388,47 @@ class TestRotationSignConvention:
         after = item.mapToScene(item.rect().center())
         assert abs(after.x() - before.x()) < 1e-6
         assert abs(after.y() - before.y()) < 1e-6
+
+
+from open_garden_planner.agent_api import edits  # noqa: E402
+
+
+class TestObjectHeightValidation:
+    """``set_object_height``'s number check: positive, finite, within the panel's range."""
+
+    def test_valid_values_pass_through_as_float(self) -> None:
+        assert edits.validate_object_height(520) == 520.0
+        assert edits.validate_object_height(0.5) == 0.5
+        assert edits.validate_object_height(5000) == 5000.0
+
+    def test_null_clears(self) -> None:
+        assert edits.validate_object_height(None) is None
+
+    @pytest.mark.parametrize(
+        "bad", [0, 0.0, -1, -0.001, 5000.01, 1e9, float("nan"), float("inf"), float("-inf")]
+    )
+    def test_out_of_range_or_non_finite_is_refused_with_the_range(self, bad: float) -> None:
+        with pytest.raises(ValueError, match="5000"):
+            edits.validate_object_height(bad)
+
+    @pytest.mark.parametrize("bad", [True, "520", [1]])
+    def test_non_numbers_are_refused(self, bad: object) -> None:
+        with pytest.raises(ValueError, match="number"):
+            edits.validate_object_height(bad)  # type: ignore[arg-type]
+
+    def test_ceiling_is_the_properties_panel_range(self) -> None:
+        from open_garden_planner.core import object_height as oh
+
+        assert oh.MAX_EXPLICIT_HEIGHT_CM == 5000.0
+
+    def test_apply_explicit_height_sets_and_clears(self) -> None:
+        from types import SimpleNamespace
+
+        from open_garden_planner.core import object_height as oh
+
+        item = SimpleNamespace(metadata={})
+        oh.apply_explicit_height(item, 300.0)
+        assert oh.explicit_height_cm(item.metadata) == 300.0
+        oh.apply_explicit_height(item, None)
+        assert oh.METADATA_KEY not in item.metadata
+        oh.apply_explicit_height(item, None)  # clearing twice is harmless
