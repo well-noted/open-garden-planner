@@ -1274,3 +1274,9 @@ sequenceDiagram
 Startup applies the setting before widgets are built. The preference transition
 never writes a command or a plan value. Properties defers its in-place value/feedback refresh by one event-loop turn,
 protecting the focused editor; read-only calendar and 3D card content refresh in place.
+
+## 6.13 Initial map: picker and agent share one path (ADR-079)
+
+1. **Picker** (`File > Load Satellite Background`): the map picker returns a `FetchResult`. `_build_satellite_item` encodes it, builds the `BackgroundImageItem`, sizes the canvas to the image and centres it; the picker replaces the old background, resizes the canvas and `_apply_satellite_georef` sets the georeference (and north 0) in one `SetGeoreferenceCommand`, asking first when the user's own georeference or a non-zero north would be replaced.
+2. **Agent** (`set_initial_map`, token-gated): on the server thread it validates, checks the key, pre-checks the background lock on the main thread, optionally geocodes (opt-in) and calls `fetch_bbox`; then ONE hop builds the item with the SAME `_build_satellite_item` / `_satellite_georef` and executes `SetInitialMapCommand` (background, canvas, location, georeference, north 0). A refusal anywhere before the command leaves the plan and undo stack untouched.
+3. **Diverging is a test failure**: `tests/integration/test_georef.py::TestEntryPointsAgree` runs both routes on the same fetch result and compares canvas, background position, scale, metadata, georeference and north.

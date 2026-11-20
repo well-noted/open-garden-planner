@@ -40,9 +40,12 @@ DISCLOSED: dict[str, tuple[str, ...]] = {
     # Loopback only: the Agent API server and the self-test's free-port probe.
     "agent_api/server.py": ("127.0.0.1",),
     "main.py": ("127.0.0.1",),
+    # Opt-in phone listener: binds only the address the user chose (default 127.0.0.1).
+    "field_remote/server.py": ("Field Remote", "off by default", "Allow phone to submit field records",
+                                   "plain text in your user registry", "names this computer's host name"),
     "services/weather_service.py": ("Weather forecast and frost alerts",),
     "services/climate_service.py": ("Frost dates and hardiness zone",),
-    "services/image_download.py": ("Satellite background", "Plant thumbnail download"),
+    "services/image_download.py": ("Satellite background", "Plant thumbnail download", "Address lookup"),
     "services/google_maps_js_capture.py": ("Satellite background",),
     "ui/dialogs/map_picker_dialog.py": ("Satellite background", "type into the map's search box"),
     "resources/web/map_picker.html": ("Satellite background", "type into the map's search box"),

@@ -416,8 +416,14 @@ class AgentHost:
         text: str | None = None,
         box_dx: float | None = None,
         box_dy: float | None = None,
+        extra_metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Create one supported object — one undoable step (US-D2.1/D2.5).
+
+        ``extra_metadata`` (ADR-080) is merged into the new object's metadata
+        BEFORE the create command runs, so it is part of the same single undo
+        step (``place_geotagged_feature`` attaches its field-record block there).
+
 
         Mirrors the GUI's own creation orchestration, not merely
         ``CreateItemCommand``. The gallery-drop path in ``CanvasView`` does five
@@ -497,6 +503,8 @@ class AgentHost:
                 populate_item_species_metadata(item, species)
             # US-E8: every new plant is dated, species or not (see docstring).
             stamp_default_planting_date(cast(Any, item).metadata, self._agent_plan_date())
+            if extra_metadata:
+                cast(Any, item).metadata.update(extra_metadata)
 
         linked_items: list[Any] = []
         from open_garden_planner.core.roof_style import is_ridge_bearing_kind
@@ -3757,7 +3765,493 @@ class AgentHost:
             get_soil_mismatches=host._agent_get_soil_mismatches,
             record_soil_test=host._agent_record_soil_test,
             get_plant_lists=host._agent_get_plant_lists,
+            set_georeference=self._agent_set_georeference,
+            set_georeference_from_reference_points=self._agent_set_georeference_from_reference_points,
+            set_initial_map=self._agent_set_initial_map,
+            list_field_records=self._agent_list_field_records,
+            ingest_site_photo=self._agent_ingest_site_photo,
+            place_geotagged_feature=self._agent_place_geotagged_feature,
             plan_date=lambda: self._agent_plan_date().isoformat(),
+        )
+
+
+    # --- ADR-080: field photos and records ------------------------------------
+
+    def _agent_field_context(self) -> tuple[str | None, Any]:
+        """``(saved plan path or None, GeoReference or None)`` — main thread only.
+
+        The georeference's rotation is the plan's north angle (one north), so
+        the returned object is rebuilt with ``pm.north_angle_deg``.
+        """
+        pm = self._host._project_manager
+        current = pm.current_file
+        geo = pm.georef
+        if geo is not None:
+            from dataclasses import replace
+
+            geo = replace(geo, rotation_deg=pm.north_angle_deg)
+        return (str(current) if current is not None else None), geo
+
+    def _agent_list_field_records(self, **kwargs: Any) -> dict[str, Any]:
+        """Read the field-record sidecar ON the Qt main thread (open read)."""
+        from open_garden_planner.agent_api import field_tools
+
+        # Qt state on the main thread; the file reads stay on the calling worker thread.
+        plan_path, geo = self._host._agent_bridge.run_on_main(self._agent_field_context)
+        if plan_path is None:
+            return {
+                "total": 0,
+                "returned": 0,
+                "records": [],
+                "warnings": ["The plan has not been saved yet; field records live beside the saved file."],
+            }
+        return field_tools.list_records(plan_path, geo, **kwargs)
+
+    def _agent_ingest_site_photo(self, **kwargs: Any) -> dict[str, Any]:
+        """Store a photo + record in the sidecar ON the Qt main thread (token-gated write)."""
+        from open_garden_planner.agent_api import field_tools
+        from open_garden_planner.services.field_records import FieldRecordError
+        from open_garden_planner.services.photo_geotag import PhotoGeotagError
+
+        # Only the plan path and georeference are read on the main thread. The up-to-25 MB
+        # base64 decode, the Pillow open and the fsync run here, on the server's worker
+        # thread, so a large photo never freezes the GUI.
+        plan_path, geo = self._host._agent_bridge.run_on_main(self._agent_field_context)
+        try:
+            return field_tools.ingest(plan_path, geo, **kwargs)
+        except (FieldRecordError, PhotoGeotagError) as error:
+            raise ValueError(str(error)) from error
+        except OSError as error:
+            raise ValueError(f"cannot store the photo: {error.strerror or error}") from error
+
+    def _agent_place_geotagged_feature(self, **kwargs: Any) -> dict[str, Any]:
+        """Place a plant from a field record ON the Qt main thread (token-gated write)."""
+        host = self._host
+        return host._agent_bridge.run_on_main(
+            lambda: self._do_agent_place_geotagged_feature(**kwargs)
+        )
+
+    def _do_agent_place_geotagged_feature(
+        self,
+        record_id: str | None = None,
+        species: str | None = None,
+        lat: float | None = None,
+        lon: float | None = None,
+        bearing_deg: float | None = None,
+        distance_m: float | None = None,
+        name: str | None = None,
+        object_type: str | None = None,
+        allow_duplicate: bool = False,
+    ) -> dict[str, Any]:
+        """Main-thread body of ``place_geotagged_feature`` — ONE undo step (ADR-080).
+
+        Everything that can refuse runs BEFORE the create command: georeference,
+        position, species match and an already-placed record here, then (inside
+        ``_do_agent_create_object``) the locked active layer and the shape checks.
+        The plant is created by the SAME path as ``create_object`` with the
+        species' mature canopy radius and a ``field_record`` metadata block, so
+        it is one ``CreateItemCommand``. Linking the sidecar record is a file
+        write, not a scene change, and is not part of the undo step; if it fails
+        the plant stays and a warning says so.
+        """
+        from open_garden_planner.agent_api import creates, field_tools
+        from open_garden_planner.services import field_records as fr
+        from open_garden_planner.services.bundled_species_db import (
+            lookup_species,
+            merge_calendar_data,
+        )
+
+        plan_path, geo = self._agent_field_context()
+        if geo is None:
+            raise ValueError(
+                "The plan is not georeferenced; set it up first (set_initial_map, "
+                "set_georeference or set_georeference_from_reference_points)."
+            )
+        record: fr.FieldRecord | None = None
+        if record_id is not None:
+            try:
+                record = fr.get_record(plan_path, record_id)
+            except fr.FieldRecordError as error:
+                raise ValueError(str(error)) from error
+            if record.placed_object_id and not allow_duplicate:
+                raise ValueError(
+                    f"Record {record_id} is already placed as object "
+                    f"{record.placed_object_id}; pass allow_duplicate=true to place it again."
+                )
+        elif species is None:
+            raise ValueError("give a record_id, or a species (with lat and lon) to place")
+
+        wanted = (
+            species
+            or (record.species_key if record else None)
+            or (record.plant_name if record else None)
+        )
+        if not wanted:
+            raise ValueError("no species: pass species, or use a record with a species_key or plant_name")
+        matched = lookup_species(wanted)
+        if matched is None:
+            raise ValueError(
+                f"No species named {wanted!r} in the bundled database. Pass species with a "
+                "scientific or common name from the garden://species resource."
+            )
+        species_dict = merge_calendar_data(dict(matched))
+        resolved_type = object_type or field_tools.object_type_for_species(species_dict)
+        if not creates.is_plant_type_name(resolved_type):
+            raise ValueError("object_type must be TREE, SHRUB or PERENNIAL")
+        radius = field_tools.mature_radius_cm(species_dict, resolved_type)
+
+        target = field_tools.resolve_target(
+            geo, record, lat=lat, lon=lon, bearing_deg=bearing_deg, distance_m=distance_m
+        )
+        metadata = {
+            "field_record": field_tools.field_metadata(
+                record, target, plan_path=plan_path, distance_m=distance_m, lat=lat, lon=lon
+            )
+        }
+        display = name or (record.plant_name if record else None) or species_dict.get("common_name")
+        scientific = str(species_dict.get("scientific_name") or wanted)
+        created = self._do_agent_create_object(
+            resolved_type,
+            target["x"],
+            target["y"],
+            None,
+            None,
+            radius,
+            display if isinstance(display, str) else None,
+            scientific,
+            extra_metadata=metadata,
+        )
+        warnings: list[str] = []
+        if abs(created["x"] - target["x"]) > 1.0 or abs(created["y"] - target["y"]) > 1.0:
+            warnings.append("The position was at the canvas edge and was moved inside the canvas.")
+        if record is not None:
+            try:
+                fr.approve_candidate(plan_path, record.id, created["item_id"])
+            except (fr.FieldRecordError, OSError) as error:
+                # The plant is already on the undo stack: report a warning, never a failure.
+                warnings.append(f"The plant was placed but the record could not be linked: {error}")
+        return {
+            "item_id": created["item_id"],
+            "object_type": resolved_type,
+            "species": scientific,
+            "x": created["x"],
+            "y": created["y"],
+            "radius_cm": radius,
+            "true_bearing_deg": target["true_bearing_deg"],
+            "record_id": record.id if record else None,
+            "undo_description": created["undo_description"],
+            "new_parent_bed_id": created["new_parent_bed_id"],
+            "warnings": warnings,
+        }
+
+    # --- ADR-079: georeference writes -----------------------------------------
+
+    def _agent_georef_result(
+        self, action: str, cmd: Any, **extra: Any
+    ) -> dict[str, Any]:
+        from open_garden_planner.agent_api import georef_tools
+
+        pm = self._host._project_manager
+        return {
+            "action": action,
+            "undo_description": cmd.description,
+            "georeference": georef_tools.info_from_georef(pm.georef, pm.north_angle_deg),
+            **extra,
+        }
+
+
+    def _agent_set_georeference(self, **kwargs: Any) -> dict[str, Any]:
+        """Set the georeference ON the Qt main thread (token-gated write)."""
+        host = self._host
+        return host._agent_bridge.run_on_main(
+            lambda: self._do_agent_set_georeference(**kwargs)
+        )
+
+
+    def _do_agent_set_georeference(
+        self,
+        origin_lat: float | None = None,
+        origin_lon: float | None = None,
+        scale_meters_per_unit: float | None = None,
+        rotation_deg: float | None = None,
+        parcel_boundary: list[list[float]] | None = None,
+        clear_parcel: bool = False,
+    ) -> dict[str, Any]:
+        """Main-thread body of ``set_georeference``: ONE ``SetGeoreferenceCommand``.
+
+        Validation (``GeoReference.__post_init__``, a ``ValueError``) runs before
+        the command exists, so a refused call leaves the plan and the undo stack
+        untouched. The rotation IS the plan's north: it rides in the same command.
+        """
+        host = self._host
+        from dataclasses import replace
+
+        from open_garden_planner.core.commands import SetGeoreferenceCommand
+        from open_garden_planner.core.georef import (
+            DEFAULT_SCALE_M_PER_UNIT,
+            GeoReference,
+            validate_lat_lon,
+        )
+        from open_garden_planner.core.plan_north import normalize_north_angle
+
+        pm = host._project_manager
+        existing = pm.georef
+        if parcel_boundary is not None and clear_parcel:
+            raise ValueError("Pass parcel_boundary or clear_parcel, not both.")
+        north = None if rotation_deg is None else normalize_north_angle(rotation_deg)
+        if parcel_boundary is not None:
+            if (
+                not isinstance(parcel_boundary, list)
+                or len(parcel_boundary) < 3
+                or len(parcel_boundary) > 10000
+            ):
+                raise ValueError("parcel_boundary needs 3 to 10000 [lat, lon] vertices.")
+            try:
+                ring = tuple(validate_lat_lon(v[0], v[1]) for v in parcel_boundary)
+            except (TypeError, IndexError, KeyError) as exc:
+                raise ValueError("parcel_boundary vertices must be [lat, lon] pairs.") from exc
+        if existing is None:
+            if origin_lat is None or origin_lon is None:
+                raise ValueError(
+                    "The plan has no georeference yet: pass origin_lat and origin_lon "
+                    "(or use set_initial_map / set_georeference_from_reference_points)."
+                )
+            new = GeoReference(
+                origin_lat=origin_lat,
+                origin_lon=origin_lon,
+                scale_meters_per_unit=(
+                    DEFAULT_SCALE_M_PER_UNIT
+                    if scale_meters_per_unit is None
+                    else scale_meters_per_unit
+                ),
+                rotation_deg=pm.north_angle_deg if north is None else north,
+                parcel_boundary=ring if parcel_boundary is not None else None,
+                source="manual",
+            )
+        else:
+            moved = any(
+                v is not None for v in (origin_lat, origin_lon, scale_meters_per_unit, north)
+            )
+            new = replace(
+                existing,
+                origin_lat=existing.origin_lat if origin_lat is None else origin_lat,
+                origin_lon=existing.origin_lon if origin_lon is None else origin_lon,
+                scale_meters_per_unit=(
+                    existing.scale_meters_per_unit
+                    if scale_meters_per_unit is None
+                    else scale_meters_per_unit
+                ),
+                rotation_deg=existing.rotation_deg if north is None else north,
+                parcel_boundary=(
+                    ring if parcel_boundary is not None
+                    else None if clear_parcel
+                    else existing.parcel_boundary
+                ),
+                # A hand edit makes the last fit's RMS meaningless.
+                fit_rms_m=None if moved else existing.fit_rms_m,
+                source="manual" if moved else existing.source,
+            )
+            if new == existing:
+                raise ValueError("The georeference already has these values; nothing to do.")
+        cmd = SetGeoreferenceCommand(pm, new, north)
+        host.canvas_view.command_manager.execute(cmd)
+        return self._agent_georef_result("set_georeference", cmd)
+
+
+    def _agent_set_georeference_from_reference_points(
+        self, points: list[dict[str, Any]], allow_affine: bool = False
+    ) -> dict[str, Any]:
+        """Fit the georeference from reference points ON the Qt main thread."""
+        host = self._host
+        return host._agent_bridge.run_on_main(
+            lambda: self._do_agent_set_georeference_from_reference_points(points, allow_affine)
+        )
+
+
+    def _do_agent_set_georeference_from_reference_points(
+        self, points: list[dict[str, Any]], allow_affine: bool
+    ) -> dict[str, Any]:
+        """Main-thread body of ``set_georeference_from_reference_points``.
+
+        Points name canvas coordinates directly or an existing object's centre
+        or vertex (read through the same helpers as ``get_geometry``, so a
+        locked object can still be a survey point). One ``SetGeoreferenceCommand``
+        sets origin, scale and rotation (north) together; a refused fit leaves
+        everything untouched.
+        """
+        host = self._host
+        from dataclasses import replace
+
+        from open_garden_planner.agent_api import georef_tools
+        from open_garden_planner.core.commands import SetGeoreferenceCommand
+        from open_garden_planner.core.georef import (
+            DEFAULT_SCALE_M_PER_UNIT,
+            fit_from_reference_points,
+        )
+
+        pm = host._project_manager
+
+        def resolve(item_id: str, vertex: int | None) -> tuple[float, float]:
+            item = host._resolve_agent_read_item(item_id)
+            if vertex is None:
+                return host._agent_item_center(item)
+            vertices = host._do_agent_get_geometry(item_id).get("vertices") or []
+            if not 0 <= vertex < len(vertices):
+                raise ValueError(
+                    f"vertex_index {vertex} is out of range; the object has {len(vertices)} vertices"
+                )
+            return float(vertices[vertex]["x_cm"]), float(vertices[vertex]["y_cm"])
+
+        pts = georef_tools.parse_reference_points(points, resolve)
+        existing = pm.georef
+        fit = fit_from_reference_points(
+            pts,
+            scale_meters_per_unit=(
+                existing.scale_meters_per_unit if existing else DEFAULT_SCALE_M_PER_UNIT
+            ),
+            rotation_deg=pm.north_angle_deg,
+            allow_affine=bool(allow_affine),
+            source="fit",
+        )
+        geo = replace(
+            fit.georef, parcel_boundary=existing.parcel_boundary if existing else None
+        )
+        # One point keeps the plan's own north (the fit echoes it through radians).
+        cmd = SetGeoreferenceCommand(pm, geo, geo.rotation_deg if len(pts) > 1 else None)
+        host.canvas_view.command_manager.execute(cmd)
+        return self._agent_georef_result(
+            "set_georeference_from_reference_points",
+            cmd,
+            residuals_m=list(fit.residuals_m),
+            rms_m=fit.rms_m,
+            fit_method=fit.method,
+        )
+
+
+    def _agent_set_initial_map(
+        self,
+        latitude: float | None = None,
+        longitude: float | None = None,
+        address: str | None = None,
+        width_m: float | None = None,
+        height_m: float | None = None,
+    ) -> dict[str, Any]:
+        """Download the initial satellite map and apply it as ONE undo step.
+
+        Runs on the server's worker thread: validation, the optional Geocoding
+        call and the (slow, multi-tile) Static Maps download all happen OFF the
+        Qt main thread, exactly like the picker's worker. Only the item/command
+        construction hops to the main thread. Every refusal is raised before the
+        main-thread hop, so a failed call changes nothing.
+        """
+        host = self._host
+
+        from open_garden_planner.agent_api import georef_tools
+        from open_garden_planner.app.settings import get_settings
+        from open_garden_planner.services import google_maps_service as gms
+
+        has_coords = latitude is not None or longitude is not None
+        if has_coords == (address is not None):
+            raise ValueError("Give either latitude and longitude, or an address (not both).")
+        if has_coords and (latitude is None or longitude is None):
+            raise ValueError("Both latitude and longitude are required.")
+        if address is not None and not str(address).strip():
+            raise ValueError("The address is empty.")
+        if latitude is not None and longitude is not None:
+            georef_tools.area_box(latitude, longitude, width_m, height_m)
+        else:
+            georef_tools.area_box(0.0, 0.0, width_m, height_m)
+        key = host._resolved_google_maps_api_key()
+        if not key:
+            raise ValueError(
+                "No Google Maps API key is configured. Set one in Preferences > "
+                "Google Maps (or the OGP_GOOGLE_MAPS_KEY environment variable) and retry."
+            )
+        # Refuse a locked background BEFORE the paid downloads, not after them.
+        host._agent_bridge.run_on_main(self._agent_require_unlocked_background)
+        formatted: str | None = None
+        if address is not None:
+            if not get_settings().google_geocoding_enabled:
+                raise ValueError(
+                    "Street-address lookup is turned off. Enable \"Allow street-address "
+                    "lookup (Google Geocoding API)\" in Preferences > Google Maps, or pass "
+                    "latitude and longitude instead."
+                )
+            try:
+                found = gms.geocode_address(str(address), api_key=key)
+            except gms.GoogleMapsFetchError as exc:
+                raise ValueError(str(exc)) from exc
+            latitude, longitude, formatted = found.lat, found.lng, found.formatted_address
+        assert latitude is not None and longitude is not None
+        nw, se = georef_tools.area_box(latitude, longitude, width_m, height_m)
+        try:
+            result = gms.fetch_bbox(gms.BoundingBox(nw[0], nw[1], se[0], se[1]), api_key=key)
+        except gms.GoogleMapsFetchError as exc:
+            raise ValueError(f"Satellite download failed: {exc}") from exc
+        return host._agent_bridge.run_on_main(
+            lambda: self._do_agent_set_initial_map(result, formatted)
+        )
+
+
+    def _agent_require_unlocked_background(self) -> None:
+        """Raise when the current satellite background is locked (main thread)."""
+        from open_garden_planner.ui.canvas.items import BackgroundImageItem
+
+        for old in self._host.canvas_scene.items():
+            if isinstance(old, BackgroundImageItem) and old.locked:
+                raise ValueError(
+                    "The current background image is locked; unlock it (right-click "
+                    "the image > Unlock Image) before replacing the map."
+                )
+
+
+    def _do_agent_set_initial_map(
+        self, result: Any, formatted_address: str | None
+    ) -> dict[str, Any]:
+        """Main-thread body of ``set_initial_map``: ONE ``SetInitialMapCommand``.
+
+        Background image + canvas size + garden location + georeference + north
+        (0: the image is north-up) change together, so one Ctrl+Z restores the
+        previous background, canvas, location, georeference and north.
+        """
+        host = self._host
+        from open_garden_planner.core.commands import SetInitialMapCommand
+        from open_garden_planner.ui.canvas.items import BackgroundImageItem
+
+        scene = host.canvas_scene
+        for old in scene.items():
+            if isinstance(old, BackgroundImageItem) and old.locked:
+                raise ValueError(
+                    "The current background image is locked; unlock it (right-click "
+                    "the image > Unlock Image) before replacing the map."
+                )
+        # The SAME builder and georeference derivation the satellite picker uses
+        # (application.py), so the two entry points cannot diverge.
+        item, width_cm, height_cm = host._build_satellite_item(result)
+        geo = host._satellite_georef(item, result.source)
+        if geo is None:
+            raise ValueError("The downloaded map carries no usable geo-metadata.")
+        lat, lon = result.bbox.center
+        cmd = SetInitialMapCommand(
+            scene,
+            host._project_manager,
+            item,
+            (width_cm, height_cm),
+            {"latitude": lat, "longitude": lon},
+            geo,
+            0.0,
+        )
+        host.canvas_view.command_manager.execute(cmd)
+        host.canvas_view.fit_in_view()
+        return self._agent_georef_result(
+            "set_initial_map",
+            cmd,
+            latitude=lat,
+            longitude=lon,
+            formatted_address=formatted_address,
+            canvas_width_cm=width_cm,
+            canvas_height_cm=height_cm,
+            zoom=int(result.zoom),
         )
 
 

@@ -265,6 +265,37 @@ class GardenPlannerApp(QMainWindow):
         # Auto-start shortly after launch (when enabled in Preferences).
         QTimer.singleShot(1500, self._maybe_start_agent_api)
 
+        # Field Remote (ADR-081): off by default, a separate listener from the Agent API.
+        from open_garden_planner.app.field_remote_host import FieldRemoteHost
+
+        self.field_remote_host = FieldRemoteHost(
+            self,
+            plan_path=self._saved_plan_path,
+            snapshot=self._agent_snapshot,
+            plan_name=self._field_remote_plan_name,
+        )
+        self.field_remote_host.status_changed.connect(self._on_field_remote_status)
+        self.field_remote_host.position_received.connect(self._on_field_remote_position)
+        QTimer.singleShot(1500, self.field_remote_host.maybe_start)
+
+    def _field_remote_plan_name(self) -> str | None:
+        """The open plan's file name for the phone (any thread; a plain attribute read)."""
+        current = self._project_manager.current_file
+        return Path(current).stem if current is not None else None
+
+    def _on_toggle_phone_position(self, checked: bool) -> None:
+        """View > Show Phone Position: hide or show the puck (the scene remembers the choice)."""
+        self.canvas_scene.set_position_puck_enabled(checked)
+
+    def _on_field_remote_position(self, telemetry: Any) -> None:
+        """Show the phone's position as a canvas overlay (not saved, not in undo)."""
+        self.canvas_scene.show_position(telemetry)
+
+    def _saved_plan_path(self) -> str | None:
+        """The open plan's saved path for the Field Remote's record routes (any thread)."""
+        current = self._project_manager.current_file
+        return str(current) if current is not None else None
+
     def _agent_snapshot(self) -> dict[str, Any]:
         return self._agent_host._agent_snapshot()
 
@@ -1215,6 +1246,15 @@ class GardenPlannerApp(QMainWindow):
         self._set_action_icon(north_action, "sun_sim")
         menu.addAction(north_action)
 
+        # Georeference (ADR-079)
+        georef_action = QAction(self.tr("Georeference..."), self)
+        georef_action.setStatusTip(
+            self.tr("Link the canvas to GPS coordinates: origin, scale, rotation, reference points")
+        )
+        georef_action.triggered.connect(self._on_set_georeference)
+        self._set_action_icon(georef_action, "location")
+        menu.addAction(georef_action)
+
         menu.addSeparator()
 
         # Export submenu
@@ -1771,6 +1811,16 @@ class GardenPlannerApp(QMainWindow):
         overlays_menu.addAction(self._compare_overlay_action)
 
         menu.addSeparator()
+
+        # Field Remote: the phone's position on the canvas (shown only while positions arrive)
+        self._phone_position_action = QAction(self.tr("Show &Phone Position"), self)
+        self._phone_position_action.setCheckable(True)
+        self._phone_position_action.setChecked(True)
+        self._phone_position_action.setStatusTip(
+            self.tr("Show the position a paired phone reports (not saved with the plan)")
+        )
+        self._phone_position_action.toggled.connect(self._on_toggle_phone_position)
+        menu.addAction(self._phone_position_action)
 
         # Fullscreen Preview
         self._preview_action = QAction(self.tr("Fullscreen &Preview"), self)
@@ -2408,6 +2458,8 @@ class GardenPlannerApp(QMainWindow):
         # command_executed only fires on execute, so wiring mark_dirty there left
         # undo/redo silently "clean" (issue #209). stack_changed covers all three.
         cmd_mgr.stack_changed.connect(self._project_manager.mark_dirty)
+        # Field Remote: connected phones learn the plan changed (coalesced; no-op while off).
+        cmd_mgr.stack_changed.connect(lambda: self.field_remote_host.notify("plan_changed"))
 
         # Refresh dependent panels after any stack mutation (add/remove/edit/
         # undo/redo). stack_changed fires exactly once per execute/register_applied
@@ -4096,6 +4148,7 @@ class GardenPlannerApp(QMainWindow):
         if self._confirm_discard_changes():
             # Stop the Agent API server first, while the scene/bridge still exist.
             self._stop_agent_api()
+            self.field_remote_host.stop()
             # Join a running heatmap worker — a QThread destroyed while
             # running aborts the process (the #230 class).
             self._live_sun_map.shutdown()
@@ -5706,9 +5759,21 @@ class GardenPlannerApp(QMainWindow):
                 settings.agent_api_token if settings.agent_api_writes_enabled else "",
             )
 
+        def _field_remote_state() -> tuple[bool, str, int]:
+            return (
+                settings.field_remote_enabled,
+                settings.field_remote_bind,
+                settings.field_remote_port,
+            )
+
         before = _agent_api_state()
+        remote_before = _field_remote_state()
         dialog = PreferencesDialog(self)
         if dialog.exec():
+            # The phone-save toggle applies live; enable, address and port need a restart.
+            self.field_remote_host.set_records_enabled(settings.field_remote_records)
+            if _field_remote_state() != remote_before:
+                self.field_remote_host.restart()
             self._apply_unit_setting()
             self._update_satellite_menu_state()
             self._workspace.apply_look_settings()  # 3D quality, reduced motion (L1.4), sky (L7)
@@ -5720,6 +5785,16 @@ class GardenPlannerApp(QMainWindow):
                 self._stop_agent_api()
                 if after[0]:
                     self._start_agent_api()
+
+    def _on_field_remote_status(self, status: Any) -> None:
+        """Say in the status bar when Field Remote starts, stops or fails."""
+        if status.state == "running":
+            text = self.tr("Field Remote running at {url}").format(url=status.base_url)
+        elif status.state == "error":
+            text = self.tr("Field Remote: {reason}").format(reason=status.message)
+        else:
+            return
+        self.statusBar().showMessage(text, 8000)
 
     def _on_insert_guild(self) -> None:
         from open_garden_planner.ui.dialogs.insert_guild_dialog import InsertGuildDialog
@@ -6122,8 +6197,6 @@ class GardenPlannerApp(QMainWindow):
 
     def _on_load_satellite_background(self) -> None:
         """Open the embedded Google Maps picker and import the chosen area."""
-        import io
-        from datetime import UTC, datetime
 
         from open_garden_planner.ui.canvas.items import BackgroundImageItem
         from open_garden_planner.ui.dialogs.map_picker_dialog import (
@@ -6157,54 +6230,24 @@ class GardenPlannerApp(QMainWindow):
             if self._app_close_pending:
                 QTimer.singleShot(0, self.close)
 
-        # PIL image → PNG bytes.
-        buf = io.BytesIO()
-        result.image.save(buf, format="PNG")
-        png_bytes = buf.getvalue()
-
+        # ONE builder shared with the Agent API's set_initial_map (ADR-079), so the
+        # two entry points cannot diverge: PNG encoding, scale from the geo
+        # metadata, the canvas size and the image position.
+        image_item, canvas_w_cm, canvas_h_cm = self._build_satellite_item(result)
+        scene = self.canvas_scene
         # Replace any existing background image (a project has at most one
         # logical 'satellite layer'; stacking would only confuse the user).
-        scene = self.canvas_scene
         for item in list(scene.items()):
             if isinstance(item, BackgroundImageItem):
                 scene.removeItem(item)
-
-        image_item = BackgroundImageItem.from_fetch_result(
-            image_path=f"google_satellite_z{result.zoom}.png",
-            png_bytes=png_bytes,
-            meters_per_pixel=result.meters_per_pixel,
-            bbox_nw=(result.bbox.nw_lat, result.bbox.nw_lng),
-            bbox_se=(result.bbox.se_lat, result.bbox.se_lng),
-            zoom=result.zoom,
-            source=result.source,
-            attribution=result.attribution,
-            fetched_at=datetime.now(UTC).isoformat(timespec="seconds"),
-        )
         scene.addItem(image_item)
-
-        # Resize the canvas to match the selected area so the satellite image
-        # IS the canvas. Image scene-size in cm = image_local_size_px / scale_factor
-        # (px/cm). Using the item's own dimensions keeps us in sync with the
-        # cropped image, no matter what the service returned.
-        image_rect = image_item.boundingRect()
-        canvas_w_cm = image_rect.width() / image_item.scale_factor
-        canvas_h_cm = image_rect.height() / image_item.scale_factor
         scene.resize_canvas(canvas_w_cm, canvas_h_cm)
-
-        # Centre on the new canvas. ``boundingRect()`` is in local (pre-scale)
-        # coords; because ``transformOriginPoint`` is at the local centre, the
-        # scene centre after ``setPos(pos)`` is ``pos + (w/2, h/2)`` regardless
-        # of the scale factor — so we must NOT multiply by ``scale`` here.
-        canvas_center = scene.canvas_rect.center()
-        image_item.setPos(
-            canvas_center.x() - image_rect.width() / 2,
-            canvas_center.y() - image_rect.height() / 2,
-        )
 
         # Zoom the view to the new canvas so the user sees the whole import.
         self.canvas_view.fit_in_view()
 
         self._project_manager.mark_dirty()
+        self._apply_satellite_georef(image_item, result.source)
         if result.source == "google_js_view_capture":
             self.statusBar().showMessage(
                 self.tr(
@@ -6229,6 +6272,124 @@ class GardenPlannerApp(QMainWindow):
                     h_m=length_text(canvas_h_cm),
                 )
             )
+
+    def _build_satellite_item(self, result: Any) -> tuple[Any, float, float]:
+        """Build the positioned satellite background for a fetch *result*.
+
+        The ONE place a satellite import becomes a ``BackgroundImageItem``: the
+        satellite picker (``_on_load_satellite_background``) and the Agent API's
+        ``set_initial_map`` both call it, then add the item to the scene (the
+        picker directly, the agent inside ``SetInitialMapCommand``). Returns
+        ``(item, canvas_width_cm, canvas_height_cm)``: the canvas IS the image,
+        sized from its PIXMAP (``boundingRect()`` is padded by half a pixel a
+        side), and the item is centred on that canvas. Touches no scene.
+        """
+        import io
+        from datetime import UTC, datetime
+
+        from open_garden_planner.ui.canvas.items import BackgroundImageItem
+
+        buf = io.BytesIO()
+        result.image.save(buf, format="PNG")
+        item = BackgroundImageItem.from_fetch_result(
+            image_path=f"google_satellite_z{result.zoom}.png",
+            png_bytes=buf.getvalue(),
+            meters_per_pixel=result.meters_per_pixel,
+            bbox_nw=(result.bbox.nw_lat, result.bbox.nw_lng),
+            bbox_se=(result.bbox.se_lat, result.bbox.se_lng),
+            zoom=result.zoom,
+            source=result.source,
+            attribution=result.attribution,
+            fetched_at=datetime.now(UTC).isoformat(timespec="seconds"),
+        )
+        pix_w, pix_h = float(item.pixmap().width()), float(item.pixmap().height())
+        width_cm = pix_w / item.scale_factor
+        height_cm = pix_h / item.scale_factor
+        # transformOriginPoint is the local centre, so the scene centre after
+        # setPos(pos) is pos + (w/2, h/2) whatever the scale factor.
+        item.setPos(width_cm / 2.0 - pix_w / 2.0, height_cm / 2.0 - pix_h / 2.0)
+        return item, width_cm, height_cm
+
+    def _satellite_georef(self, image_item: Any, source: str) -> Any:
+        """The georeference of a placed satellite background, or ``None``.
+
+        Shared by the picker's auto-populate and ``set_initial_map``.
+        """
+        from open_garden_planner.core.georef import GeorefError, from_geo_metadata
+
+        meta = image_item.geo_metadata
+        if not meta:
+            return None
+        pixmap = image_item.pixmap()  # not boundingRect(): Qt pads it by half a pixel
+        pos = image_item.pos()
+        try:
+            return from_geo_metadata(
+                meta,
+                image_center=(pos.x() + pixmap.width() / 2.0, pos.y() + pixmap.height() / 2.0),
+                scale_factor=image_item.scale_factor,
+                source=source,
+            )
+        except GeorefError:
+            return None
+
+    def _apply_satellite_georef(self, image_item: Any, source: str) -> bool:
+        """Derive the plan's georeference from a fresh satellite import (ADR-079).
+
+        One undoable ``SetGeoreferenceCommand``. A satellite image is north-up,
+        so the plan's north becomes 0 with it. A georeference the user set or
+        fitted (``manual`` / ``fit``), or a non-zero north, is replaced only
+        after the user confirms. Returns True when the georeference was set.
+        """
+        from open_garden_planner.core.commands import SetGeoreferenceCommand
+
+        geo = self._satellite_georef(image_item, source)
+        if geo is None:
+            return False
+        pm = self._project_manager
+        existing = pm.georef
+        user_set = existing is not None and existing.source in ("manual", "fit")
+        if user_set or pm.north_angle_deg != 0.0:
+            answer = QMessageBox.question(
+                self,
+                self.tr("Replace georeference?"),
+                self.tr(
+                    "The satellite image is north-up. Replace this plan's "
+                    "georeference and set its north orientation to 0 degrees?"
+                ),
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            if answer != QMessageBox.StandardButton.Yes:
+                return False
+        self.canvas_view.command_manager.execute(
+            SetGeoreferenceCommand(pm, geo, 0.0)
+        )
+        return True
+
+    def _on_set_georeference(self) -> None:
+        """Open the georeference calibration dialog (ADR-079): one undo step."""
+        from PyQt6.QtWidgets import QDialog
+
+        from open_garden_planner.core.commands import SetGeoreferenceCommand
+        from open_garden_planner.ui.dialogs.georeference_dialog import GeoreferenceDialog
+
+        pm = self._project_manager
+        dialog = GeoreferenceDialog(
+            self, georef=pm.georef, north_angle_deg=pm.north_angle_deg, location=pm.location
+        )
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        new = dialog.georef
+        if new is None and pm.georef is None:
+            return
+        if new is not None and new == pm.georef:
+            return
+        self.canvas_view.command_manager.execute(
+            SetGeoreferenceCommand(
+                pm, new, dialog.north_angle_deg if new is not None else None
+            )
+        )
+        self._show_status_message(self.tr("Georeference updated"), 3000)
 
     def _on_set_location(self) -> None:
         """Handle Set Garden Location action."""

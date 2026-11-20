@@ -70,8 +70,8 @@ from mcp.server.fastmcp.utilities.types import Image
 from pydantic import Field, StrictFloat, StrictInt
 
 from open_garden_planner.agent_api import creates as agent_creates
+from open_garden_planner.agent_api import field_tools, georef_tools, queries
 from open_garden_planner.agent_api import prompts as agent_prompts
-from open_garden_planner.agent_api import queries
 from open_garden_planner.agent_api.diagnostics import diagnostics_from_records
 from open_garden_planner.agent_api.mapping import (
     layers_from_snapshot,
@@ -89,14 +89,21 @@ from open_garden_planner.agent_api.schema import (
     CompatibleSet,
     Diagnostic,
     ExportResult,
+    FieldRecordList,
     GeometryResult,
+    GeoPointResult,
+    GeoreferenceInfo,
+    GeorefWriteResult,
     HistoryResult,
     HistoryState,
+    IngestPhotoResult,
     Layer,
     ManualTaskResult,
     Measurement,
     ObjectDetail,
     ObjectRef,
+    PhotoGeotagResult,
+    PlaceFeatureResult,
     PlacementCheck,
     PlanLifecycleResult,
     PlanSummary,
@@ -422,6 +429,124 @@ def build_server(
         """
         snapshot = await anyio.to_thread.run_sync(providers.snapshot)
         return plan_summary_from_snapshot(snapshot)
+
+    # --- ADR-079: georeferencing reads (pure; derive from the snapshot) -------
+
+    @mcp.tool()
+    async def get_georeference() -> GeoreferenceInfo:
+        """Return how the plan's canvas maps onto GPS coordinates.
+
+        ``georeferenced`` is false when the plan was never linked to a place.
+        Otherwise: the latitude/longitude of the canvas origin (0, 0), the
+        metres per canvas unit (0.01 = centimetres), the rotation (degrees
+        clockwise from plan-up to TRUE NORTH, always equal to the plan's north
+        orientation), an optional parcel outline, the reference points a fit
+        used and its RMS residual in metres. Use canvas_to_gps/gps_to_canvas
+        to convert positions.
+        """
+        snapshot = await anyio.to_thread.run_sync(providers.snapshot)
+        return GeoreferenceInfo(**georef_tools.georef_info(snapshot))
+
+    @mcp.tool()
+    async def canvas_to_gps(x: float, y: float) -> GeoPointResult:
+        """Convert a canvas point (scene cm, Y-up) to latitude/longitude.
+
+        Pure conversion; changes nothing. Raises when the plan is not
+        georeferenced (set one with set_initial_map, set_georeference or
+        set_georeference_from_reference_points).
+        """
+        snapshot = await anyio.to_thread.run_sync(providers.snapshot)
+        geo = georef_tools.georef_from_snapshot(snapshot)
+        if geo is None:
+            raise ValueError("The plan is not georeferenced.")
+        lat, lon = geo.canvas_to_gps(x, y)
+        return GeoPointResult(lat=lat, lon=lon)
+
+    @mcp.tool()
+    async def gps_to_canvas(lat: float, lon: float) -> GeoPointResult:
+        """Convert latitude/longitude (WGS-84 degrees) to a canvas point.
+
+        Returns x/y in scene cm (Y-up: a larger y is further plan-up). Pure
+        conversion; changes nothing. Raises when the plan is not georeferenced.
+        """
+        snapshot = await anyio.to_thread.run_sync(providers.snapshot)
+        geo = georef_tools.georef_from_snapshot(snapshot)
+        if geo is None:
+            raise ValueError("The plan is not georeferenced.")
+        x, y = geo.gps_to_canvas(lat, lon)
+        return GeoPointResult(x=x, y=y)
+
+    # --- ADR-080: field photos (reads) -----------------------------------------
+
+    @mcp.tool()
+    async def extract_photo_geotag(
+        path: str | None = None,
+        data_base64: str | None = None,
+        magnetic_declination_deg: float | None = None,
+        distance_m: float | None = None,
+    ) -> PhotoGeotagResult:
+        """Read a photo's EXIF geotag and place the camera and its sightline on the plan.
+
+        Give EITHER ``path`` (a local image file; its metadata is read, nothing
+        is stored) OR ``data_base64`` (the image bytes, optionally a data URL).
+        Returns GPS latitude/longitude/altitude, the compass direction the
+        camera faced, the focal length, the capture time and, when the plan is
+        georeferenced, the camera position in scene cm and the sightline as a
+        unit canvas vector that honours the plan's north angle. The horizontal
+        field of view is an ESTIMATE (see hfov_source). Missing or damaged EXIF
+        gives a partial result with ``warnings``, never an error. Changes nothing.
+
+        Args:
+            path: Local image file (jpg, png, webp, tiff), at most 25 MB. Needs the
+                Agent API token (and AI editing on); network paths are refused.
+                data_base64 needs neither.
+            data_base64: The image bytes, base64 (a data: URL is accepted).
+            magnetic_declination_deg: Degrees EAST of true north; converts a
+                magnetic compass bearing to true. Without it a magnetic bearing
+                is used as true and a warning says so.
+            distance_m: When given, also return the point this far (metres)
+                along the sightline as target_x_cm/target_y_cm.
+        """
+        if path is not None:
+            # A local file path lets the caller probe the user's disk: same gate as a write.
+            _require_write_auth(write_token)
+        snapshot = await anyio.to_thread.run_sync(providers.snapshot)
+        geo = georef_tools.georef_from_snapshot(snapshot)
+        result = await anyio.to_thread.run_sync(
+            lambda: field_tools.extract_geotag(
+                geo,
+                path=path,
+                data_base64=data_base64,
+                magnetic_declination_deg=magnetic_declination_deg,
+                distance_m=distance_m,
+            )
+        )
+        return PhotoGeotagResult(**result)
+
+    @mcp.tool()
+    async def list_field_records(
+        only_unplaced: bool = False, limit: int = 200
+    ) -> FieldRecordList:
+        """List the field records stored beside the plan (newest first).
+
+        Field records are plant observations (name, age, notes, photo, GPS fix,
+        bearing) written from the phone UI or by ingest_site_photo into the
+        plan's ``.fieldnotes.json`` sidecar. They are not part of the .ogp file.
+        Each has a ``kind`` and a ``status`` (pending until approved or placed) and
+        carries ``placed_object_id`` once it was placed on the plan with
+        place_geotagged_feature. Read-only; an unsaved plan has no records.
+
+        Args:
+            only_unplaced: Only records still waiting (pending or approved), not placed.
+            limit: Maximum records returned (1-500).
+        """
+        if providers.list_field_records is None:
+            raise ValueError("list_field_records is not available in this build.")
+        fn = providers.list_field_records
+        result = await anyio.to_thread.run_sync(
+            lambda: fn(only_unplaced=only_unplaced, limit=limit)
+        )
+        return FieldRecordList(**result)
 
     @mcp.tool()
     async def list_objects(
@@ -1619,6 +1744,263 @@ def build_server(
             _require_write_auth(write_token)
             result = await anyio.to_thread.run_sync(providers.redo)
             return HistoryResult(**result)
+
+        # --- ADR-079: georeference writes -----------------------------------
+
+        @mcp.tool()
+        async def set_georeference(
+            origin_lat: float | None = None,
+            origin_lon: float | None = None,
+            scale_meters_per_unit: float | None = None,
+            rotation_deg: float | None = None,
+            parcel_boundary: list[list[float]] | None = None,
+            clear_parcel: bool = False,
+        ) -> GeorefWriteResult:
+            """Set the plan's georeference. One undoable step; omitted fields keep their value.
+
+            This is a write tool and requires the Agent API token.
+
+            Args:
+                origin_lat: Latitude of the canvas origin (0, 0), degrees. Required
+                    (with origin_lon) when the plan has no georeference yet.
+                origin_lon: Longitude of the canvas origin (0, 0), degrees.
+                scale_meters_per_unit: Metres per canvas unit; 0.01 for the
+                    usual centimetre canvas.
+                rotation_deg: True north, degrees clockwise from plan-up. This
+                    IS the plan's north orientation: it changes the sun and
+                    shade direction too, in the same undo step.
+                parcel_boundary: The property outline as [[lat, lon], ...]
+                    (at least 3 vertices), replacing any existing one.
+                clear_parcel: Remove the stored parcel outline.
+            """
+            _require_write_auth(write_token)
+            if providers.set_georeference is None:
+                raise ValueError("set_georeference is not available in this build.")
+            fn = providers.set_georeference
+            result = await anyio.to_thread.run_sync(
+                lambda: fn(
+                    origin_lat=origin_lat,
+                    origin_lon=origin_lon,
+                    scale_meters_per_unit=scale_meters_per_unit,
+                    rotation_deg=rotation_deg,
+                    parcel_boundary=parcel_boundary,
+                    clear_parcel=clear_parcel,
+                )
+            )
+            return GeorefWriteResult(**result)
+
+        @mcp.tool()
+        async def set_georeference_from_reference_points(
+            points: list[dict[str, Any]],
+            allow_affine: bool = False,
+        ) -> GeorefWriteResult:
+            """Georeference the plan from surveyed points (e.g. GPS taken at property corners).
+
+            This is a write tool and requires the Agent API token. One undoable
+            step sets origin, scale and rotation (the plan's north) together.
+
+            Each point is an object with ``lat`` and ``lon`` and EITHER canvas
+            ``x`` and ``y`` in scene cm (Y-up), OR ``item_id`` of an existing
+            plan object (its centre, or its vertex ``vertex_index``), and an
+            optional ``name``. One point sets only the position (scale and
+            rotation are kept); two points solve scale and rotation exactly;
+            three or more are least-squares fitted and every point's residual
+            is reported, so a mistyped corner is visible. Refuses coincident
+            points and collinear sets of three or more.
+
+            Args:
+                points: The correspondences, at most 200.
+                allow_affine: Also report the residuals of a full affine fit
+                    (a diagnostic for skewed or mis-scaled input); the plan is
+                    still set from the best similarity fit.
+            """
+            _require_write_auth(write_token)
+            if providers.set_georeference_from_reference_points is None:
+                raise ValueError(
+                    "set_georeference_from_reference_points is not available in this build."
+                )
+            fn = providers.set_georeference_from_reference_points
+            result = await anyio.to_thread.run_sync(
+                lambda: fn(points=points, allow_affine=allow_affine)
+            )
+            return GeorefWriteResult(**result)
+
+        @mcp.tool()
+        async def set_initial_map(
+            latitude: float | None = None,
+            longitude: float | None = None,
+            address: str | None = None,
+            width_m: float | None = None,
+            height_m: float | None = None,
+        ) -> GeorefWriteResult:
+            """Create the plan's initial map: satellite background, location and georeference in ONE undo step.
+
+            This is a write tool and requires the Agent API token. It downloads
+            a north-up Google Maps satellite image through the same service as
+            File > Load Satellite Background, so it needs the user's Google Maps
+            API key (Preferences > Google Maps, or the OGP_GOOGLE_MAPS_KEY
+            environment variable) and fails with a clear message otherwise.
+            The new image REPLACES any existing background, the canvas is
+            resized to the image, the garden location is set to the map centre
+            and the plan's north becomes 0 (the image is north-up).
+
+            Give EITHER ``latitude`` and ``longitude`` OR a street ``address``.
+            An address is looked up with the Google Geocoding API, which the
+            user must have enabled in Preferences ("Allow street-address
+            lookup") and for their key; otherwise pass coordinates.
+
+            Args:
+                latitude: Map centre latitude, degrees.
+                longitude: Map centre longitude, degrees.
+                address: A street address to look up instead of coordinates.
+                width_m: East-west extent of the map in metres (10-1000,
+                    default 100). The zoom level is chosen automatically for
+                    the best resolution that covers the area.
+                height_m: North-south extent in metres (10-1000, default =
+                    width_m).
+            """
+            _require_write_auth(write_token)
+            if providers.set_initial_map is None:
+                raise ValueError("set_initial_map is not available in this build.")
+            fn = providers.set_initial_map
+            result = await anyio.to_thread.run_sync(
+                lambda: fn(
+                    latitude=latitude,
+                    longitude=longitude,
+                    address=address,
+                    width_m=width_m,
+                    height_m=height_m,
+                )
+            )
+            return GeorefWriteResult(**result)
+
+        # --- ADR-080: field photos (sidecar write + placement) ------------------
+
+        @mcp.tool()
+        async def ingest_site_photo(
+            path: str | None = None,
+            data_base64: str | None = None,
+            plant_name: str | None = None,
+            species_key: str | None = None,
+            age: str | None = None,
+            notes: str | None = None,
+            lat: float | None = None,
+            lon: float | None = None,
+            accuracy_m: float | None = None,
+            bearing_deg: float | None = None,
+            fix_mode: str | None = None,
+            magnetic_declination_deg: float | None = None,
+        ) -> IngestPhotoResult:
+            """Store a site photo beside the plan and create a field record for it.
+
+            Writes ONLY the plan's sidecar files (``<plan>.fieldnotes.json`` and
+            ``<plan>.fieldnotes/photos/``), not the plan: it is not an undo step
+            and the plan is untouched. The plan must have been saved once. The
+            photo is validated as a real image (jpg, png, webp, tiff; at most
+            25 MB; a ``path`` must be a local file, not a network share) and stored under a generated name. GPS position and compass
+            bearing are taken from the photo's EXIF unless you pass them.
+
+            This is a write tool and requires the Agent API token.
+
+            Args:
+                path: Local image file. Give this OR data_base64.
+                data_base64: The image bytes, base64 (a data: URL is accepted).
+                plant_name: What the plant is called, free text.
+                species_key: Scientific/common name matching the species database.
+                age: Free text, e.g. "3 years".
+                notes: Free text observations (at most 4000 characters).
+                lat: Camera latitude; overrides the EXIF position.
+                lon: Camera longitude; overrides the EXIF position.
+                accuracy_m: Position accuracy in metres.
+                bearing_deg: Camera direction, TRUE north; overrides the EXIF one.
+                fix_mode: 'gps', 'exif', 'map_tap', 'manual' or 'remote_position'.
+                magnetic_declination_deg: Degrees east of true north; converts a
+                    magnetic EXIF bearing to true.
+            """
+            _require_write_auth(write_token)
+            if providers.ingest_site_photo is None:
+                raise ValueError("ingest_site_photo is not available in this build.")
+            fn = providers.ingest_site_photo
+            result = await anyio.to_thread.run_sync(
+                lambda: fn(
+                    path=path,
+                    data_base64=data_base64,
+                    plant_name=plant_name,
+                    species_key=species_key,
+                    age=age,
+                    notes=notes,
+                    lat=lat,
+                    lon=lon,
+                    accuracy_m=accuracy_m,
+                    bearing_deg=bearing_deg,
+                    fix_mode=fix_mode,
+                    magnetic_declination_deg=magnetic_declination_deg,
+                )
+            )
+            return IngestPhotoResult(**result)
+
+        @mcp.tool()
+        async def place_geotagged_feature(
+            record_id: str | None = None,
+            species: str | None = None,
+            lat: float | None = None,
+            lon: float | None = None,
+            bearing_deg: float | None = None,
+            distance_m: float | None = None,
+            name: str | None = None,
+            object_type: str | None = None,
+            allow_duplicate: bool = False,
+        ) -> PlaceFeatureResult:
+            """Place a plant on the plan from a field record or a GPS position. ONE undo step.
+
+            The plan must be georeferenced. The position is the record's GPS fix
+            (or the lat/lon you pass); with ``distance_m`` and a bearing the
+            plant is placed that far from the camera along the sightline (the
+            plant is what the photo shows, not the photographer). The species is
+            matched in the bundled database (``species``, else the record's
+            species_key, else its plant_name); no match is refused. The drawn
+            footprint uses the species' MATURE canopy radius. The photo
+            reference, bearing, age and notes are stored in the object's
+            metadata ('field_record') and the record's placed_object_id is set
+            (the sidecar link is not part of the undo step).
+
+            Refused, leaving plan and undo stack untouched: plan not
+            georeferenced, no position, no species match, the record is already
+            placed (unless allow_duplicate) or the active layer is locked. A
+            point just off the canvas is moved inside it (like create_object) and
+            ``warnings`` says so.
+
+            This is a write tool and requires the Agent API token.
+
+            Args:
+                record_id: A field record id from list_field_records.
+                species: Species name to use instead of the record's.
+                lat: Camera latitude (overrides the record's).
+                lon: Camera longitude (overrides the record's).
+                bearing_deg: Camera direction, TRUE north, 0-360 (overrides the record's).
+                distance_m: Metres from the camera to the plant along the bearing (0-500).
+                name: Display name of the new plant.
+                object_type: 'TREE', 'SHRUB' or 'PERENNIAL'; default from the species.
+                allow_duplicate: Place even when the record is already placed.
+            """
+            _require_write_auth(write_token)
+            if providers.place_geotagged_feature is None:
+                raise ValueError("place_geotagged_feature is not available in this build.")
+            fn = providers.place_geotagged_feature
+            result = await anyio.to_thread.run_sync(
+                lambda: fn(
+                    record_id=record_id,
+                    species=species,
+                    lat=lat,
+                    lon=lon,
+                    bearing_deg=bearing_deg,
+                    distance_m=distance_m,
+                    name=name,
+                    object_type=object_type,
+                    allow_duplicate=allow_duplicate,
+                )
+            )
+            return PlaceFeatureResult(**result)
 
         # --- US-D3.2: succession write --------------------------------------
 

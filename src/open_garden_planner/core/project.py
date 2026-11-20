@@ -22,6 +22,7 @@ from PyQt6.QtWidgets import QGraphicsItem, QGraphicsScene
 from open_garden_planner.config.settings import active_language, get_settings
 from open_garden_planner.core import camera_tours as plan_tours
 from open_garden_planner.core.fill_patterns import FillPattern
+from open_garden_planner.core.georef import GeoReference, georef_from_plan
 from open_garden_planner.core.item_look import (
     adopt_pen,
     fill_brush,
@@ -81,6 +82,20 @@ def _is_newer_file_version(file_version: str, supported_version: str) -> bool:
     return a > b
 
 
+def _georef_block_from_plan(raw: object, north: object) -> dict[str, Any] | None:
+    """The sanitised ``georef`` block of a loaded plan, or ``None``.
+
+    Load is a trust boundary: the block is validated through ``GeoReference``
+    and re-serialised, so only finite, in-range values ever reach the manager.
+    """
+    geo = georef_from_plan(raw, north_angle_from_plan(north))
+    if geo is None:
+        if raw is not None:
+            logging.getLogger(__name__).warning("plan georef: ignoring an invalid georef block")
+        return None
+    return geo.to_dict()
+
+
 @dataclass
 class ProjectData:
     """Data structure for a project."""
@@ -95,6 +110,10 @@ class ProjectData:
     # #663: the direction of true north on the plan, clockwise from plan-up
     # (0 = north up). Additive: old files read 0, old apps ignore the key.
     north_angle_deg: float = DEFAULT_NORTH_ANGLE_DEG
+    # ADR-079: the plan's georeference (origin lat/lon, scale, parcel, reference
+    # points) as ``GeoReference.to_dict()``. Additive; the rotation is NOT stored
+    # here, it is ``north_angle_deg`` above (one source of truth for north).
+    georef: dict[str, Any] | None = None
     task_completions: list[str] = field(default_factory=list)
     seed_inventory: list[dict[str, Any]] = field(default_factory=list)
     # US-9.5: per-species user overrides for propagation step dates
@@ -176,6 +195,8 @@ class ProjectData:
             data["location"] = self.location
         if self.north_angle_deg:
             data["north_angle_deg"] = self.north_angle_deg
+        if self.georef:
+            data["georef"] = self.georef
         if self.task_completions:
             data["task_completions"] = sorted(self.task_completions)
         if self.seed_inventory:
@@ -230,6 +251,7 @@ class ProjectData:
             guides=data.get("guides", []),
             location=data.get("location") or None,
             north_angle_deg=north_angle_from_plan(data.get("north_angle_deg")),
+            georef=_georef_block_from_plan(data.get("georef"), data.get("north_angle_deg")),
             task_completions=data.get("task_completions", []),
             seed_inventory=data.get("seed_inventory", []),
             propagation_overrides=data.get("propagation_overrides", {}),
@@ -270,6 +292,7 @@ class ProjectManager(QObject):
     before_save = pyqtSignal()
     location_changed = pyqtSignal(object)  # dict or None
     north_angle_changed = pyqtSignal(float)  # degrees clockwise from plan-up (#663)
+    georef_changed = pyqtSignal(object)  # GeoReference or None (ADR-079)
     task_completions_changed = pyqtSignal(object)  # set[str]
     seed_inventory_changed = pyqtSignal(object)    # list[SeedPacket]
     propagation_overrides_changed = pyqtSignal(object)  # dict
@@ -305,6 +328,7 @@ class ProjectManager(QObject):
         self._dirty_serial = 0
         self._location: dict[str, Any] | None = None
         self._north_angle_deg: float = DEFAULT_NORTH_ANGLE_DEG
+        self._georef: GeoReference | None = None
         self._task_completions: set[str] = set()
         self._seed_inventory: list[dict[str, Any]] = []
         self._propagation_overrides: dict[str, Any] = {}
@@ -410,6 +434,35 @@ class ProjectManager(QObject):
             return
         self._north_angle_deg = angle
         self.north_angle_changed.emit(angle)
+        if self._georef is not None:  # its rotation IS the north (ADR-079)
+            self.georef_changed.emit(self.georef)
+        self.mark_dirty()
+
+    @property
+    def georef(self) -> GeoReference | None:
+        """The plan's georeference, or ``None`` when the plan is not georeferenced.
+
+        ``rotation_deg`` is read from :attr:`north_angle_deg` on every access, so
+        there is one north (ADR-079). The returned object is immutable.
+        """
+        if self._georef is None:
+            return None
+        return self._georef.with_rotation(self._north_angle_deg)
+
+    def set_georef(self, georef: GeoReference | None) -> None:
+        """Set (or clear) the plan's georeference and mark the project dirty.
+
+        The ONE writer besides load and new: the undoable
+        ``SetGeoreferenceCommand`` calls it for execute and undo. The georef's
+        ``rotation_deg`` is ignored (north lives in :meth:`set_north_angle`).
+        """
+        if georef is not None and not isinstance(georef, GeoReference):
+            raise TypeError("georef must be a GeoReference or None")
+        stored = None if georef is None else georef.with_rotation(0.0)
+        if stored == self._georef:
+            return
+        self._georef = stored
+        self.georef_changed.emit(self.georef)
         self.mark_dirty()
 
     @property
@@ -1021,6 +1074,7 @@ class ProjectManager(QObject):
         self._dirty = False
         self._location = None
         self._north_angle_deg = DEFAULT_NORTH_ANGLE_DEG
+        self._georef = None
         self._task_completions = set()
         self._seed_inventory = []
         self._propagation_overrides = {}
@@ -1046,6 +1100,7 @@ class ProjectManager(QObject):
         self.dirty_changed.emit(False)
         self.location_changed.emit(None)
         self.north_angle_changed.emit(DEFAULT_NORTH_ANGLE_DEG)
+        self.georef_changed.emit(None)
         self.task_completions_changed.emit(set())
         self.seed_inventory_changed.emit([])
         self.propagation_overrides_changed.emit({})
@@ -1103,6 +1158,7 @@ class ProjectManager(QObject):
         data = self._serialize_scene(scene)
         data.location = self._location
         data.north_angle_deg = self._north_angle_deg
+        data.georef = self._georef.to_dict() if self._georef is not None else None
         data.task_completions = sorted(self._task_completions)
         data.seed_inventory = list(self._seed_inventory)
         data.propagation_overrides = dict(self._propagation_overrides)
@@ -1357,6 +1413,8 @@ class ProjectManager(QObject):
         self.location_changed.emit(self._location)
         self._north_angle_deg = normalize_north_angle(data.north_angle_deg)
         self.north_angle_changed.emit(self._north_angle_deg)
+        self._georef = georef_from_plan(data.georef, 0.0)
+        self.georef_changed.emit(self.georef)
         self._task_completions = set(data.task_completions)
         self.task_completions_changed.emit(self._task_completions)
         self._seed_inventory = list(data.seed_inventory)
@@ -1428,6 +1486,7 @@ class ProjectManager(QObject):
         current_data.auto_assign_permaculture_layers = self.auto_assign_permaculture_layers
         current_data.location = self._location
         current_data.north_angle_deg = self._north_angle_deg
+        current_data.georef = self._georef.to_dict() if self._georef is not None else None
         current_data.task_completions = []
         current_data.seed_inventory = list(self._seed_inventory)
         current_data.propagation_overrides = dict(self._propagation_overrides)

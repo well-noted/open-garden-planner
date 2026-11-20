@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import io
+import json
 from collections.abc import Callable
+from typing import Any
 
 import requests
 from PIL import Image
@@ -62,6 +64,26 @@ def fetch_image(
             content.extend(chunk)
         check_cancel()
         return decode_image(bytes(content), max_pixels=max_pixels, max_edge=max_edge)
+
+
+def fetch_json(url: str, *, max_bytes: int, timeout: float) -> Any:
+    """GET *url* and parse a JSON body, never buffering more than *max_bytes*.
+
+    Raises ``ValueError`` for a non-200 status, an oversized body or invalid
+    JSON. The caller scrubs any secret out of the message before showing it.
+    """
+    with requests.get(url, timeout=timeout, stream=True) as response:
+        if response.status_code != 200:
+            raise ValueError(f"HTTP {response.status_code}")
+        content = bytearray()
+        for chunk in response.iter_content(chunk_size=CHUNK_BYTES):
+            if len(content) + len(chunk) > max_bytes:
+                raise ValueError("Response exceeds the permitted byte limit")
+            content.extend(chunk)
+    try:
+        return json.loads(bytes(content).decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError("The response is not valid JSON") from exc
 
 
 def thumbnail_png(image: Image.Image) -> bytes:

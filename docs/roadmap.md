@@ -45,6 +45,8 @@ This table is a pointer, not a tracker. Each issue owns its scope and acceptance
 
 | Status | ID | Scope | Version / reference |
 |--------|----|-------|---------------------|
+| 🚧 | Field mapping 1/4: georeferencing | Plan georeference (GPS <-> canvas), calibration dialog, satellite auto-populate, Agent API reads/writes and `set_initial_map` | Draft PR; ADR-079; FR-GEO-01..04 |
+| 🚧 | Field mapping 3/4: field photo tools | EXIF geotag reader, sidecar field records, Agent API `extract_photo_geotag`, `list_field_records`, `ingest_site_photo`, `place_geotagged_feature` | Draft PR; ADR-080; FR-GEO-05..08 |
 | ✅ | Canvas editing precision (#840, #841, #843, #844, #853, #867, #872, #874) | Geometric anchors, screen-sized handles, contained labels/tags, fixed plan text size and a clear balcony note | v1.40.6; [PR #934](https://github.com/cofade/open-garden-planner/pull/934); ADR-076 editing addendum |
 | ✅ | Recovery and test reliability (#797, #897, #916, #921, #922, #923) | Complete autosaves, bounded selection notifications, portable CPU raster tests, a cheaper full translation gate, and measured Qt guidance | v1.40.5; [PR #932](https://github.com/cofade/open-garden-planner/pull/932); ADR-003 addendum; §8.10.18; PF-CAN-40 |
 | ✅ | Canvas repaint package (#848, #877, #878, #927; partial #847) | Canvas repaint caches and unmeasured sun diagnostics | v1.40.4; [PR #926](https://github.com/cofade/open-garden-planner/pull/926); §8.27, §8.37, ADR-076 addendum |

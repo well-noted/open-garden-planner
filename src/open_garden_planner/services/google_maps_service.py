@@ -24,9 +24,16 @@ from urllib.parse import urlencode
 
 from PIL import Image
 
-from open_garden_planner.services.image_download import STATIC_MAP_MAX_BYTES, fetch_image
+from open_garden_planner.services.image_download import (
+    STATIC_MAP_MAX_BYTES,
+    fetch_image,
+    fetch_json,
+)
 
 _STATIC_MAPS_URL = "https://maps.googleapis.com/maps/api/staticmap"
+_GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json"
+_GEOCODE_MAX_BYTES = 256 * 1024
+_MAX_ADDRESS_CHARS = 300
 _EARTH_CIRCUMFERENCE_M = 2 * math.pi * 6378137.0
 # Static Maps free tier: 640x640 per call, scale=2 → 1280x1280 effective.
 # Note on units: ``scale`` ONLY doubles the output pixels; the geographic
@@ -227,6 +234,72 @@ def _fetch_tile(
         raise GoogleMapsFetchError(
             f"Invalid image response: {_scrub_key(str(e), api_key)}"
         ) from None
+
+
+@dataclass(frozen=True)
+class GeocodeResult:
+    """One geocoded address: WGS-84 degrees and Google's formatted address."""
+
+    lat: float
+    lng: float
+    formatted_address: str
+
+
+def geocode_address(
+    address: str,
+    *,
+    api_key: str | None = None,
+    timeout: float = 10.0,
+    region: str | None = None,
+) -> GeocodeResult:
+    """Resolve a street address with the Google Geocoding API (ADR-079).
+
+    Same host and key as the Static Maps import; the caller is responsible for
+    the user's opt-in (``AppSettings.google_geocoding_enabled``). Raises
+    ``GoogleMapsKeyMissingError`` without a key and ``GoogleMapsFetchError``
+    for an empty/oversized address, a Google error status (status and message
+    are kept, e.g. ``REQUEST_DENIED`` when the Geocoding API is not enabled for
+    the key), no match, or a malformed reply. The key is scrubbed from every
+    message.
+    """
+    key = get_api_key(api_key)
+    text = address.strip() if isinstance(address, str) else ""
+    if not text or len(text) > _MAX_ADDRESS_CHARS:
+        raise GoogleMapsFetchError(f"Address must be 1-{_MAX_ADDRESS_CHARS} characters")
+    params = {"address": text, "key": key}
+    if region:
+        params["region"] = region
+    try:
+        payload = fetch_json(
+            f"{_GEOCODE_URL}?{urlencode(params)}",
+            max_bytes=_GEOCODE_MAX_BYTES,
+            timeout=timeout,
+        )
+    except Exception as e:
+        raise GoogleMapsFetchError(
+            f"Geocoding request failed: {_scrub_key(str(e), key)}"
+        ) from None
+    if not isinstance(payload, dict):
+        raise GoogleMapsFetchError("Geocoding reply was not an object")
+    status = payload.get("status")
+    if status == "ZERO_RESULTS":
+        raise GoogleMapsFetchError("No location found for that address")
+    if status != "OK":
+        detail = payload.get("error_message")
+        message = f"Geocoding failed: {status}"
+        if isinstance(detail, str) and detail:
+            message += f" ({_scrub_key(detail[:200], key)})"
+        raise GoogleMapsFetchError(message)
+    try:
+        first = payload["results"][0]
+        loc = first["geometry"]["location"]
+        lat, lng = float(loc["lat"]), float(loc["lng"])
+        formatted = first.get("formatted_address", "")
+    except (KeyError, IndexError, TypeError, ValueError):
+        raise GoogleMapsFetchError("Geocoding reply was malformed") from None
+    if not (math.isfinite(lat) and math.isfinite(lng)) or abs(lat) > 90 or abs(lng) > 180:
+        raise GoogleMapsFetchError("Geocoding reply was out of range")
+    return GeocodeResult(lat, lng, formatted[:300] if isinstance(formatted, str) else "")
 
 
 def crop_image_to_bbox(

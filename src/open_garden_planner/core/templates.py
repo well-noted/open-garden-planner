@@ -20,7 +20,7 @@ KEEP_PROJECT_FIELDS = frozenset({
     "north_angle_deg",
 })
 STRIP_PROJECT_FIELDS = frozenset({
-    "location", "task_completions", "seed_inventory", "propagation_overrides",
+    "location", "georef", "task_completions", "seed_inventory", "propagation_overrides",
     "crop_rotation", "season_year", "linked_seasons", "soil_tests", "pest_disease_logs",
     "shopping_list_prices", "excluded_shopping_items", "enabled_amendments",
     "prefer_organic", "garden_journal_notes", "manual_tasks", "task_states", "harvest_logs",

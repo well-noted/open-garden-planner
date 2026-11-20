@@ -403,4 +403,14 @@ class AgentProviders:
     render_3d: Callable[..., dict[str, Any]] | None = None
     # The user's current render style id, for ``list_render_styles`` (None: not known).
     render_style: Callable[[], str] | None = None
+    # ADR-079 georeference writes (token-gated). The reads need no provider: they
+    # derive from ``snapshot``.
+    set_georeference: Callable[..., dict[str, Any]] | None = None
+    set_georeference_from_reference_points: Callable[..., dict[str, Any]] | None = None
+    set_initial_map: Callable[..., dict[str, Any]] | None = None
+    # ADR-080 field photos: a read of the plan's sidecar, a sidecar write and a
+    # placement (one undoable command). ``extract_photo_geotag`` needs no provider.
+    list_field_records: Callable[..., dict[str, Any]] | None = None
+    ingest_site_photo: Callable[..., dict[str, Any]] | None = None
+    place_geotagged_feature: Callable[..., dict[str, Any]] | None = None
     plan_date: Callable[[], str] | None = None

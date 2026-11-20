@@ -228,12 +228,22 @@ class AppSettings:
     KEY_AGENT_API_WRITES_ENABLED = "agent_api/writes_enabled"
     KEY_AGENT_API_TOKEN = "agent_api/token"
 
+    # Field Remote (phone listener, ADR-081): opt-in, own port and own token
+    KEY_FIELD_REMOTE_ENABLED = "field_remote/enabled"
+    KEY_FIELD_REMOTE_BIND = "field_remote/bind"
+    KEY_FIELD_REMOTE_PORT = "field_remote/port"
+    KEY_FIELD_REMOTE_RECORDS = "field_remote/records"
+    KEY_FIELD_REMOTE_TOKEN = "field_remote/token"
+
     # Phase 13 Package B (US-B3) — fillet/chamfer "last used" values
     KEY_FILLET_LAST_RADIUS_CM = "tools/fillet_last_radius_cm"
     KEY_CHAMFER_LAST_DISTANCE_CM = "tools/chamfer_last_distance_cm"
 
     # API key settings
     KEY_GOOGLE_MAPS_API_KEY = "api_keys/google_maps_key"
+    # ADR-079: opt-in to the Google Geocoding API (street-address lookup for the
+    # Agent API set_initial_map tool). Off by default: an address leaves the machine.
+    KEY_GOOGLE_GEOCODING_ENABLED = "api_keys/google_geocoding_enabled"
     KEY_TREFLE_API_TOKEN = "api_keys/trefle_token"
     KEY_PERENUAL_API_KEY = "api_keys/perenual_key"
     KEY_PERMAPEOPLE_KEY_ID = "api_keys/permapeople_key_id"
@@ -300,6 +310,7 @@ class AppSettings:
     DEFAULT_FROST_WARNING_RED_C = 2.0
     DEFAULT_NOTIFY_OVERDUE_TASKS = True
     DEFAULT_GOOGLE_MAPS_API_KEY = ""
+    DEFAULT_GOOGLE_GEOCODING_ENABLED = False
 
     # Agent API (US-D1.1): embedded MCP server. Default ON (read-only,
     # loopback-only) so AI assistants can connect without hunting through
@@ -312,6 +323,11 @@ class AppSettings:
     # Writes are OFF by default: even with a valid token, an agent cannot mutate
     # the plan until the user opts in (belt-and-suspenders over loopback trust).
     DEFAULT_AGENT_API_WRITES_ENABLED = False
+    # Field Remote: off, this computer only, phone may not save records until the user says so.
+    DEFAULT_FIELD_REMOTE_ENABLED = False
+    DEFAULT_FIELD_REMOTE_BIND = "127.0.0.1"
+    DEFAULT_FIELD_REMOTE_PORT = 8766
+    DEFAULT_FIELD_REMOTE_RECORDS = False
 
     # Phase 13 Package B (US-B3): default fillet radius / chamfer distance
     # in cm. These are the "last used" values that prefill the input dialog
@@ -673,6 +689,22 @@ class AppSettings:
         self._settings.setValue(self.KEY_GOOGLE_MAPS_API_KEY, key)
 
     @property
+    def google_geocoding_enabled(self) -> bool:
+        """Whether street addresses may be sent to the Google Geocoding API."""
+        return bool(
+            self._settings.value(
+                self.KEY_GOOGLE_GEOCODING_ENABLED,
+                self.DEFAULT_GOOGLE_GEOCODING_ENABLED,
+                type=bool,
+            )
+        )
+
+    @google_geocoding_enabled.setter
+    def google_geocoding_enabled(self, enabled: bool) -> None:
+        """Persist the Geocoding opt-in chosen in Preferences."""
+        self._settings.setValue(self.KEY_GOOGLE_GEOCODING_ENABLED, bool(enabled))
+
+    @property
     def trefle_api_token(self) -> str:
         """Trefle API token."""
         return str(
@@ -906,6 +938,69 @@ class AppSettings:
 
         token = secrets.token_urlsafe(32)
         self._settings.setValue(self.KEY_AGENT_API_TOKEN, token)
+        return token
+
+    @property
+    def field_remote_enabled(self) -> bool:
+        """Whether the Field Remote phone listener runs (default off)."""
+        return cast(bool, self._settings.value(
+            self.KEY_FIELD_REMOTE_ENABLED, self.DEFAULT_FIELD_REMOTE_ENABLED, type=bool))
+
+    @field_remote_enabled.setter
+    def field_remote_enabled(self, value: bool) -> None:
+        self._settings.setValue(self.KEY_FIELD_REMOTE_ENABLED, bool(value))
+
+    @property
+    def field_remote_bind(self) -> str:
+        """The one address Field Remote binds to; validated again when the server starts."""
+        value = str(self._settings.value(
+            self.KEY_FIELD_REMOTE_BIND, self.DEFAULT_FIELD_REMOTE_BIND, type=str)).strip()
+        return value or self.DEFAULT_FIELD_REMOTE_BIND
+
+    @field_remote_bind.setter
+    def field_remote_bind(self, value: str) -> None:
+        self._settings.setValue(self.KEY_FIELD_REMOTE_BIND, str(value).strip())
+
+    @property
+    def field_remote_port(self) -> int:
+        """TCP port for Field Remote (default 8766, separate from the Agent API)."""
+        value = self._settings.value(
+            self.KEY_FIELD_REMOTE_PORT, self.DEFAULT_FIELD_REMOTE_PORT, type=int)
+        return max(self.MIN_AGENT_API_PORT, min(self.MAX_AGENT_API_PORT, cast(int, value)))
+
+    @field_remote_port.setter
+    def field_remote_port(self, value: int) -> None:
+        self._settings.setValue(
+            self.KEY_FIELD_REMOTE_PORT,
+            max(self.MIN_AGENT_API_PORT, min(self.MAX_AGENT_API_PORT, value)))
+
+    @property
+    def field_remote_records(self) -> bool:
+        """Whether the phone may save field records (default off, separate from agent editing)."""
+        return cast(bool, self._settings.value(
+            self.KEY_FIELD_REMOTE_RECORDS, self.DEFAULT_FIELD_REMOTE_RECORDS, type=bool))
+
+    @field_remote_records.setter
+    def field_remote_records(self, value: bool) -> None:
+        self._settings.setValue(self.KEY_FIELD_REMOTE_RECORDS, bool(value))
+
+    @property
+    def field_remote_token(self) -> str:
+        """The Field Remote bearer token, generated on first use (not the Agent API token)."""
+        import secrets
+
+        token = self._settings.value(self.KEY_FIELD_REMOTE_TOKEN, "", type=str)
+        if not token:
+            token = secrets.token_urlsafe(32)
+            self._settings.setValue(self.KEY_FIELD_REMOTE_TOKEN, token)
+        return cast(str, token)
+
+    def regenerate_field_remote_token(self) -> str:
+        """Replace the Field Remote token; every paired phone must pair again."""
+        import secrets
+
+        token = secrets.token_urlsafe(32)
+        self._settings.setValue(self.KEY_FIELD_REMOTE_TOKEN, token)
         return token
 
     @property

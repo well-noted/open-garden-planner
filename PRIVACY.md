@@ -41,6 +41,7 @@ every internet connection, each one shows the provider your IP address.
 | --- | --- | --- | --- |
 | Weather forecast and frost alerts | [Open-Meteo](https://open-meteo.com/en/terms) | Latitude and longitude of the plan's location | When a plan has a location set |
 | Frost dates and hardiness zone | [Open-Meteo](https://open-meteo.com/en/terms) (historical archive) | Latitude and longitude of the location you look up | When you click *Lookup from Coordinates* in the location dialog |
+| Address lookup (optional) | [Google Maps Platform](https://policies.google.com/privacy) | The street address an AI assistant asks the app to look up (Geocoding API) and your own Google Maps API key | Only when you turn on "Allow street-address lookup" in Preferences and an assistant uses the initial-map tool with an address |
 | Satellite background | [Google Maps Platform](https://policies.google.com/privacy) | The address or place you type into the map's search box (sent while you type), your Windows language and region, the map area you view or import, and your own Google Maps API key | Only when you open the satellite import with your own API key |
 | Online plant search | [Trefle](https://trefle.io), [Perenual](https://perenual.com), [Permapeople](https://permapeople.org) | Your search term and, where needed, your own API key | Only when you search the online plant database |
 | Plant thumbnail download | Image hosts returned by plant providers (e.g. Wikimedia Commons, Perenual, Permapeople) | The image URL the provider returned | When viewing plant details that include a thumbnail image |
@@ -55,7 +56,9 @@ what that site receives is between you and that site.
 The built-in Agent API is on by default and listens on `127.0.0.1` only, so other computers
 cannot reach it. An AI assistant **you connect** to it (*Help > Connect AI Assistant...*, or
 by hand) can read your whole plan - including its location, plants, tasks and notes - and
-can save the open plan and export it to files on your computer. It can change the plan
+can save the open plan and export it to files on your computer. It can also read the location and compass data inside a photo you point it to, and the
+field notes and photos stored beside your plan (`<plan>.fieldnotes.json`, `<plan>.fieldnotes/`),
+all of which stay on your computer. It can change the plan
 itself only if you turn on *Allow AI assistants to edit the plan* in the preferences. What
 the assistant then sends to its own provider is decided by that assistant, under its
 provider's privacy terms, not by Open Garden Planner.
@@ -65,6 +68,23 @@ your computer to detect them. Connecting one runs that tool or writes Open Garde
 local address - with the access token, if AI editing is on - into that assistant's
 configuration file; those entries stay when you uninstall Open Garden Planner. You can turn
 the Agent API off in the preferences.
+
+## Field Remote (phone)
+
+*Field Remote* is **off by default**. When you turn it on in the preferences, the app starts a
+second local web server (HTTPS, port 8766 unless you change it) so a phone can open a page
+from this computer. It is separate from the Agent API, uses its own access token, and listens
+only on the one address you choose: `127.0.0.1` (this computer only) unless you select a
+local-network or Tailscale address. Nothing goes to the developer or to any provider. Anyone
+who holds the pairing link while the server runs on a network address can read your plan, so
+use a network you trust and rotate the token if the link leaks. The phone can save field
+records (notes, photos, positions) only if you also turn on
+*Allow phone to submit field records*; it never edits the plan, and you or an AI assistant approve records later. The app
+makes its own certificate and keeps the key in your user profile (local, not roaming). The
+certificate names this computer's host name, which anyone who connects to the server can read.
+The access token is kept as plain text in your user registry settings, like the Agent API
+token; anyone who can read your Windows account's registry can read it, so rotate it if that
+account is shared.
 
 ## Questions and changes
 

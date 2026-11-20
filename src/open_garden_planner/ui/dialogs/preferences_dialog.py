@@ -2,9 +2,11 @@
 
 import logging
 import os
+from typing import Any
 
 from PyQt6.QtCore import Qt, QUrl
 from PyQt6.QtGui import QDesktopServices
+from PyQt6.QtNetwork import QAbstractSocket, QNetworkInterface
 from PyQt6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -207,6 +209,20 @@ class PreferencesDialog(QDialog):
         google_maps_note.setWordWrap(True)
         google_maps_layout.addRow("", google_maps_note)
 
+        self._google_geocoding_check = QCheckBox(
+            self.tr("Allow street-address lookup (Google Geocoding API)")
+        )
+        google_maps_layout.addRow("", self._google_geocoding_check)
+        geocoding_note = QLabel(
+            self.tr(
+                "Lets an AI assistant set the initial map from a street address. "
+                "The address is sent to Google with your API key; the Geocoding "
+                "API must be enabled for that key. Off by default."
+            )
+        )
+        geocoding_note.setWordWrap(True)
+        google_maps_layout.addRow("", geocoding_note)
+
         layout.addWidget(google_maps_group)
 
         # --- Weather (US-12.2) ---
@@ -364,6 +380,88 @@ class PreferencesDialog(QDialog):
 
         layout.addWidget(agent_group)
 
+        # --- Field Remote (ADR-081): phone listener, off by default ---
+        remote_group = QGroupBox(self.tr("Field Remote (phone)"))
+        remote_layout = QFormLayout(remote_group)
+
+        self._field_remote_check = QCheckBox(self.tr("Enable Field Remote (HTTPS server for a phone)"))
+        self._field_remote_check.setToolTip(
+            self.tr(
+                "Lets a phone on your network open a page served by this computer. Off by "
+                "default. It uses its own port and access token, separate from the Agent API."
+            )
+        )
+        self._field_remote_check.toggled.connect(self._on_field_remote_toggled)
+        remote_layout.addRow(self._field_remote_check)
+
+        self._field_remote_bind_combo = QComboBox()
+        self._field_remote_bind_combo.setEditable(True)
+        self._field_remote_bind_combo.setToolTip(
+            self.tr(
+                "The one address the server listens on. 127.0.0.1 reaches this computer only. "
+                "Choose a local-network or Tailscale address to reach it from a phone."
+            )
+        )
+        self._field_remote_bind_combo.currentTextChanged.connect(self._update_field_remote_warning)
+        remote_layout.addRow(self.tr("Address:"), self._field_remote_bind_combo)
+
+        self._field_remote_port_spin = QSpinBox()
+        self._field_remote_port_spin.setRange(
+            AppSettings.MIN_AGENT_API_PORT, AppSettings.MAX_AGENT_API_PORT
+        )
+        remote_layout.addRow(self.tr("Port:"), self._field_remote_port_spin)
+
+        self._field_remote_fp_label = QLabel()
+        self._field_remote_fp_label.setWordWrap(True)
+        self._field_remote_fp_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self._field_remote_fp_label.setToolTip(
+            self.tr("SHA-256 fingerprint of this computer's certificate. It is not a secret.")
+        )
+        remote_layout.addRow(self.tr("Certificate fingerprint:"), self._field_remote_fp_label)
+
+        self._field_remote_warning = QLabel(
+            self.tr(
+                "Anyone on this network who gets the pairing link can read your plan. Use a "
+                "network you trust, and rotate the token if the link leaks."
+            )
+        )
+        self._field_remote_warning.setWordWrap(True)
+        self._field_remote_warning.setVisible(False)
+        remote_layout.addRow("", self._field_remote_warning)
+
+        self._field_remote_records_check = QCheckBox(self.tr("Allow phone to submit field records"))
+        self._field_remote_records_check.setToolTip(
+            self.tr(
+                "Lets the paired phone add pending field records (notes, photos, positions). "
+                "The phone never edits the plan; you or an AI assistant approve records later. "
+                "Off by default."
+            )
+        )
+        remote_layout.addRow(self._field_remote_records_check)
+
+        self._field_remote_pair_btn = QPushButton(self.tr("Show pairing link…"))
+        self._field_remote_pair_btn.clicked.connect(self._on_show_field_remote_pairing)
+        self._field_remote_rotate_btn = QPushButton(self.tr("Rotate token"))
+        self._field_remote_rotate_btn.setToolTip(
+            self.tr("Replace the token now; every paired phone must pair again.")
+        )
+        self._field_remote_rotate_btn.clicked.connect(self._on_rotate_field_remote_token)
+        remote_buttons = QHBoxLayout()
+        remote_buttons.addWidget(self._field_remote_pair_btn)
+        remote_buttons.addWidget(self._field_remote_rotate_btn)
+        self._field_remote_regen_btn = QPushButton(self.tr("Regenerate certificate"))
+        self._field_remote_regen_btn.setToolTip(
+            self.tr("Create a new certificate and key now; phones must accept the new certificate again.")
+        )
+        self._field_remote_regen_btn.clicked.connect(self._on_regenerate_field_remote_certificate)
+        remote_buttons.addWidget(self._field_remote_regen_btn)
+        remote_buttons.addStretch(1)
+        remote_widget = QWidget()
+        remote_widget.setLayout(remote_buttons)
+        remote_layout.addRow("", remote_widget)
+
+        layout.addWidget(remote_group)
+
         # --- 3D view (Phase 17 L1.4): quality and the animation policy ---
         view3d_group = QGroupBox(self.tr("3D View"))
         view3d_layout = QFormLayout(view3d_group)
@@ -473,6 +571,7 @@ class PreferencesDialog(QDialog):
         self._permapeople_key_secret.setText(settings.permapeople_key_secret)
         google_maps_key = settings.google_maps_api_key
         self._google_maps_key.setText(google_maps_key)
+        self._google_geocoding_check.setChecked(settings.google_geocoding_enabled)
         if not google_maps_key and os.environ.get("OGP_GOOGLE_MAPS_KEY", "").strip():
             self._google_maps_key.setPlaceholderText(
                 self.tr("Using OGP_GOOGLE_MAPS_KEY from environment")
@@ -487,11 +586,106 @@ class PreferencesDialog(QDialog):
         self._update_agent_api_url()
         self._refresh_agent_api_token_field()
         self._on_agent_api_toggled(settings.agent_api_enabled)
+        self._load_field_remote(settings)
         index = self._view3d_quality_combo.findData(settings.view3d_quality)
         self._view3d_quality_combo.setCurrentIndex(max(index, 0))
         self._view3d_reduced_motion_check.setChecked(settings.view3d_reduced_motion)
         index = self._view3d_sky_combo.findData(settings.view3d_sky_model)
         self._view3d_sky_combo.setCurrentIndex(max(index, 0))
+
+    def _load_field_remote(self, settings: Any) -> None:
+        """Fill the Field Remote group from settings; the address list is advisory."""
+        from open_garden_planner.field_remote.server import check_bind_address
+
+        self._field_remote_check.setChecked(settings.field_remote_enabled)
+        self._field_remote_port_spin.setValue(settings.field_remote_port)
+        self._field_remote_records_check.setChecked(settings.field_remote_records)
+        choices = ["127.0.0.1"]
+        for address in QNetworkInterface.allAddresses():
+            text = address.toString()
+            if address.protocol() == QAbstractSocket.NetworkLayerProtocol.IPv4Protocol and text not in choices:
+                try:
+                    choices.append(check_bind_address(text))
+                except ValueError:
+                    continue  # public or wildcard: never offered
+        current = settings.field_remote_bind
+        if current not in choices:
+            choices.append(current)
+        self._field_remote_bind_combo.addItems(choices)
+        self._field_remote_bind_combo.setCurrentText(current)
+        self._on_field_remote_toggled(settings.field_remote_enabled)
+        self._refresh_field_remote_fingerprint()
+
+    def _refresh_field_remote_fingerprint(self) -> None:
+        from open_garden_planner.field_remote.auth import format_fingerprint
+
+        host = getattr(self.parent(), "field_remote_host", None)
+        fingerprint = host.certificate_fingerprint() if host is not None else ""
+        self._field_remote_fp_label.setText(
+            format_fingerprint(fingerprint) if fingerprint else self.tr("Not created yet")
+        )
+
+    def _on_regenerate_field_remote_certificate(self) -> None:
+        host = getattr(self.parent(), "field_remote_host", None)
+        if host is not None:
+            host.regenerate_certificate()
+        self._refresh_field_remote_fingerprint()
+
+    def _field_remote_problem(self) -> str | None:
+        """Why the Field Remote settings cannot be saved, or None (translated, for the user)."""
+        from open_garden_planner.field_remote.server import check_bind_address
+
+        if not self._field_remote_check.isChecked():
+            return None
+        try:
+            check_bind_address(self._field_remote_bind_combo.currentText())
+        except ValueError as exc:
+            return self.tr("The Field Remote address cannot be used: {reason}").format(reason=str(exc))
+        agent_port = self._agent_api_port_spin.value()
+        if self._agent_api_check.isChecked() and self._field_remote_port_spin.value() == agent_port:
+            return self.tr("Field Remote and the Agent API cannot share port {port}.").format(port=agent_port)
+        return None
+
+    def _on_field_remote_toggled(self, enabled: bool) -> None:
+        for widget in (
+            self._field_remote_bind_combo,
+            self._field_remote_port_spin,
+            self._field_remote_records_check,
+            self._field_remote_pair_btn,
+            self._field_remote_rotate_btn,
+            self._field_remote_regen_btn,
+        ):
+            widget.setEnabled(enabled)
+        self._update_field_remote_warning()
+
+    def _update_field_remote_warning(self) -> None:
+        text = self._field_remote_bind_combo.currentText().strip()
+        exposed = bool(text) and text not in ("127.0.0.1", "::1", "localhost")
+        self._field_remote_warning.setVisible(self._field_remote_check.isChecked() and exposed)
+
+    def _on_show_field_remote_pairing(self) -> None:
+        """The pairing link exists only while the server runs, so ask the running app."""
+        host = getattr(self.parent(), "field_remote_host", None)
+        url = host.pairing_url() if host is not None else None
+        if url is None:
+            QMessageBox.information(
+                self,
+                self.tr("Field Remote"),
+                self.tr("Field Remote is not running. Click Save, then open this again."),
+            )
+            return
+        from open_garden_planner.ui.dialogs.field_remote_dialog import FieldRemoteDialog
+
+        FieldRemoteDialog(url, host.status().fingerprint_hex, self).exec()
+
+    def _on_rotate_field_remote_token(self) -> None:
+        from open_garden_planner.app.settings import get_settings
+
+        host = getattr(self.parent(), "field_remote_host", None)
+        if host is not None:
+            host.rotate_token()
+        else:
+            get_settings().regenerate_field_remote_token()
 
     def _on_agent_api_toggled(self, enabled: bool) -> None:
         """Enable/disable the port + URL rows alongside the Agent API checkbox."""
@@ -594,6 +788,10 @@ class PreferencesDialog(QDialog):
     def _save_and_accept(self) -> None:
         from open_garden_planner.app.settings import get_settings
 
+        problem = self._field_remote_problem()
+        if problem is not None:
+            QMessageBox.warning(self, self.tr("Field Remote"), problem)
+            return
         settings = get_settings()
         settings.unit_system = self._unit_system_combo.currentData()
         settings.trefle_api_token = self._trefle_token.text().strip()
@@ -601,6 +799,7 @@ class PreferencesDialog(QDialog):
         settings.permapeople_key_id = self._permapeople_key_id.text().strip()
         settings.permapeople_key_secret = self._permapeople_key_secret.text().strip()
         settings.google_maps_api_key = self._google_maps_key.text().strip()
+        settings.google_geocoding_enabled = self._google_geocoding_check.isChecked()
         settings.frost_warning_orange_c = self._frost_orange_spin.value()
         settings.frost_warning_red_c = self._frost_red_spin.value()
         settings.notify_overdue_tasks_on_startup = self._notify_overdue_check.isChecked()
@@ -608,6 +807,10 @@ class PreferencesDialog(QDialog):
         settings.agent_api_enabled = self._agent_api_check.isChecked()
         settings.agent_api_port = self._agent_api_port_spin.value()
         settings.agent_api_writes_enabled = self._agent_api_writes_check.isChecked()
+        settings.field_remote_enabled = self._field_remote_check.isChecked()
+        settings.field_remote_bind = self._field_remote_bind_combo.currentText().strip()
+        settings.field_remote_port = self._field_remote_port_spin.value()
+        settings.field_remote_records = self._field_remote_records_check.isChecked()
         settings.view3d_quality = str(self._view3d_quality_combo.currentData())
         settings.view3d_reduced_motion = self._view3d_reduced_motion_check.isChecked()
         settings.view3d_sky_model = str(self._view3d_sky_combo.currentData())

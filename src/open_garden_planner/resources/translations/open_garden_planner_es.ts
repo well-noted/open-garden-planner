@@ -547,17 +547,17 @@
     <context>
         <name>CanvasScene</name>
         <message>
-            <location filename="../../ui/canvas/canvas_scene.py" line="1507" />
+            <location filename="../../ui/canvas/canvas_scene.py" line="1510" />
             <source>Calibration complete</source>
             <translation>Calibración completada</translation>
         </message>
         <message>
-            <location filename="../../ui/canvas/canvas_scene.py" line="1412" />
+            <location filename="../../ui/canvas/canvas_scene.py" line="1415" />
             <source>Calibration: Click first point on the image</source>
             <translation>Calibración: Haga clic en el primer punto de la imagen</translation>
         </message>
         <message>
-            <location filename="../../ui/canvas/canvas_scene.py" line="1440" />
+            <location filename="../../ui/canvas/canvas_scene.py" line="1443" />
             <source>Calibration: Click second point on the image</source>
             <translation>Calibración: Haga clic en el segundo punto de la imagen</translation>
         </message>
@@ -1581,7 +1581,7 @@
             <translation>Añadir restricción</translation>
         </message>
         <message>
-            <location filename="../../core/commands.py" line="4602" />
+            <location filename="../../core/commands.py" line="4712" />
             <source>Add garden journal note</source>
             <translation>Añadir nota al diario del jardín</translation>
         </message>
@@ -1606,7 +1606,7 @@
             <translation>Añadir análisis de suelo</translation>
         </message>
         <message>
-            <location filename="../../core/commands.py" line="4709" />
+            <location filename="../../core/commands.py" line="4819" />
             <source>Add task</source>
             <translation>Añadir tarea</translation>
         </message>
@@ -1652,7 +1652,7 @@
             <translation>Alinear arriba</translation>
         </message>
         <message>
-            <location filename="../../app/agent_host.py" line="2890" />
+            <location filename="../../app/agent_host.py" line="2898" />
             <location filename="../../core/commands.py" line="1677" />
             <source>Apply species data</source>
             <translation>Aplicar datos de la especie</translation>
@@ -1740,12 +1740,12 @@
             <translation>Crear {item_type}</translation>
         </message>
         <message>
-            <location filename="../../core/commands.py" line="4840" />
+            <location filename="../../core/commands.py" line="4950" />
             <source>Delete camera tour</source>
             <translation>Eliminar recorrido de cámara</translation>
         </message>
         <message>
-            <location filename="../../core/commands.py" line="4678" />
+            <location filename="../../core/commands.py" line="4788" />
             <source>Delete garden journal note</source>
             <translation>Eliminar nota del diario del jardín</translation>
         </message>
@@ -1775,7 +1775,7 @@
             <translation>Eliminar análisis de suelo</translation>
         </message>
         <message>
-            <location filename="../../core/commands.py" line="4753" />
+            <location filename="../../core/commands.py" line="4863" />
             <source>Delete task</source>
             <translation>Eliminar tarea</translation>
         </message>
@@ -1815,7 +1815,7 @@
             <translation>Editar distancia de restricción</translation>
         </message>
         <message>
-            <location filename="../../core/commands.py" line="4637" />
+            <location filename="../../core/commands.py" line="4747" />
             <source>Edit garden journal note</source>
             <translation>Editar nota del diario del jardín</translation>
         </message>
@@ -1841,7 +1841,7 @@
             <translation>Editar análisis de suelo</translation>
         </message>
         <message>
-            <location filename="../../core/commands.py" line="4731" />
+            <location filename="../../core/commands.py" line="4841" />
             <source>Edit task</source>
             <translation>Editar tarea</translation>
         </message>
@@ -1886,7 +1886,7 @@
             <translation>Reflejar {count} elemento(s) (mover)</translation>
         </message>
         <message>
-            <location filename="../../app/agent_host.py" line="837" />
+            <location filename="../../app/agent_host.py" line="845" />
             <location filename="../../core/commands.py" line="1242" />
             <location filename="../../ui/canvas/canvas_view.py" line="4239" />
             <source>Move item</source>
@@ -1930,7 +1930,7 @@
             <translation>Quitar restricción</translation>
         </message>
         <message>
-            <location filename="../../core/commands.py" line="4823" />
+            <location filename="../../core/commands.py" line="4933" />
             <source>Rename camera tour</source>
             <translation>Cambiar nombre del recorrido de cámara</translation>
         </message>
@@ -1960,7 +1960,7 @@
             <translation>Rotar elemento</translation>
         </message>
         <message>
-            <location filename="../../core/commands.py" line="4806" />
+            <location filename="../../core/commands.py" line="4916" />
             <source>Save camera tour</source>
             <translation>Guardar recorrido de cámara</translation>
         </message>
@@ -1973,6 +1973,16 @@
             <location filename="../../ui/canvas/arrange.py" line="41" />
             <source>Send {count} item(s) to back</source>
             <translation>Enviar {count} elemento(s) al fondo</translation>
+        </message>
+        <message>
+            <location filename="../../core/commands.py" line="4611" />
+            <source>Set georeference</source>
+            <translation>Establecer georreferencia</translation>
+        </message>
+        <message>
+            <location filename="../../core/commands.py" line="4662" />
+            <source>Set initial map</source>
+            <translation>Establecer mapa inicial</translation>
         </message>
         <message>
             <location filename="../../core/commands.py" line="4570" />
@@ -3994,6 +4004,62 @@ Use 0,1 para DXF en mm, 100 para DXF en metros.</translation>
         </message>
     </context>
     <context>
+        <name>FieldRemoteDialog</name>
+        <message>
+            <location filename="../../ui/dialogs/field_remote_dialog.py" line="56" />
+            <source>Certificate fingerprint (SHA-256):</source>
+            <translation>Huella del certificado (SHA-256):</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/field_remote_dialog.py" line="71" />
+            <source>Close</source>
+            <translation>Cerrar</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/field_remote_dialog.py" line="69" />
+            <source>Copy link</source>
+            <translation>Copiar enlace</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/field_remote_dialog.py" line="108" />
+            <source>Hidden. Close this window and open it again.</source>
+            <translation>Oculto. Cierre esta ventana y ábrala de nuevo.</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/field_remote_dialog.py" line="42" />
+            <source>Open this link in Chrome on your Android phone. Your phone's browser will warn that the certificate is not trusted; that is expected for a certificate this computer made itself. Compare the fingerprint below with the one the browser shows (under the warning's certificate details), then continue.</source>
+            <translation>Abra este enlace en Chrome en su teléfono Android. El navegador avisará de que el certificado no es de confianza; es lo esperado en un certificado que este ordenador ha creado por sí mismo. Compare la huella de abajo con la que muestra el navegador (en los detalles del certificado de la advertencia) y continúe.</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/field_remote_dialog.py" line="36" />
+            <source>Pair a phone</source>
+            <translation>Vincular un teléfono</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/field_remote_dialog.py" line="63" />
+            <source>The link contains the access token. It is hidden after two minutes; do not share it.</source>
+            <translation>El enlace contiene el token de acceso. Se oculta tras dos minutos; no lo comparta.</translation>
+        </message>
+    </context>
+    <context>
+        <name>FieldRemoteHost</name>
+        <message>
+            <location filename="../../app/field_remote_host.py" line="186" />
+            <source>Field Remote failed to start (see log)</source>
+            <translation>Field Remote no pudo iniciarse (consulte el registro)</translation>
+        </message>
+        <message>
+            <location filename="../../app/field_remote_host.py" line="182" />
+            <source>Port {port} is already in use</source>
+            <translation>El puerto {port} ya está en uso</translation>
+        </message>
+        <message>
+            <location filename="../../app/field_remote_host.py" line="170" />
+            <source>Port {port} is used by the Agent API</source>
+            <translation>El puerto {port} lo usa la Agent API</translation>
+        </message>
+    </context>
+    <context>
         <name>FilletTool</name>
         <message>
             <location filename="../../core/tools/fillet_tool.py" line="185" />
@@ -5249,7 +5315,7 @@ Use 0,1 para DXF en mm, 100 para DXF en metros.</translation>
     <context>
         <name>GardenPlannerApp</name>
         <message>
-            <location filename="../../app/application.py" line="1662" />
+            <location filename="../../app/application.py" line="1702" />
             <source>&amp;3D View</source>
             <translation>Vista &amp;3D</translation>
         </message>
@@ -5258,188 +5324,192 @@ Use 0,1 para DXF en mm, 100 para DXF en metros.</translation>
             <translation type="vanished">Vista &amp;3D…</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1935" />
+            <location filename="../../app/application.py" line="1985" />
             <source>&amp;About Open Garden Planner</source>
             <translation>Acerca de &amp;Open Garden Planner</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1896" />
+            <location filename="../../app/application.py" line="1946" />
             <source>&amp;Amendment Plan…</source>
             <translation>Plan de &amp;enmiendas…</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1305" />
+            <location filename="../../app/application.py" line="1345" />
             <source>&amp;Copy</source>
             <translation>&amp;Copiar</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1800" />
+            <location filename="../../app/application.py" line="1850" />
             <source>&amp;Dark</source>
             <translation>&amp;Oscuro</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1329" />
+            <location filename="../../app/application.py" line="1369" />
             <source>&amp;Delete</source>
             <translation>&amp;Eliminar</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1398" />
+            <location filename="../../app/application.py" line="1438" />
             <source>&amp;Distribute Horizontal</source>
             <translation>Distribuir en hori&amp;zontal</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1092" />
+            <location filename="../../app/application.py" line="1123" />
             <source>&amp;Edit</source>
             <translation>&amp;Editar</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1474" />
+            <location filename="../../app/application.py" line="1514" />
             <source>&amp;Enable Auto-Save</source>
             <translation>&amp;Activar autoguardado</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1221" />
+            <location filename="../../app/application.py" line="1261" />
             <source>&amp;Export</source>
             <translation>&amp;Exportar</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1088" />
+            <location filename="../../app/application.py" line="1119" />
             <source>&amp;File</source>
             <translation>&amp;Archivo</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1346" />
+            <location filename="../../app/application.py" line="1386" />
             <source>&amp;Find &amp;&amp; Replace…</source>
             <translation>&amp;Buscar &amp;&amp; Reemplazar…</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1527" />
+            <location filename="../../app/application.py" line="1567" />
             <source>&amp;Fit to Window</source>
             <translation>A&amp;justar a la ventana</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1104" />
+            <location filename="../../app/application.py" line="1135" />
             <source>&amp;Garden</source>
             <translation>&amp;Huerto</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1108" />
+            <source>&amp;Georeference...</source>
+            <translation type="vanished">&amp;Georreferencia...</translation>
+        </message>
+        <message>
+            <location filename="../../app/application.py" line="1139" />
             <source>&amp;Help</source>
             <translation>A&amp;yuda</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1178" />
+            <location filename="../../app/application.py" line="1209" />
             <source>&amp;Import Background Image...</source>
             <translation>&amp;Importar imagen de fondo...</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1916" />
+            <location filename="../../app/application.py" line="1966" />
             <source>&amp;Keyboard Shortcuts</source>
             <translation>Atajos de &amp;teclado</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1817" />
+            <location filename="../../app/application.py" line="1867" />
             <source>&amp;Language</source>
             <translation>Id&amp;ioma</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1793" />
+            <location filename="../../app/application.py" line="1843" />
             <source>&amp;Light</source>
             <translation>C&amp;laro</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1868" />
+            <location filename="../../app/application.py" line="1918" />
             <source>&amp;Manage Custom Plants...</source>
             <translation>Administrar plantas &amp;personalizadas...</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1169" />
+            <location filename="../../app/application.py" line="1200" />
             <source>&amp;Manage Seasons...</source>
             <translation>Gestionar &amp;temporadas...</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1114" />
+            <location filename="../../app/application.py" line="1145" />
             <source>&amp;New Project</source>
             <translation>&amp;Nuevo proyecto</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1131" />
+            <location filename="../../app/application.py" line="1162" />
             <source>&amp;Open...</source>
             <translation>&amp;Abrir...</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1313" />
+            <location filename="../../app/application.py" line="1353" />
             <source>&amp;Paste</source>
             <translation>&amp;Pegar</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1100" />
+            <location filename="../../app/application.py" line="1131" />
             <source>&amp;Plants</source>
             <translation>&amp;Plantas</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1257" />
+            <location filename="../../app/application.py" line="1297" />
             <source>&amp;Print...</source>
             <translation>Im&amp;primir...</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1286" />
+            <location filename="../../app/application.py" line="1326" />
             <source>&amp;Redo</source>
             <translation>&amp;Rehacer</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1146" />
+            <location filename="../../app/application.py" line="1177" />
             <source>&amp;Save</source>
             <translation>&amp;Guardar</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1858" />
+            <location filename="../../app/application.py" line="1908" />
             <source>&amp;Search Plant Database</source>
             <translation>&amp;Buscar en la base de datos de plantas</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1886" />
+            <location filename="../../app/application.py" line="1936" />
             <source>&amp;Set default soil test…</source>
             <translation>Establecer análisis de suelo &amp;predeterminado…</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1555" />
+            <location filename="../../app/application.py" line="1595" />
             <source>&amp;Snap to Grid</source>
             <translation>Ajustar a la &amp;red</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1540" />
+            <location filename="../../app/application.py" line="1580" />
             <source>&amp;Snapping</source>
             <translation>Ajustes &amp;magnéticos</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1807" />
+            <location filename="../../app/application.py" line="1857" />
             <source>&amp;System</source>
             <translation>&amp;Sistema</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1788" />
+            <location filename="../../app/application.py" line="1838" />
             <source>&amp;Theme</source>
             <translation>&amp;Tema</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1277" />
+            <location filename="../../app/application.py" line="1317" />
             <source>&amp;Undo</source>
             <translation>&amp;Deshacer</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1096" />
+            <location filename="../../app/application.py" line="1127" />
             <source>&amp;View</source>
             <translation>&amp;Ver</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6056" />
-            <location filename="../../app/application.py" line="6058" />
+            <location filename="../../app/application.py" line="6131" />
+            <location filename="../../app/application.py" line="6133" />
             <source>1 object selected</source>
             <translation>1 objeto seleccionado</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6051" />
+            <location filename="../../app/application.py" line="6126" />
             <source>1 object | Area: {area} | Perimeter: {perimeter}</source>
             <translation>1 objeto | Área: {area} | Perímetro: {perimeter}</translation>
         </message>
@@ -5448,92 +5518,92 @@ Use 0,1 para DXF en mm, 100 para DXF en metros.</translation>
             <translation type="vanished">Vista 3D no disponible</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="5947" />
+            <location filename="../../app/application.py" line="6022" />
             <source>&lt;h3&gt;Data Sources &amp; Licenses&lt;/h3&gt;</source>
             <translation>&lt;h3&gt;Fuentes de datos y licencias&lt;/h3&gt;</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="5969" />
+            <location filename="../../app/application.py" line="6044" />
             <source>&lt;h4&gt;Bundled data&lt;/h4&gt;</source>
             <translation>&lt;h4&gt;Datos incluidos&lt;/h4&gt;</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="5989" />
+            <location filename="../../app/application.py" line="6064" />
             <source>&lt;h4&gt;Icons&lt;/h4&gt;</source>
             <translation>&lt;h4&gt;Iconos&lt;/h4&gt;</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="5949" />
+            <location filename="../../app/application.py" line="6024" />
             <source>&lt;h4&gt;Online plant databases&lt;/h4&gt;</source>
             <translation>&lt;h4&gt;Bases de datos de plantas en línea&lt;/h4&gt;</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="5976" />
+            <location filename="../../app/application.py" line="6051" />
             <source>&lt;li&gt;&lt;b&gt;Companion planting&lt;/b&gt; — RHS Companion Planting guide, Louise Riotte 'Carrots Love Tomatoes', Rodale's 'Companion Planting for Vegetables'&lt;/li&gt;</source>
             <translation>&lt;li&gt;&lt;b&gt;Asociación de cultivos&lt;/b&gt; — Guía de asociación de la RHS, Louise Riotte 'Carrots Love Tomatoes', Rodale 'Companion Planting for Vegetables'&lt;/li&gt;</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="5963" />
+            <location filename="../../app/application.py" line="6038" />
             <source>&lt;li&gt;&lt;b&gt;Perenual&lt;/b&gt; — &lt;a href='https://perenual.com'&gt;perenual.com&lt;/a&gt;&lt;br&gt;Free for personal and commercial use.&lt;/li&gt;</source>
             <translation>&lt;li&gt;&lt;b&gt;Perenual&lt;/b&gt; — &lt;a href='https://perenual.com'&gt;perenual.com&lt;/a&gt;&lt;br&gt;Gratuito para uso personal y comercial.&lt;/li&gt;</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="5951" />
+            <location filename="../../app/application.py" line="6026" />
             <source>&lt;li&gt;&lt;b&gt;Permapeople&lt;/b&gt; — &lt;a href='https://permapeople.org'&gt;permapeople.org&lt;/a&gt;&lt;br&gt;License: CC BY-SA 4.0 (Creative Commons Attribution-ShareAlike 4.0)&lt;br&gt;Data is curated from public horticultural sources and available under a share-alike license.&lt;/li&gt;</source>
             <translation>&lt;li&gt;&lt;b&gt;Permapeople&lt;/b&gt; — &lt;a href='https://permapeople.org'&gt;permapeople.org&lt;/a&gt;&lt;br&gt;Licencia: CC BY-SA 4.0 (Creative Commons Atribución-CompartirIgual 4.0)&lt;br&gt;Los datos proceden de fuentes hortícolas públicas y están disponibles bajo una licencia compartir-igual.&lt;/li&gt;</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="5981" />
+            <location filename="../../app/application.py" line="6056" />
             <source>&lt;li&gt;&lt;b&gt;Seed viability&lt;/b&gt; — Oregon State University Extension, Johnny's Selected Seeds, Mother Earth News, RHS&lt;/li&gt;</source>
             <translation>&lt;li&gt;&lt;b&gt;Viabilidad de semillas&lt;/b&gt; — Extensión de la Universidad Estatal de Oregón, Johnny's Selected Seeds, Mother Earth News, RHS&lt;/li&gt;</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="5985" />
+            <location filename="../../app/application.py" line="6060" />
             <source>&lt;li&gt;&lt;b&gt;Soil amendments&lt;/b&gt; — Rodale, RHS, USDA Extension&lt;/li&gt;</source>
             <translation>&lt;li&gt;&lt;b&gt;Enmiendas del suelo&lt;/b&gt; — Rodale, RHS, Extensión del USDA&lt;/li&gt;</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="5971" />
+            <location filename="../../app/application.py" line="6046" />
             <source>&lt;li&gt;&lt;b&gt;Species database&lt;/b&gt; — RHS, Cornell University, Royal Botanic Gardens Kew, USDA/GRIN-Global, University of Minnesota, Oregon State University&lt;/li&gt;</source>
             <translation>&lt;li&gt;&lt;b&gt;Base de datos de especies&lt;/b&gt; — RHS, Universidad de Cornell, Real Jardín Botánico de Kew, USDA/GRIN-Global, Universidad de Minnesota, Universidad Estatal de Oregón&lt;/li&gt;</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="5991" />
+            <location filename="../../app/application.py" line="6066" />
             <source>&lt;li&gt;&lt;b&gt;Tabler Icons&lt;/b&gt; — MIT License&lt;/li&gt;</source>
             <translation>&lt;li&gt;&lt;b&gt;Tabler Icons&lt;/b&gt; — Licencia MIT&lt;/li&gt;</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="5958" />
+            <location filename="../../app/application.py" line="6033" />
             <source>&lt;li&gt;&lt;b&gt;Trefle&lt;/b&gt; — &lt;a href='https://trefle.io'&gt;trefle.io&lt;/a&gt;&lt;br&gt;Attribution required per their API terms of service.&lt;/li&gt;</source>
             <translation>&lt;li&gt;&lt;b&gt;Trefle&lt;/b&gt; — &lt;a href='https://trefle.io'&gt;trefle.io&lt;/a&gt;&lt;br&gt;Atribución requerida según las condiciones del servicio de su API.&lt;/li&gt;</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="5992" />
+            <location filename="../../app/application.py" line="6067" />
             <source>&lt;li&gt;&lt;b&gt;UI icons&lt;/b&gt; — GPLv3 (original work)&lt;/li&gt;</source>
             <translation>&lt;li&gt;&lt;b&gt;Iconos de la interfaz&lt;/b&gt; — GPLv3 (obra original)&lt;/li&gt;</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="5994" />
+            <location filename="../../app/application.py" line="6069" />
             <source>&lt;p&gt;All bundled data files are licensed under CC BY-SA 4.0. See &lt;code&gt;resources/data/PROVENANCE.md&lt;/code&gt; for details.&lt;/p&gt;</source>
             <translation>&lt;p&gt;Todos los archivos de datos incluidos están bajo licencia CC BY-SA 4.0. Consulte &lt;code&gt;resources/data/PROVENANCE.md&lt;/code&gt; para más información.&lt;/p&gt;</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="5948" />
+            <location filename="../../app/application.py" line="6023" />
             <source>&lt;p&gt;Open Garden Planner uses data from the following sources:&lt;/p&gt;</source>
             <translation>&lt;p&gt;Open Garden Planner utiliza datos de las siguientes fuentes:&lt;/p&gt;</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="5902" />
+            <location filename="../../app/application.py" line="5977" />
             <source>&lt;p&gt;Precision garden planning for passionate gardeners.&lt;/p&gt;&lt;p&gt;Free and open source under GPLv3.&lt;/p&gt;</source>
             <translation>&lt;p&gt;Planificación precisa de huertos y jardines para aficionados apasionados.&lt;/p&gt;&lt;p&gt;Gratuito y de código abierto bajo GPLv3.&lt;/p&gt;</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="5898" />
+            <location filename="../../app/application.py" line="5973" />
             <source>&lt;p&gt;Version {v}&lt;/p&gt;</source>
             <translation>&lt;p&gt;Versión {v}&lt;/p&gt;</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3064" />
+            <location filename="../../app/application.py" line="3116" />
             <source>A recovery file for an unsaved project was found from {timestamp}.
 
 Would you like to recover this file?</source>
@@ -5542,7 +5612,7 @@ Would you like to recover this file?</source>
 ¿Desea recuperar este archivo?</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3058" />
+            <location filename="../../app/application.py" line="3110" />
             <source>A recovery file was found from {timestamp}.
 
 Original project: {original_file}
@@ -5555,202 +5625,202 @@ Proyecto original: {original_file}
 ¿Desea recuperar este archivo?</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6137" />
+            <location filename="../../app/application.py" line="6210" />
             <source>API key missing</source>
             <translation>Falta la clave API</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1942" />
+            <location filename="../../app/application.py" line="1992" />
             <source>About &amp;Qt</source>
             <translation>Acerca de &amp;Qt</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="5868" />
+            <location filename="../../app/application.py" line="5943" />
             <source>About Open Garden Planner</source>
             <translation>Acerca de Open Garden Planner</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1936" />
+            <location filename="../../app/application.py" line="1986" />
             <source>About this application</source>
             <translation>Acerca de esta aplicación</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="2803" />
+            <location filename="../../app/application.py" line="2855" />
             <source>Active Pest/Disease Issues</source>
             <translation>Plagas y enfermedades activas</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1986" />
+            <location filename="../../app/application.py" line="2036" />
             <source>Active tool</source>
             <translation>Herramienta activa</translation>
         </message>
         <message>
-            <location filename="../../app/agent_host.py" line="3689" />
+            <location filename="../../app/agent_host.py" line="3697" />
             <source>Agent API failed to start (see log)</source>
             <translation>Error al iniciar la API del agente (consulte el registro)</translation>
         </message>
         <message>
-            <location filename="../../app/agent_host.py" line="3694" />
+            <location filename="../../app/agent_host.py" line="3702" />
             <source>Agent API running at {url}</source>
             <translation>API del agente ejecutándose en {url}</translation>
         </message>
         <message>
-            <location filename="../../app/agent_host.py" line="3681" />
+            <location filename="../../app/agent_host.py" line="3689" />
             <source>Agent API: port {port} is already in use</source>
             <translation>API del agente: el puerto {port} ya está en uso</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1357" />
+            <location filename="../../app/application.py" line="1397" />
             <source>Ali&amp;gn &amp;&amp; Distribute</source>
             <translation>A&amp;linear &amp;&amp; Distribuir</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1378" />
+            <location filename="../../app/application.py" line="1418" />
             <source>Align &amp;Bottom</source>
             <translation>Alinear a&amp;bajo</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1360" />
+            <location filename="../../app/application.py" line="1400" />
             <source>Align &amp;Left</source>
             <translation>Alinear a la &amp;izquierda</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1366" />
+            <location filename="../../app/application.py" line="1406" />
             <source>Align &amp;Right</source>
             <translation>Alinear a la &amp;derecha</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1372" />
+            <location filename="../../app/application.py" line="1412" />
             <source>Align &amp;Top</source>
             <translation>Alinear &amp;arriba</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1384" />
+            <location filename="../../app/application.py" line="1424" />
             <source>Align Center &amp;Horizontally</source>
             <translation>Centrar &amp;horizontalmente</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1390" />
+            <location filename="../../app/application.py" line="1430" />
             <source>Align Center &amp;Vertically</source>
             <translation>Centrar &amp;verticalmente</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1385" />
+            <location filename="../../app/application.py" line="1425" />
             <source>Align selected objects to horizontal center</source>
             <translation>Centrar horizontalmente los objetos seleccionados</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1379" />
+            <location filename="../../app/application.py" line="1419" />
             <source>Align selected objects to the bottom edge</source>
             <translation>Alinear los objetos seleccionados al borde inferior</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1361" />
+            <location filename="../../app/application.py" line="1401" />
             <source>Align selected objects to the left edge</source>
             <translation>Alinear los objetos seleccionados al borde izquierdo</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1367" />
+            <location filename="../../app/application.py" line="1407" />
             <source>Align selected objects to the right edge</source>
             <translation>Alinear los objetos seleccionados al borde derecho</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1373" />
+            <location filename="../../app/application.py" line="1413" />
             <source>Align selected objects to the top edge</source>
             <translation>Alinear los objetos seleccionados al borde superior</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1391" />
+            <location filename="../../app/application.py" line="1431" />
             <source>Align selected objects to vertical center</source>
             <translation>Centrar verticalmente los objetos seleccionados</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1878" />
+            <location filename="../../app/application.py" line="1928" />
             <source>Analyse the whole plan for companion planting compatibility</source>
             <translation>Analizar todo el plano para comprobar la compatibilidad de asociaciones</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1411" />
+            <location filename="../../app/application.py" line="1451" />
             <source>Arra&amp;nge</source>
             <translation>&amp;Ordenar</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1470" />
+            <location filename="../../app/application.py" line="1510" />
             <source>Auto-&amp;Save</source>
             <translation>Auto&amp;guardado</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="4274" />
+            <location filename="../../app/application.py" line="4327" />
             <source>Auto-save disabled</source>
             <translation>Autoguardado desactivado</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="4271" />
+            <location filename="../../app/application.py" line="4324" />
             <source>Auto-save enabled</source>
             <translation>Autoguardado activado</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3020" />
+            <location filename="../../app/application.py" line="3072" />
             <source>Auto-save failed: {error}</source>
             <translation>Error en el autoguardado: {error}</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="4295" />
+            <location filename="../../app/application.py" line="4348" />
             <source>Auto-save interval set to {n} minute(s)</source>
             <translation>Intervalo de autoguardado establecido en {n} minuto(s)</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3011" />
+            <location filename="../../app/application.py" line="3063" />
             <source>Auto-saved</source>
             <translation>Guardado automáticamente</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1425" />
+            <location filename="../../app/application.py" line="1465" />
             <source>Bring F&amp;orward</source>
             <translation>&amp;Avanzar un nivel</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1430" />
+            <location filename="../../app/application.py" line="1470" />
             <source>Bring the selected objects one step forward</source>
             <translation>Avanzar los objetos seleccionados un paso hacia adelante</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1419" />
+            <location filename="../../app/application.py" line="1459" />
             <source>Bring the selected objects to the front of their layer</source>
             <translation>Traer los objetos seleccionados al frente de su capa</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1414" />
+            <location filename="../../app/application.py" line="1454" />
             <source>Bring to &amp;Front</source>
             <translation>Traer al &amp;frente</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3813" />
+            <location filename="../../app/application.py" line="3865" />
             <source>CSV Spreadsheet (*.csv);;All Files (*)</source>
             <translation>Hoja de cálculo CSV (*.csv);;Todos los archivos (*)</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="4024" />
+            <location filename="../../app/application.py" line="4076" />
             <source>Cancel</source>
             <translation>Cancelar</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="5480" />
+            <location filename="../../app/application.py" line="5533" />
             <source>Cannot delete the layer because its replacement layer is locked.</source>
             <translation>No se puede eliminar la capa porque la capa de reemplazo está bloqueada.</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1461" />
+            <location filename="../../app/application.py" line="1501" />
             <source>Canvas Si&amp;ze...</source>
             <translation>Tamaño del lie&amp;nzo...</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3362" />
+            <location filename="../../app/application.py" line="3414" />
             <source>Canvas Size</source>
             <translation>Tamaño del lienzo</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3379" />
+            <location filename="../../app/application.py" line="3431" />
             <source>Canvas resized to {width} x {height}</source>
             <translation>Lienzo redimensionado a {width} x {height}</translation>
         </message>
@@ -5759,514 +5829,534 @@ Proyecto original: {original_file}
             <translation type="vanished">Lienzo redimensionado a {width}m x {height}m</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1877" />
+            <location filename="../../app/application.py" line="1927" />
             <source>Check &amp;Companion Planting...</source>
             <translation>Comprobar &amp;asociaciones de plantas...</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3569" />
+            <location filename="../../app/application.py" line="3621" />
             <source>Clear Recent Projects</source>
             <translation>Borrar proyectos recientes</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="2785" />
+            <location filename="../../app/application.py" line="2837" />
             <source>Companion Planting</source>
             <translation>Asociación de cultivos</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1502" />
+            <location filename="../../app/application.py" line="1542" />
             <source>Configure application settings and API keys</source>
             <translation>Configurar ajustes de la aplicación y claves de API</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1924" />
+            <location filename="../../app/application.py" line="1974" />
             <source>Connect AI Assistant…</source>
             <translation>Conectar asistente de IA…</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="2731" />
+            <location filename="../../app/application.py" line="2783" />
             <source>Constraints</source>
             <translation>Restricciones</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1307" />
+            <location filename="../../app/application.py" line="1347" />
             <source>Copy selected objects</source>
             <translation>Copiar objetos seleccionados</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1116" />
+            <location filename="../../app/application.py" line="1147" />
             <source>Create a new garden project</source>
             <translation>Crear un nuevo proyecto de huerto</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1170" />
+            <location filename="../../app/application.py" line="1201" />
             <source>Create a new season or switch between seasons</source>
             <translation>Crear una nueva temporada o cambiar entre temporadas</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="2793" />
+            <location filename="../../app/application.py" line="2845" />
             <source>Crop Rotation</source>
             <translation>Rotación de cultivos</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1297" />
+            <location filename="../../app/application.py" line="1337" />
             <source>Cu&amp;t</source>
             <translation>Cor&amp;tar</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="2004" />
-            <location filename="../../app/application.py" line="6912" />
+            <location filename="../../app/application.py" line="2054" />
+            <location filename="../../app/application.py" line="7073" />
             <source>Current season year — use File &gt; Manage Seasons to configure</source>
             <translation>Año de la temporada actual — use Archivo &gt; Gestionar temporadas para configurar</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1959" />
+            <location filename="../../app/application.py" line="2009" />
             <source>Cursor position</source>
             <translation>Posición del cursor</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1299" />
+            <location filename="../../app/application.py" line="1339" />
             <source>Cut selected objects</source>
             <translation>Cortar objetos seleccionados</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1404" />
+            <location filename="../../app/application.py" line="1444" />
             <source>D&amp;istribute Vertical</source>
             <translation>Distribuir en ver&amp;tical</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3894" />
-            <location filename="../../app/application.py" line="3944" />
+            <location filename="../../app/application.py" line="3946" />
+            <location filename="../../app/application.py" line="3996" />
             <source>DXF Files (*.dxf);;All Files (*)</source>
             <translation>Archivos DXF (*.dxf);;Todos los archivos (*)</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="5921" />
-            <location filename="../../app/application.py" line="5932" />
+            <location filename="../../app/application.py" line="5996" />
+            <location filename="../../app/application.py" line="6007" />
             <source>Data Sources &amp;&amp; Licenses</source>
             <translation>Fuentes de datos &amp;&amp; Licencias</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="2737" />
+            <location filename="../../app/application.py" line="2789" />
             <source>Delete all constraints</source>
             <translation>Eliminar todas las restricciones</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6687" />
+            <location filename="../../app/application.py" line="6848" />
             <source>Delete journal note</source>
             <translation>Eliminar nota del diario</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1331" />
+            <location filename="../../app/application.py" line="1371" />
             <source>Delete selected objects</source>
             <translation>Eliminar objetos seleccionados</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6688" />
+            <location filename="../../app/application.py" line="6849" />
             <source>Delete this journal note?</source>
             <translation>¿Eliminar esta nota del diario?</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="2845" />
+            <location filename="../../app/application.py" line="2897" />
             <source>Diagnostics</source>
             <translation>Diagnósticos</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1399" />
+            <location filename="../../app/application.py" line="1439" />
             <source>Distribute selected objects with equal horizontal spacing</source>
             <translation>Distribuir los objetos seleccionados con espaciado horizontal uniforme</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1405" />
+            <location filename="../../app/application.py" line="1445" />
             <source>Distribute selected objects with equal vertical spacing</source>
             <translation>Distribuir los objetos seleccionados con espaciado vertical uniforme</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="4071" />
+            <location filename="../../app/application.py" line="4123" />
             <source>Do you want to save changes before proceeding?</source>
             <translation>¿Desea guardar los cambios antes de continuar?</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1321" />
+            <location filename="../../app/application.py" line="1361" />
             <source>Dupl&amp;icate</source>
             <translation>Dupl&amp;icar</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1323" />
+            <location filename="../../app/application.py" line="1363" />
             <source>Duplicate selected objects</source>
             <translation>Duplicar objetos seleccionados</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1267" />
+            <location filename="../../app/application.py" line="1307" />
             <source>E&amp;xit</source>
             <translation>&amp;Salir</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1646" />
+            <location filename="../../app/application.py" line="1686" />
             <source>Enable &amp;Dynamic Input</source>
             <translation>Activar entrada &amp;dinámica</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1476" />
+            <location filename="../../app/application.py" line="1516" />
             <source>Enable or disable automatic saving</source>
             <translation>Activar o desactivar el guardado automático</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3431" />
-            <location filename="../../app/application.py" line="3604" />
-            <location filename="../../app/application.py" line="3658" />
-            <location filename="../../app/application.py" line="3689" />
-            <location filename="../../app/application.py" line="6121" />
-            <location filename="../../app/application.py" line="6950" />
+            <location filename="../../app/application.py" line="3483" />
+            <location filename="../../app/application.py" line="3656" />
+            <location filename="../../app/application.py" line="3710" />
+            <location filename="../../app/application.py" line="3741" />
+            <location filename="../../app/application.py" line="6196" />
+            <location filename="../../app/application.py" line="7111" />
             <source>Error</source>
             <translation>Error</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3614" />
+            <location filename="../../app/application.py" line="3666" />
             <source>Examples &amp; templates</source>
             <translation>Ejemplos y plantillas</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1269" />
+            <location filename="../../app/application.py" line="1309" />
             <source>Exit the application</source>
             <translation>Salir de la aplicación</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3758" />
-            <location filename="../../app/application.py" line="3803" />
-            <location filename="../../app/application.py" line="3841" />
-            <location filename="../../app/application.py" line="3958" />
-            <location filename="../../app/application.py" line="4048" />
+            <location filename="../../app/application.py" line="3810" />
+            <location filename="../../app/application.py" line="3855" />
+            <location filename="../../app/application.py" line="3893" />
+            <location filename="../../app/application.py" line="4010" />
+            <location filename="../../app/application.py" line="4100" />
             <source>Export Error</source>
             <translation>Error de exportación</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1248" />
+            <location filename="../../app/application.py" line="1288" />
             <source>Export PDF &amp;Report...</source>
             <translation>Exportar &amp;informe en PDF...</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3983" />
+            <location filename="../../app/application.py" line="4035" />
             <source>Export PDF Report</source>
             <translation>Exportar informe en PDF</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1236" />
+            <location filename="../../app/application.py" line="1276" />
             <source>Export Plant List as &amp;CSV...</source>
             <translation>Exportar lista de plantas como &amp;CSV...</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3811" />
+            <location filename="../../app/application.py" line="3863" />
             <source>Export Plant List as CSV</source>
             <translation>Exportar lista de plantas como CSV</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1237" />
+            <location filename="../../app/application.py" line="1277" />
             <source>Export all plants to a CSV spreadsheet</source>
             <translation>Exportar todas las plantas a una hoja de cálculo CSV</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1224" />
+            <location filename="../../app/application.py" line="1264" />
             <source>Export as &amp;PNG...</source>
             <translation>Exportar como &amp;PNG...</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1230" />
+            <location filename="../../app/application.py" line="1270" />
             <source>Export as &amp;SVG...</source>
             <translation>Exportar como &amp;SVG...</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1242" />
+            <location filename="../../app/application.py" line="1282" />
             <source>Export as D&amp;XF...</source>
             <translation>Exportar como D&amp;XF...</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3942" />
+            <location filename="../../app/application.py" line="3994" />
             <source>Export as DXF</source>
             <translation>Exportar como DXF</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3733" />
+            <location filename="../../app/application.py" line="3785" />
             <source>Export as PNG</source>
             <translation>Exportar como PNG</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3773" />
+            <location filename="../../app/application.py" line="3825" />
             <source>Export as SVG</source>
             <translation>Exportar como SVG</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1243" />
+            <location filename="../../app/application.py" line="1283" />
             <source>Export the plan as a DXF file for CAD software</source>
             <translation>Exportar el plano como archivo DXF para software CAD</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1225" />
+            <location filename="../../app/application.py" line="1265" />
             <source>Export the plan as a PNG image</source>
             <translation>Exportar el plano como imagen PNG</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1231" />
+            <location filename="../../app/application.py" line="1271" />
             <source>Export the plan as an SVG vector file</source>
             <translation>Exportar el plano como archivo vectorial SVG</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3837" />
+            <location filename="../../app/application.py" line="3889" />
             <source>Exported {count} plant(s) to: {path}</source>
             <translation>{count} planta(s) exportada(s) a: {path}</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3754" />
-            <location filename="../../app/application.py" line="3799" />
-            <location filename="../../app/application.py" line="3955" />
-            <location filename="../../app/application.py" line="4042" />
+            <location filename="../../app/application.py" line="3806" />
+            <location filename="../../app/application.py" line="3851" />
+            <location filename="../../app/application.py" line="4007" />
+            <location filename="../../app/application.py" line="4094" />
             <source>Exported: {path}</source>
             <translation>Exportado: {path}</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6951" />
+            <location filename="../../app/application.py" line="7112" />
             <source>Failed to create season file:
 {error}</source>
             <translation>Error al crear el archivo de temporada:
 {error}</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3958" />
+            <location filename="../../app/application.py" line="4010" />
             <source>Failed to export DXF:
 {error}</source>
             <translation>Error al exportar DXF:
 {error}</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="4049" />
+            <location filename="../../app/application.py" line="4101" />
             <source>Failed to export PDF report:
 {error}</source>
             <translation>Error al exportar informe PDF:
 {error}</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3758" />
+            <location filename="../../app/application.py" line="3810" />
             <source>Failed to export PNG:
 {error}</source>
             <translation>Error al exportar PNG:
 {error}</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3803" />
+            <location filename="../../app/application.py" line="3855" />
             <source>Failed to export SVG:
 {error}</source>
             <translation>Error al exportar SVG:
 {error}</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3841" />
+            <location filename="../../app/application.py" line="3893" />
             <source>Failed to export plant list:
 {error}</source>
             <translation>Error al exportar lista de plantas:
 {error}</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3912" />
+            <location filename="../../app/application.py" line="3964" />
             <source>Failed to import DXF:
 {error}</source>
             <translation>Error al importar DXF:
 {error}</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6121" />
+            <location filename="../../app/application.py" line="6196" />
             <source>Failed to import image:
 {error}</source>
             <translation>Error al importar imagen:
 {error}</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3431" />
-            <location filename="../../app/application.py" line="3605" />
+            <location filename="../../app/application.py" line="3483" />
+            <location filename="../../app/application.py" line="3657" />
             <source>Failed to open file:
 {error}</source>
             <translation>Error al abrir el archivo:
 {error}</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3882" />
+            <location filename="../../app/application.py" line="3934" />
             <source>Failed to print:
 {error}</source>
             <translation>No se pudo imprimir:
 {error}</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3131" />
+            <location filename="../../app/application.py" line="3183" />
             <source>Failed to recover from auto-save:
 {error}</source>
             <translation>Error al recuperar desde el autoguardado:
 {error}</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3659" />
-            <location filename="../../app/application.py" line="3689" />
+            <location filename="../../app/application.py" line="3711" />
+            <location filename="../../app/application.py" line="3741" />
             <source>Failed to save file:
 {error}</source>
             <translation>Error al guardar el archivo:
 {error}</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3562" />
+            <location filename="../../app/application.py" line="5792" />
+            <source>Field Remote running at {url}</source>
+            <translation>Field Remote en funcionamiento en {url}</translation>
+        </message>
+        <message>
+            <location filename="../../app/application.py" line="5794" />
+            <source>Field Remote: {reason}</source>
+            <translation>Field Remote: {reason}</translation>
+        </message>
+        <message>
+            <location filename="../../app/application.py" line="3614" />
             <source>File not found: {path}</source>
             <translation>Archivo no encontrado: {path}</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="2756" />
+            <location filename="../../app/application.py" line="2808" />
             <source>Find Plants</source>
             <translation>Buscar plantas</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1348" />
+            <location filename="../../app/application.py" line="1388" />
             <source>Find and replace objects by name, type, layer or species</source>
             <translation>Buscar y reemplazar objetos por nombre, tipo, capa o especie</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6875" />
+            <location filename="../../app/application.py" line="7036" />
             <source>First fall frost</source>
             <translation>Primera helada de otoño</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1529" />
+            <location filename="../../app/application.py" line="1569" />
             <source>Fit the entire canvas in the window</source>
             <translation>Ajustar todo el lienzo a la ventana</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1809" />
+            <location filename="../../app/application.py" line="1859" />
             <source>Follow system color scheme preference</source>
             <translation>Seguir preferencia de combinación de colores del sistema</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="2532" />
+            <location filename="../../app/application.py" line="2584" />
             <source>Frost alert — click to view details in Planting Calendar</source>
             <translation>Alerta de helada — haga clic para ver detalles en el calendario de siembra</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1776" />
+            <location filename="../../app/application.py" line="1826" />
             <source>Fullscreen &amp;Preview</source>
             <translation>Vista &amp;previa en pantalla completa</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1996" />
-            <location filename="../../app/application.py" line="6854" />
+            <location filename="../../app/application.py" line="2046" />
+            <location filename="../../app/application.py" line="7015" />
             <source>Garden GPS location — use File &gt; Set Garden Location to configure</source>
             <translation>Ubicación GPS del huerto — use Archivo &gt; Establecer ubicación del huerto para configurar</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="2813" />
+            <location filename="../../app/application.py" line="2865" />
             <source>Garden Journal</source>
             <translation>Diario del huerto</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="2453" />
+            <location filename="../../app/application.py" line="2505" />
             <source>Garden Plan</source>
             <translation>Plano del huerto</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1993" />
+            <location filename="../../app/application.py" line="2043" />
             <source>Garden location</source>
             <translation>Ubicación del huerto</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6242" />
+            <location filename="../../app/application.py" line="6403" />
             <source>Garden location updated</source>
             <translation>Ubicación del huerto actualizada</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1249" />
+            <location filename="../../app/application.py" line="1289" />
             <source>Generate a multi-page PDF report of the garden plan</source>
             <translation>Generar un informe PDF de varias páginas del plano del huerto</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1907" />
+            <location filename="../../app/application.py" line="1957" />
             <source>Generate a shopping list of plants, seeds, and materials</source>
             <translation>Generar una lista de compras de plantas, semillas y materiales</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="4024" />
+            <location filename="../../app/application.py" line="4076" />
             <source>Generating PDF…</source>
             <translation>Generando PDF…</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="2488" />
+            <location filename="../../app/application.py" line="6392" />
+            <source>Georeference updated</source>
+            <translation>Georreferencia actualizada</translation>
+        </message>
+        <message>
+            <location filename="../../app/application.py" line="1250" />
+            <source>Georeference...</source>
+            <translation>Georreferencia...</translation>
+        </message>
+        <message>
+            <location filename="../../app/application.py" line="2540" />
             <source>Harvest</source>
             <translation>Cosecha</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6498" />
+            <location filename="../../app/application.py" line="6659" />
             <source>Harvest recorded</source>
             <translation>Cosecha registrada</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1721" />
+            <location filename="../../app/application.py" line="1761" />
             <source>Highlight compatible and incompatible plants near the selected plant</source>
             <translation>Destacar plantas compatibles e incompatibles cerca de la planta seleccionada</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6101" />
+            <location filename="../../app/application.py" line="6176" />
             <source>Images (*.png *.jpg *.jpeg *.tiff *.bmp);;All Files (*)</source>
             <translation>Imágenes (*.png *.jpg *.jpeg *.tiff *.bmp);;Todos los archivos (*)</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1196" />
+            <location filename="../../app/application.py" line="1227" />
             <source>Import &amp;DXF...</source>
             <translation>Importar &amp;DXF...</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6099" />
+            <location filename="../../app/application.py" line="6174" />
             <source>Import Background Image</source>
             <translation>Importar imagen de fondo</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3892" />
+            <location filename="../../app/application.py" line="3944" />
             <source>Import DXF</source>
             <translation>Importar DXF</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3912" />
+            <location filename="../../app/application.py" line="3964" />
             <source>Import Error</source>
             <translation>Error de importación</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1197" />
+            <location filename="../../app/application.py" line="1228" />
             <source>Import a DXF CAD file onto the canvas</source>
             <translation>Importar un archivo CAD DXF en el lienzo</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1179" />
+            <location filename="../../app/application.py" line="1210" />
             <source>Import a background image (satellite photo, etc.)</source>
             <translation>Importar una imagen de fondo (foto satelital, etc.)</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3927" />
+            <location filename="../../app/application.py" line="3979" />
             <source>Imported {n} item(s) from DXF.</source>
             <translation>{n} elemento(s) importado(s) desde DXF.</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6119" />
+            <location filename="../../app/application.py" line="6194" />
             <source>Imported: {path}</source>
             <translation>Importado: {path}</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1853" />
+            <location filename="../../app/application.py" line="1903" />
             <source>Insert guild…</source>
             <translation>Insertar &amp;gremio…</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6650" />
+            <location filename="../../app/application.py" line="6811" />
             <source>Journal note added</source>
             <translation>Nota del diario añadida</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="5326" />
+            <location filename="../../app/application.py" line="5379" />
             <source>Language Changed</source>
             <translation>Idioma cambiado</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="5327" />
+            <location filename="../../app/application.py" line="5380" />
             <source>Language has been set to {language}.
 
 Please restart the application for the change to take effect.</source>
@@ -6275,22 +6365,27 @@ Please restart the application for the change to take effect.</source>
 Por favor, reinicie la aplicación para aplicar el cambio.</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6873" />
+            <location filename="../../app/application.py" line="7034" />
             <source>Last spring frost</source>
             <translation>Última helada de primavera</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6866" />
+            <location filename="../../app/application.py" line="7027" />
             <source>Latitude: {lat}, Longitude: {lon}</source>
             <translation>Latitud: {lat}, Longitud: {lon}</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="2715" />
+            <location filename="../../app/application.py" line="2767" />
             <source>Layers</source>
             <translation>Capas</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1185" />
+            <location filename="../../app/application.py" line="1252" />
+            <source>Link the canvas to GPS coordinates: origin, scale, rotation, reference points</source>
+            <translation>Vincular el lienzo con coordenadas GPS: origen, escala, rotación, puntos de referencia</translation>
+        </message>
+        <message>
+            <location filename="../../app/application.py" line="1216" />
             <source>Load Sa&amp;tellite Background...</source>
             <translation>Cargar imagen sate&amp;lital...</translation>
         </message>
@@ -6299,7 +6394,7 @@ Por favor, reinicie la aplicación para aplicar el cambio.</translation>
             <translation type="vanished">Fondo satelital cargado (vista de mapa capturada, zoom {zoom}) — lienzo redimensionado a {w_m:.0f}m x {h_m:.0f}m</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6210" />
+            <location filename="../../app/application.py" line="6253" />
             <source>Loaded satellite background (captured map view, zoom {zoom}) — canvas resized to {w_m} x {h_m}</source>
             <translation>Fondo satelital cargado (vista del mapa capturada, zoom {zoom}) — lienzo redimensionado a {w_m} x {h_m}</translation>
         </message>
@@ -6308,28 +6403,28 @@ Por favor, reinicie la aplicación para aplicar el cambio.</translation>
             <translation type="vanished">Fondo satelital cargado ({cols}x{rows} cuadrículas, zoom {zoom}) — lienzo redimensionado a {w_m:.0f}m x {h_m:.0f}m</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6221" />
+            <location filename="../../app/application.py" line="6264" />
             <source>Loaded satellite background ({cols}x{rows} tiles, zoom {zoom}) — canvas resized to {w_m} x {h_m}</source>
             <translation>Fondo satelital cargado ({cols}x{rows} teselas, zoom {zoom}) — lienzo redimensionado a {w_m} x {h_m}</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6959" />
+            <location filename="../../app/application.py" line="7120" />
             <source>New Season Created</source>
             <translation>Nueva temporada creada</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1121" />
+            <location filename="../../app/application.py" line="1152" />
             <source>New from example...</source>
             <translation>Nuevo desde ejemplo...</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1125" />
-            <location filename="../../app/application.py" line="3629" />
+            <location filename="../../app/application.py" line="1156" />
+            <location filename="../../app/application.py" line="3681" />
             <source>New from template...</source>
             <translation>Nuevo desde plantilla...</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3348" />
+            <location filename="../../app/application.py" line="3400" />
             <source>New project created: {width} x {height}</source>
             <translation>Nuevo proyecto creado: {width} x {height}</translation>
         </message>
@@ -6338,92 +6433,92 @@ Por favor, reinicie la aplicación para aplicar el cambio.</translation>
             <translation type="vanished">Nuevo proyecto creado: {width}m x {height}m</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="4378" />
+            <location filename="../../app/application.py" line="4431" />
             <source>Night — the sun is below the horizon</source>
             <translation>Noche — el sol está bajo el horizonte</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="4529" />
+            <location filename="../../app/application.py" line="4582" />
             <source>Nitrogen (N)</source>
             <translation>Nitrógeno (N)</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3833" />
+            <location filename="../../app/application.py" line="3885" />
             <source>No Plants Found</source>
             <translation>No se encontraron plantas</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6355" />
+            <location filename="../../app/application.py" line="6516" />
             <source>No changes</source>
             <translation>Sin cambios</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1995" />
-            <location filename="../../app/application.py" line="6852" />
+            <location filename="../../app/application.py" line="2045" />
+            <location filename="../../app/application.py" line="7013" />
             <source>No location set</source>
             <translation>Sin ubicación establecida</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3834" />
+            <location filename="../../app/application.py" line="3886" />
             <source>No plants found in the project. The CSV file will be empty.</source>
             <translation>No se encontraron plantas en el proyecto. El archivo CSV estará vacío.</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3544" />
+            <location filename="../../app/application.py" line="3596" />
             <source>No recent projects</source>
             <translation>Sin proyectos recientes</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1981" />
-            <location filename="../../app/application.py" line="6040" />
+            <location filename="../../app/application.py" line="2031" />
+            <location filename="../../app/application.py" line="6115" />
             <source>No selection</source>
             <translation>Sin selección</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3920" />
+            <location filename="../../app/application.py" line="3972" />
             <source>No supported entities found in the selected layers.</source>
             <translation>No se encontraron entidades compatibles en las capas seleccionadas.</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6267" />
+            <location filename="../../app/application.py" line="6428" />
             <source>North orientation set to {angle}°</source>
             <translation>Orientación norte establecida en {angle}°</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3919" />
+            <location filename="../../app/application.py" line="3971" />
             <source>Nothing Imported</source>
             <translation>Nada importado</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="4209" />
+            <location filename="../../app/application.py" line="4262" />
             <source>Nothing to redo</source>
             <translation>Nada que rehacer</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="4199" />
+            <location filename="../../app/application.py" line="4252" />
             <source>Nothing to undo</source>
             <translation>Nada que deshacer</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1542" />
+            <location filename="../../app/application.py" line="1582" />
             <source>O&amp;verlays</source>
             <translation>S&amp;uperposiciones</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1139" />
+            <location filename="../../app/application.py" line="1170" />
             <source>Open &amp;Recent</source>
             <translation>Abrir &amp;recientes</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3406" />
-            <location filename="../../app/application.py" line="3630" />
-            <location filename="../../app/application.py" line="3652" />
-            <location filename="../../app/application.py" line="3668" />
+            <location filename="../../app/application.py" line="3458" />
+            <location filename="../../app/application.py" line="3682" />
+            <location filename="../../app/application.py" line="3704" />
+            <location filename="../../app/application.py" line="3720" />
             <source>Open Garden Planner (*.ogp);;All Files (*)</source>
             <translation>Open Garden Planner (*.ogp);;Todos los archivos (*)</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3404" />
+            <location filename="../../app/application.py" line="3456" />
             <source>Open Project</source>
             <translation>Abrir proyecto</translation>
         </message>
@@ -6432,172 +6527,177 @@ Por favor, reinicie la aplicación para aplicar el cambio.</translation>
             <translation type="vanished">Abrir una vista 3D del plano con iluminación solar</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1133" />
+            <location filename="../../app/application.py" line="1164" />
             <source>Open an existing project</source>
             <translation>Abrir un proyecto existente</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3505" />
+            <location filename="../../app/application.py" line="3557" />
             <source>Opened as an untitled copy: {name}</source>
             <translation>Abierto como copia sin título: {name}</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3507" />
+            <location filename="../../app/application.py" line="3559" />
             <source>Opened: {name}</source>
             <translation>Abierto: {name}</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="4527" />
+            <location filename="../../app/application.py" line="4580" />
             <source>Overall</source>
             <translation>Global</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1767" />
+            <location filename="../../app/application.py" line="1807" />
             <source>Overlay ghosted plant positions from the previous season</source>
             <translation>Superponer las posiciones de las plantas de la temporada anterior de forma semitransparente</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="7009" />
+            <location filename="../../app/application.py" line="7170" />
             <source>Overlay {year} season plants (ghosted)</source>
             <translation>Superponer plantas de la temporada {year} (semitransparentes)</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3985" />
+            <location filename="../../app/application.py" line="4037" />
             <source>PDF Files (*.pdf);;All Files (*)</source>
             <translation>Archivos PDF (*.pdf);;Todos los archivos (*)</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3735" />
+            <location filename="../../app/application.py" line="3787" />
             <source>PNG Image (*.png);;All Files (*)</source>
             <translation>Imagen PNG (*.png);;Todos los archivos (*)</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1315" />
+            <location filename="../../app/application.py" line="1355" />
             <source>Paste objects from clipboard</source>
             <translation>Pegar objetos del portapapeles</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6406" />
+            <location filename="../../app/application.py" line="6567" />
             <source>Pest/disease log recorded</source>
             <translation>Registro de plaga/enfermedad guardado</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="4530" />
+            <location filename="../../app/application.py" line="4583" />
             <source>Phosphorus (P)</source>
             <translation>Fósforo (P)</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="5678" />
+            <location filename="../../app/application.py" line="5731" />
             <source>Pick an area on Google Maps and load it as a true-to-scale satellite background</source>
             <translation>Seleccione un área en Google Maps y cárguela como fondo satelital a escala real</translation>
         </message>
         <message>
-            <location filename="../../app/agent_host.py" line="1951" />
+            <location filename="../../app/agent_host.py" line="1959" />
             <source>Plan-wide default</source>
             <translation>Predeterminado de todo el plano</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="2774" />
+            <location filename="../../app/application.py" line="2826" />
             <source>Plant Details</source>
             <translation>Detalles de la planta</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="2762" />
+            <location filename="../../app/application.py" line="2814" />
             <source>Plant Lists</source>
             <translation>Listas de plantas</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="2467" />
+            <location filename="../../app/application.py" line="2519" />
             <source>Planting Calendar</source>
             <translation>Calendario de siembra</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1212" />
+            <location filename="../../app/application.py" line="1243" />
             <source>Point true north on the plan without rotating the drawing</source>
             <translation>Señala el norte verdadero en el plano sin girar el dibujo</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="4531" />
+            <location filename="../../app/application.py" line="4584" />
             <source>Potassium (K)</source>
             <translation>Potasio (K)</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1501" />
+            <location filename="../../app/application.py" line="1541" />
             <source>Pr&amp;eferences...</source>
             <translation>Pre&amp;ferencias...</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3881" />
+            <location filename="../../app/application.py" line="3933" />
             <source>Print Error</source>
             <translation>Error de impresión</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1259" />
+            <location filename="../../app/application.py" line="1299" />
             <source>Print the garden plan</source>
             <translation>Imprimir el plano del huerto</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="2685" />
+            <location filename="../../app/application.py" line="2737" />
             <source>Properties</source>
             <translation>Propiedades</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="2023" />
+            <location filename="../../app/application.py" line="2073" />
             <source>Ready</source>
             <translation>Listo</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3588" />
+            <location filename="../../app/application.py" line="3640" />
             <source>Recent projects list cleared</source>
             <translation>Lista de proyectos recientes vaciada</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3071" />
+            <location filename="../../app/application.py" line="3123" />
             <source>Recover Auto-Save</source>
             <translation>Recuperar autoguardado</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3118" />
+            <location filename="../../app/application.py" line="3170" />
             <source>Recovered from auto-save. Remember to save your work!</source>
             <translation>Recuperado desde el autoguardado. ¡Recuerde guardar su trabajo!</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3121" />
+            <location filename="../../app/application.py" line="3173" />
             <source>Recovery Complete</source>
             <translation>Recuperación completada</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3130" />
+            <location filename="../../app/application.py" line="3182" />
             <source>Recovery Failed</source>
             <translation>Error en la recuperación</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1288" />
+            <location filename="../../app/application.py" line="1328" />
             <source>Redo the last undone action</source>
             <translation>Rehacer la última acción deshecha</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="4207" />
+            <location filename="../../app/application.py" line="4260" />
             <source>Redo: {desc}</source>
             <translation>Rehacer: {desc}</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1926" />
+            <location filename="../../app/application.py" line="1976" />
             <source>Register this plan's MCP server with your AI assistant</source>
             <translation>Registrar el servidor MCP de este plano con su asistente de IA</translation>
         </message>
         <message>
-            <location filename="../../app/agent_host.py" line="2238" />
+            <location filename="../../app/agent_host.py" line="2246" />
             <source>Remove soil test</source>
             <translation>Eliminar análisis de suelo</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1462" />
+            <location filename="../../app/application.py" line="6354" />
+            <source>Replace georeference?</source>
+            <translation>¿Reemplazar la georreferencia?</translation>
+        </message>
+        <message>
+            <location filename="../../app/application.py" line="1502" />
             <source>Resize the canvas dimensions</source>
             <translation>Cambiar las dimensiones del lienzo</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1905" />
+            <location filename="../../app/application.py" line="1955" />
             <source>S&amp;hopping List…</source>
             <translation>Lista de &amp;compras…</translation>
         </message>
@@ -6610,59 +6710,59 @@ Por favor, reinicie la aplicación para aplicar el cambio.</translation>
             <translation type="vanished">Simulación de sol y som&amp;bra</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3775" />
+            <location filename="../../app/application.py" line="3827" />
             <source>SVG Vector (*.svg);;All Files (*)</source>
             <translation>Vectorial SVG (*.svg);;Todos los archivos (*)</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1154" />
+            <location filename="../../app/application.py" line="1185" />
             <source>Save &amp;As...</source>
             <translation>Guardar &amp;como...</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3666" />
+            <location filename="../../app/application.py" line="3718" />
             <source>Save Project As</source>
             <translation>Guardar proyecto como</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1161" />
-            <location filename="../../app/application.py" line="3645" />
-            <location filename="../../app/application.py" line="3650" />
+            <location filename="../../app/application.py" line="1192" />
+            <location filename="../../app/application.py" line="3697" />
+            <location filename="../../app/application.py" line="3702" />
             <source>Save as template...</source>
             <translation>Guardar como plantilla...</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1148" />
+            <location filename="../../app/application.py" line="1179" />
             <source>Save the current project</source>
             <translation>Guardar el proyecto actual</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1156" />
+            <location filename="../../app/application.py" line="1187" />
             <source>Save the project with a new name</source>
             <translation>Guardar el proyecto con un nuevo nombre</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3694" />
+            <location filename="../../app/application.py" line="3746" />
             <source>Saved: {path}</source>
             <translation>Guardado: {path}</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3709" />
+            <location filename="../../app/application.py" line="3761" />
             <source>Saved: {path}. The plan now follows your own date and time, no longer the example's.</source>
             <translation>Guardado: {path}. El plano sigue ahora su propia fecha y hora, ya no las del ejemplo.</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1860" />
+            <location filename="../../app/application.py" line="1910" />
             <source>Search for plant species in online databases</source>
             <translation>Buscar especies vegetales en bases de datos en línea</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="2001" />
+            <location filename="../../app/application.py" line="2051" />
             <source>Season</source>
             <translation>Temporada</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6960" />
+            <location filename="../../app/application.py" line="7121" />
             <source>Season {year} has been created.
 
 Open the new season now?</source>
@@ -6671,192 +6771,202 @@ Open the new season now?</source>
 ¿Desea abrir la nueva temporada ahora?</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6917" />
+            <location filename="../../app/application.py" line="7078" />
             <source>Season {year} — use File &gt; Manage Seasons to manage seasons</source>
             <translation>Temporada {year} — use Archivo &gt; Gestionar temporadas para gestionar temporadas</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6915" />
+            <location filename="../../app/application.py" line="7076" />
             <source>Season: {year}</source>
             <translation>Temporada: {year}</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="2003" />
-            <location filename="../../app/application.py" line="6910" />
+            <location filename="../../app/application.py" line="2053" />
+            <location filename="../../app/application.py" line="7071" />
             <source>Season: —</source>
             <translation>Temporada: —</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="2473" />
+            <location filename="../../app/application.py" line="2525" />
             <source>Seed Inventory</source>
             <translation>Inventario de semillas</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1988" />
-            <location filename="../../app/application.py" line="2634" />
+            <location filename="../../app/application.py" line="2038" />
+            <location filename="../../app/application.py" line="2686" />
             <source>Select</source>
             <translation>Seleccionar</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1338" />
+            <location filename="../../app/application.py" line="1378" />
             <source>Select &amp;All</source>
             <translation>&amp;Seleccionar todo</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="5808" />
+            <location filename="../../app/application.py" line="5883" />
             <source>Select a plant object (tree, shrub, or perennial) to assign species data</source>
             <translation>Seleccione un objeto de planta (árbol, arbusto o vivaz) para asignarle datos de especie</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1340" />
+            <location filename="../../app/application.py" line="1380" />
             <source>Select all objects</source>
             <translation>Seleccionar todos los objetos</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="4240" />
+            <location filename="../../app/application.py" line="4293" />
             <source>Selected {count} object(s)</source>
             <translation>{count} objeto(s) seleccionado(s)</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1979" />
+            <location filename="../../app/application.py" line="2029" />
             <source>Selection</source>
             <translation>Selección</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1436" />
+            <location filename="../../app/application.py" line="1476" />
             <source>Send Back&amp;ward</source>
             <translation>&amp;Retroceder un nivel</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1441" />
+            <location filename="../../app/application.py" line="1481" />
             <source>Send the selected objects one step backward</source>
             <translation>Retroceder los objetos seleccionados un paso hacia atrás</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1452" />
+            <location filename="../../app/application.py" line="1492" />
             <source>Send the selected objects to the back of their layer</source>
             <translation>Enviar los objetos seleccionados al fondo de su capa</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1447" />
+            <location filename="../../app/application.py" line="1487" />
             <source>Send to &amp;Back</source>
             <translation>Enviar al fo&amp;ndo</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1204" />
+            <location filename="../../app/application.py" line="1235" />
             <source>Set GPS coordinates and frost dates for planting calendar</source>
             <translation>Establecer coordenadas GPS y fechas de heladas para el calendario de siembra</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1203" />
+            <location filename="../../app/application.py" line="1234" />
             <source>Set Garden &amp;Location...</source>
             <translation>Establecer &amp;ubicación del huerto...</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1210" />
+            <location filename="../../app/application.py" line="1241" />
             <source>Set North Orientation...</source>
             <translation>Establecer la orientación norte...</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="5683" />
+            <location filename="../../app/application.py" line="5736" />
             <source>Set a Google Maps API key in Preferences or OGP_GOOGLE_MAPS_KEY in your .env file to enable satellite background loading</source>
             <translation>Configure una clave de API de Google Maps en Preferencias o OGP_GOOGLE_MAPS_KEY en su archivo .env para habilitar la carga de fondo satelital</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6138" />
+            <location filename="../../app/application.py" line="6211" />
             <source>Set a Google Maps API key in Preferences or OGP_GOOGLE_MAPS_KEY in your .env file to enable satellite background loading.</source>
             <translation>Configure una clave de API de Google Maps en Preferencias o OGP_GOOGLE_MAPS_KEY en su archivo .env para habilitar la carga de fondo satelital.</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1888" />
+            <location filename="../../app/application.py" line="1938" />
             <source>Set a project-wide soil test used when individual beds have none</source>
             <translation>Establecer un análisis de suelo para todo el proyecto cuando los bancales individuales no tengan ninguno</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="4374" />
+            <location filename="../../app/application.py" line="4427" />
             <source>Set garden location first: File → Set Garden Location…</source>
             <translation>Establezca primero la ubicación del huerto: Archivo → Establecer ubicación del huerto…</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1689" />
+            <location filename="../../app/application.py" line="1729" />
             <source>Show &amp;Constraints</source>
             <translation>Mostrar &amp;restricciones</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1546" />
+            <location filename="../../app/application.py" line="1586" />
             <source>Show &amp;Grid</source>
             <translation>Mostrar &amp;cuadrícula</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1707" />
+            <location filename="../../app/application.py" line="1747" />
             <source>Show &amp;Guide Lines</source>
             <translation>Mostrar &amp;guías</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1680" />
+            <location filename="../../app/application.py" line="1720" />
             <source>Show &amp;Labels</source>
             <translation>Mostrar &amp;etiquetas</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1751" />
+            <location filename="../../app/application.py" line="1791" />
             <source>Show &amp;Minimap</source>
             <translation>Mostrar &amp;minimapa</translation>
+        </message>
+        <message>
+            <location filename="../../app/application.py" line="1816" />
+            <source>Show &amp;Phone Position</source>
+            <translation>Mostrar posición del &amp;teléfono</translation>
         </message>
         <message>
             <source>Show &amp;Shadows</source>
             <translation type="vanished">Mostrar &amp;sombras</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1698" />
+            <location filename="../../app/application.py" line="1738" />
             <source>Show C&amp;onstruction Geometry</source>
             <translation>Mostrar geometría de c&amp;onstrucción</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1717" />
+            <location filename="../../app/application.py" line="1757" />
             <source>Show Companion &amp;Warnings</source>
             <translation>Mostrar &amp;avisos de asociación</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1762" />
+            <location filename="../../app/application.py" line="1802" />
             <source>Show P&amp;revious Season Overlay</source>
             <translation>Mostrar temporada &amp;previa</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1728" />
+            <location filename="../../app/application.py" line="1768" />
             <source>Show S&amp;pacing Circles</source>
             <translation>Mostrar círculos de &amp;separación</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1671" />
+            <location filename="../../app/application.py" line="1711" />
             <source>Show Scale &amp;Bar</source>
             <translation>Mostrar &amp;barra de escala</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1755" />
+            <location filename="../../app/application.py" line="1795" />
             <source>Show a minimap overview for quick navigation</source>
             <translation>Mostrar una vista general de minimapa para navegación rápida</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1918" />
+            <location filename="../../app/application.py" line="1968" />
             <source>Show keyboard shortcuts reference</source>
             <translation>Mostrar referencia de atajos de teclado</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1732" />
+            <location filename="../../app/application.py" line="1772" />
             <source>Show recommended spacing zones around plants</source>
             <translation>Mostrar zonas de separación recomendadas alrededor de las plantas</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1664" />
+            <location filename="../../app/application.py" line="1704" />
             <source>Show the garden in 3D beside the plan, lit by the simulated sun</source>
             <translation>Mostrar el huerto en 3D junto al plano, iluminado por el sol simulado</translation>
+        </message>
+        <message>
+            <location filename="../../app/application.py" line="1820" />
+            <source>Show the position a paired phone reports (not saved with the plan)</source>
+            <translation>Mostrar la posición que informa un teléfono vinculado (no se guarda en el plan)</translation>
         </message>
         <message>
             <source>Simulate solar shadows for a chosen date and time of day</source>
             <translation type="vanished">Simular sombras solares para una fecha y hora elegidas</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3930" />
+            <location filename="../../app/application.py" line="3982" />
             <source>Skipped {k} unsupported entity/entities ({types}).</source>
             <translation>Se omitieron {k} entidades no compatibles ({types}).</translation>
         </message>
@@ -6865,77 +6975,77 @@ Open the new season now?</source>
             <translation type="vanished">Símbolos inteligentes</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1614" />
+            <location filename="../../app/application.py" line="1654" />
             <source>Snap &amp;Perpendicular</source>
             <translation>Ajuste perpendic&amp;ular</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1632" />
+            <location filename="../../app/application.py" line="1672" />
             <source>Snap &amp;Tangent</source>
             <translation>Ajuste &amp;tangente</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1585" />
+            <location filename="../../app/application.py" line="1625" />
             <source>Snap to &amp;Intersections</source>
             <translation>Ajustar a &amp;intersecciones</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1573" />
+            <location filename="../../app/application.py" line="1613" />
             <source>Snap to &amp;Midpoints</source>
             <translation>Ajustar a &amp;puntos medios</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1600" />
+            <location filename="../../app/application.py" line="1640" />
             <source>Snap to &amp;Nearest Point</source>
             <translation>Ajustar al punto más c&amp;ercano</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1564" />
+            <location filename="../../app/application.py" line="1604" />
             <source>Snap to &amp;Objects</source>
             <translation>Ajustar a &amp;objetos</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1739" />
+            <location filename="../../app/application.py" line="1779" />
             <source>Soil &amp;Health Overlay</source>
             <translation>Capa de salud del s&amp;uelo</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="4522" />
+            <location filename="../../app/application.py" line="4575" />
             <source>Soil Health Overlay</source>
             <translation>Capa de salud del suelo</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="4519" />
+            <location filename="../../app/application.py" line="4572" />
             <source>Soil Overlay</source>
             <translation>Capa de suelo</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="4523" />
+            <location filename="../../app/application.py" line="4576" />
             <source>Soil parameter:</source>
             <translation>Parámetro del suelo:</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6359" />
+            <location filename="../../app/application.py" line="6520" />
             <source>Soil test recorded</source>
             <translation>Análisis de suelo registrado</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6540" />
+            <location filename="../../app/application.py" line="6701" />
             <source>Succession plan saved</source>
             <translation>Plan de sucesión guardado</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="2011" />
+            <location filename="../../app/application.py" line="2061" />
             <source>Sun &amp; shade simulation</source>
             <translation>Simulación de sol y sombra</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="2482" />
+            <location filename="../../app/application.py" line="2534" />
             <source>Tasks</source>
             <translation>Tareas</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3638" />
+            <location filename="../../app/application.py" line="3690" />
             <source>Templates remove location, journal notes and pins, harvest and pest logs, soil tests, season links and year, crop history, seed inventory, propagation overrides, manual tasks and task states, shopping data and amendment preferences, background images, photos and absolute paths. Geometry, species, layers, guilds, constraints and succession plans stay. Review names and free-form text before sharing.</source>
             <translation>Las plantillas eliminan la ubicación, las notas y los marcadores del diario, los registros de cosechas y plagas, los análisis de suelo, los vínculos y el año de temporada, el historial de cultivos, el inventario de semillas, las fechas de propagación personalizadas, las tareas manuales y los estados de tareas, los datos de compras y las preferencias de enmiendas, las imágenes de fondo, las fotos y las rutas absolutas. Se conservan la geometría, las especies, las capas, los gremios, las restricciones y los planes de sucesión. Revise los nombres y el texto libre antes de compartir.</translation>
         </message>
@@ -6948,37 +7058,42 @@ Details: {error}</source>
 Detalles: {error}</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3439" />
+            <location filename="../../app/application.py" line="3491" />
             <source>The canvas dimension at {field} must be between 50 and 100000 cm.</source>
             <translation>La dimensión del lienzo en {field} debe estar entre 50 y 100000 cm.</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3438" />
+            <location filename="../../app/application.py" line="3490" />
             <source>The plan contains an invalid or non-finite number at {field}.</source>
             <translation>El plano contiene un número no válido o no finito en {field}.</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3440" />
+            <location filename="../../app/application.py" line="3492" />
             <source>The plan value at {field} must be positive.</source>
             <translation>El valor del plano en {field} debe ser positivo.</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="5290" />
+            <location filename="../../app/application.py" line="6355" />
+            <source>The satellite image is north-up. Replace this plan's georeference and set its north orientation to 0 degrees?</source>
+            <translation>La imagen satelital está orientada al norte. ¿Reemplazar la georreferencia de este plano y establecer su orientación norte en 0 grados?</translation>
+        </message>
+        <message>
+            <location filename="../../app/application.py" line="5343" />
             <source>Theme changed to {theme}</source>
             <translation>Tema cambiado a {theme}</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1744" />
+            <location filename="../../app/application.py" line="1784" />
             <source>Tint beds by soil-health rating (excluded from exports)</source>
             <translation>Colorear bancales según valoración de salud del suelo (excluido de exportaciones)</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1692" />
+            <location filename="../../app/application.py" line="1732" />
             <source>Toggle constraint dimension lines on the canvas</source>
             <translation>Alternar líneas de cota de restricciones en el lienzo</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1701" />
+            <location filename="../../app/application.py" line="1741" />
             <source>Toggle construction geometry visibility (excluded from exports)</source>
             <translation>Alternar visibilidad de geometría de construcción (excluida de exportaciones)</translation>
         </message>
@@ -6987,122 +7102,122 @@ Detalles: {error}</translation>
             <translation type="vanished">Alternar sombras paralelas en los objetos</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1780" />
+            <location filename="../../app/application.py" line="1830" />
             <source>Toggle fullscreen preview mode (hides all UI)</source>
             <translation>Alternar modo de vista previa a pantalla completa (oculta toda la interfaz)</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1550" />
+            <location filename="../../app/application.py" line="1590" />
             <source>Toggle grid visibility</source>
             <translation>Alternar visibilidad de cuadrícula</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1683" />
+            <location filename="../../app/application.py" line="1723" />
             <source>Toggle object labels on the canvas</source>
             <translation>Alternar etiquetas de objetos en el lienzo</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1711" />
+            <location filename="../../app/application.py" line="1751" />
             <source>Toggle ruler and guide lines (drag from ruler to create)</source>
             <translation>Alternar reglas y líneas guía (arrastre desde la regla para crearlas)</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1559" />
+            <location filename="../../app/application.py" line="1599" />
             <source>Toggle snap to grid</source>
             <translation>Alternar ajuste a cuadrícula</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1590" />
+            <location filename="../../app/application.py" line="1630" />
             <source>Toggle snap to intersections of straight edges</source>
             <translation>Alternar ajuste a intersecciones de aristas rectas</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1567" />
+            <location filename="../../app/application.py" line="1607" />
             <source>Toggle snap to object edges and centers</source>
             <translation>Alternar ajuste a aristas y centros de objetos</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1604" />
+            <location filename="../../app/application.py" line="1644" />
             <source>Toggle snap to the closest point on any visible edge or curve</source>
             <translation>Alternar ajuste al punto más cercano en cualquier arista o curva visible</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1577" />
+            <location filename="../../app/application.py" line="1617" />
             <source>Toggle snap to the midpoint of any straight edge</source>
             <translation>Alternar ajuste al punto medio de cualquier arista recta</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1619" />
+            <location filename="../../app/application.py" line="1659" />
             <source>Toggle snap to the perpendicular foot from the last drawn point onto the nearest edge</source>
             <translation>Alternar ajuste al pie de la perpendicular desde el último punto dibujado hasta la arista más cercana</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1636" />
+            <location filename="../../app/application.py" line="1676" />
             <source>Toggle snap to the tangent point on a circle or arc from the last drawn point</source>
             <translation>Alternar ajuste al punto tangente en un círculo o arco desde el último punto dibujado</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1674" />
+            <location filename="../../app/application.py" line="1714" />
             <source>Toggle the scale bar overlay on the canvas</source>
             <translation>Alternar superposición de barra de escala en el lienzo</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1650" />
+            <location filename="../../app/application.py" line="1690" />
             <source>Toggle typed distance/angle input next to the cursor and in the status bar</source>
             <translation>Alternar entrada de distancia/ángulo junto al cursor y en la barra de estado</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="2081" />
+            <location filename="../../app/application.py" line="2131" />
             <source>Typed coordinate input</source>
             <translation>Entrada de coordenadas por teclado</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1279" />
+            <location filename="../../app/application.py" line="1319" />
             <source>Undo the last action</source>
             <translation>Deshacer la última acción</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="4197" />
+            <location filename="../../app/application.py" line="4250" />
             <source>Undo: {desc}</source>
             <translation>Deshacer: {desc}</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="4070" />
+            <location filename="../../app/application.py" line="4122" />
             <source>Unsaved Changes</source>
             <translation>Cambios sin guardar</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="5800" />
+            <location filename="../../app/application.py" line="5875" />
             <source>Updated plant with species: {name}</source>
             <translation>Planta actualizada con la especie: {name}</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1802" />
+            <location filename="../../app/application.py" line="1852" />
             <source>Use dark color scheme</source>
             <translation>Usar combinación de colores oscura</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1795" />
+            <location filename="../../app/application.py" line="1845" />
             <source>Use light color scheme</source>
             <translation>Usar combinación de colores clara</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1898" />
+            <location filename="../../app/application.py" line="1948" />
             <source>View amendment recommendations for deficient beds</source>
             <translation>Ver recomendaciones de enmiendas para bancales deficientes</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1869" />
+            <location filename="../../app/application.py" line="1919" />
             <source>View, edit, and delete your custom plant species</source>
             <translation>Ver, editar y eliminar sus especies de plantas personalizadas</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3497" />
+            <location filename="../../app/application.py" line="3549" />
             <source>Warning: {count} camera tour(s) could not be read and were skipped.</source>
             <translation>Advertencia: no se pudieron leer {count} recorrido(s) de cámara y se omitieron.</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3493" />
+            <location filename="../../app/application.py" line="3545" />
             <source>Warning: {count} unrecognized item(s) could not be loaded and were skipped.</source>
             <translation>Advertencia: no se pudieron cargar {count} elemento(s) no reconocidos y se omitieron.</translation>
         </message>
@@ -7111,7 +7226,7 @@ Detalles: {error}</translation>
             <translation type="vanished">X: 0.00 cm  Y: 0.00 cm</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6020" />
+            <location filename="../../app/application.py" line="6095" />
             <source>X: {x}  Y: {y}</source>
             <translation>X: {x}  Y: {y}</translation>
         </message>
@@ -7120,7 +7235,7 @@ Detalles: {error}</translation>
             <translation type="vanished">X: {x} cm  Y: {y} cm</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3122" />
+            <location filename="../../app/application.py" line="3174" />
             <source>Your work has been recovered from the auto-save file.
 
 Please save your project to a permanent location.</source>
@@ -7129,68 +7244,68 @@ Please save your project to a permanent location.</source>
 Por favor, guarde su proyecto en una ubicación permanente.</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6869" />
+            <location filename="../../app/application.py" line="7030" />
             <source>Zone</source>
             <translation>Zona</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1511" />
+            <location filename="../../app/application.py" line="1551" />
             <source>Zoom &amp;In</source>
             <translation>A&amp;cercar</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1519" />
+            <location filename="../../app/application.py" line="1559" />
             <source>Zoom &amp;Out</source>
             <translation>A&amp;lejar</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1513" />
+            <location filename="../../app/application.py" line="1553" />
             <source>Zoom in on the canvas</source>
             <translation>Acercar el lienzo</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1972" />
+            <location filename="../../app/application.py" line="2022" />
             <source>Zoom level</source>
             <translation>Nivel de zoom</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1521" />
+            <location filename="../../app/application.py" line="1561" />
             <source>Zoom out on the canvas</source>
             <translation>Alejar el lienzo</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="7078" />
+            <location filename="../../app/application.py" line="7239" />
             <source>frost alert</source>
             <translation>alerta de helada</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="7078" />
+            <location filename="../../app/application.py" line="7239" />
             <source>frost alerts</source>
             <translation>alertas de helada</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="4528" />
+            <location filename="../../app/application.py" line="4581" />
             <source>pH</source>
             <translation>pH</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6083" />
-            <location filename="../../app/application.py" line="6085" />
+            <location filename="../../app/application.py" line="6158" />
+            <location filename="../../app/application.py" line="6160" />
             <source>{count} objects selected</source>
             <translation>{count} objetos seleccionados</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="6078" />
+            <location filename="../../app/application.py" line="6153" />
             <source>{count} objects | Total Area: {area} | Total Perimeter: {perimeter}</source>
             <translation>{count} objetos | Área total: {area} | Perímetro total: {perimeter}</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="3561" />
+            <location filename="../../app/application.py" line="3613" />
             <source>{name} (not found)</source>
             <translation>{name} (no encontrado)</translation>
         </message>
         <message>
-            <location filename="../../app/application.py" line="1487" />
+            <location filename="../../app/application.py" line="1527" />
             <source>{n} minute(s)</source>
             <translation>{n} minuto(s)</translation>
         </message>
@@ -7211,6 +7326,135 @@ Por favor, guarde su proyecto en una ubicación permanente.</translation>
             <location filename="../../ui/dialogs/print_dialog.py" line="335" />
             <source>Print Preview - {name}</source>
             <translation>Vista previa de impresión - {name}</translation>
+        </message>
+    </context>
+    <context>
+        <name>GeoreferenceDialog</name>
+        <message>
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="158" />
+            <source>Add point</source>
+            <translation>Añadir punto</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="259" />
+            <source>Cannot fit: {reason}</source>
+            <translation>No se puede ajustar: {reason}</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="118" />
+            <source>Canvas origin and orientation</source>
+            <translation>Origen y orientación del lienzo</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="162" />
+            <source>Fit from reference points</source>
+            <translation>Ajustar con puntos de referencia</translation>
+        </message>
+        <message>
+            <source>Fit of {n} point(s): RMS {rms:.3f} m</source>
+            <translation type="vanished">Ajuste de {n} punto(s): RMS {rms:.3f} m</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="276" />
+            <source>Fit of {n} point(s): RMS {rms}</source>
+            <translation>Ajuste de {n} punto(s): RMS {rms}</translation>
+        </message>
+        <message>
+            <source>Fit of {n} point(s): RMS {rms} m</source>
+            <translation type="vanished">Ajuste de {n} punto(s): RMS {rms} m</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="68" />
+            <source>Georeference</source>
+            <translation>Georreferencia</translation>
+        </message>
+        <message>
+            <source>Last fit: RMS {rms:.3f} m</source>
+            <translation type="vanished">Último ajuste: RMS {rms:.3f} m</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="89" />
+            <source>Last fit: RMS {rms}</source>
+            <translation>Último ajuste: RMS {rms}</translation>
+        </message>
+        <message>
+            <source>Last fit: RMS {rms} m</source>
+            <translation type="vanished">Último ajuste: RMS {rms} m</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="145" />
+            <source>Latitude</source>
+            <translation>Latitud</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="125" />
+            <source>Latitude of the origin (0, 0):</source>
+            <translation>Latitud del origen (0, 0):</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="146" />
+            <source>Longitude</source>
+            <translation>Longitud</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="126" />
+            <source>Longitude of the origin (0, 0):</source>
+            <translation>Longitud del origen (0, 0):</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="127" />
+            <source>Metres per canvas unit:</source>
+            <translation>Metros por unidad del lienzo:</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="144" />
+            <source>Name</source>
+            <translation>Nombre</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="173" />
+            <source>One point sets only the position; two or more also set scale and rotation. X and Y are canvas coordinates in cm (Y points up).</source>
+            <translation>Un punto solo fija la posición; dos o más fijan también la escala y la rotación. X e Y son coordenadas del lienzo en cm (Y apunta hacia arriba).</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="139" />
+            <source>Reference points</source>
+            <translation>Puntos de referencia</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="160" />
+            <source>Remove selected</source>
+            <translation>Quitar selección</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="149" />
+            <source>Residual (m)</source>
+            <translation>Residuo (m)</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="130" />
+            <source>The rotation is the plan's north orientation: changing it here changes it everywhere (sun, shade, reports).</source>
+            <translation>La rotación es la orientación norte del plano: cambiarla aquí la cambia en todas partes (sol, sombra, informes).</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="110" />
+            <source>This plan is georeferenced</source>
+            <translation>Este plano está georreferenciado</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="128" />
+            <source>True north, clockwise from plan-up:</source>
+            <translation>Norte verdadero, en sentido horario desde la parte superior del plano:</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="147" />
+            <source>X (cm)</source>
+            <translation>X (cm)</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/georeference_dialog.py" line="148" />
+            <source>Y (cm)</source>
+            <translation>Y (cm)</translation>
         </message>
     </context>
     <context>
@@ -7953,7 +8197,7 @@ Por favor, guarde su proyecto en una ubicación permanente.</translation>
             <translation>Unidad</translation>
         </message>
         <message>
-            <location filename="../../services/export_service.py" line="682" />
+            <location filename="../../services/export_service.py" line="684" />
             <location filename="../../ui/views/harvest_view.py" line="135" />
             <source>Unnamed</source>
             <translation>Sin nombre</translation>
@@ -11460,150 +11704,206 @@ para asignar datos de especie.</translation>
     <context>
         <name>PreferencesDialog</name>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="368" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="466" />
             <source>3D View</source>
             <translation>Vista 3D</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="144" />
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="198" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="146" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="200" />
             <source>API Key:</source>
             <translation>Clave API:</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="121" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="123" />
             <source>API Token:</source>
             <translation>Token de API:</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="353" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="369" />
             <source>Access token:</source>
             <translation>Token de acceso:</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="283" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="406" />
+            <source>Address:</source>
+            <translation>Dirección:</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="299" />
             <source>Agent API</source>
             <translation>API del agente</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="321" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="337" />
             <source>Allow AI assistants to edit the plan</source>
             <translation>Permitir a los asistentes de IA editar el plano</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="392" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="432" />
+            <source>Allow phone to submit field records</source>
+            <translation>Permitir que el teléfono envíe registros de campo</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="213" />
+            <source>Allow street-address lookup (Google Geocoding API)</source>
+            <translation>Permitir la búsqueda de direcciones (API de Geocodificación de Google)</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="423" />
+            <source>Anyone on this network who gets the pairing link can read your plan. Use a network you trust, and rotate the token if the link leaks.</source>
+            <translation>Cualquiera en esta red que obtenga el enlace de vinculación puede leer su plan. Use una red de confianza y renueve el token si el enlace se filtra.</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="490" />
             <source>Atmosphere with clouds</source>
             <translation>Atmósfera con nubes</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="373" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="471" />
             <source>Automatic</source>
             <translation>Automática</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="423" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="521" />
             <source>Cancel</source>
             <translation>Cancelar</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="263" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="279" />
             <source>Canvas</source>
             <translation>Lienzo</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="105" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="420" />
+            <source>Certificate fingerprint:</source>
+            <translation>Huella del certificado:</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="107" />
             <source>Configure API keys for online services below. Keys are stored locally in your user settings and are never included in garden plans or the installer. Environment variables (.env) are used as fallback.</source>
             <translation>Configure abajo las claves de API para servicios en línea. Las claves se guardan localmente en la configuración de usuario y nunca se incluyen en planos ni en el instalador. Las variables de entorno (.env) se usan como respaldo.</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="312" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="328" />
             <source>Connect AI Assistant…</source>
             <translation>Conectar asistente de IA…</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="662" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="865" />
             <source>Connection to {api} is working.</source>
             <translation>La conexión con {api} funciona correctamente.</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="342" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="358" />
             <source>Copy</source>
             <translation>Copiar</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="668" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="871" />
             <source>Could not connect to {api}. Please check your credentials.</source>
             <translation>No se pudo conectar con {api}. Por favor, compruebe sus credenciales.</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="541" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="454" />
+            <source>Create a new certificate and key now; phones must accept the new certificate again.</source>
+            <translation>Crea ahora un nuevo certificado y clave; los teléfonos deberán aceptar de nuevo el certificado.</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="735" />
             <source>Enable AI editing to generate a token</source>
             <translation>Active la edición por IA para generar un token</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="287" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="303" />
             <source>Enable Agent API (local MCP server)</source>
             <translation>Activar API del agente (servidor MCP local)</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="267" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="387" />
+            <source>Enable Field Remote (HTTPS server for a phone)</source>
+            <translation>Activar Field Remote (servidor HTTPS para un teléfono)</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="283" />
             <source>Enable touch gestures (pinch to zoom, two-finger pan)</source>
             <translation>Activar gestos táctiles (pellizcar para ampliar, desplazar con dos dedos)</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="196" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="198" />
             <source>Enter Google Maps API key...</source>
             <translation>Introducir clave API de Google Maps...</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="166" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="168" />
             <source>Enter Key ID...</source>
             <translation>Introducir ID de clave...</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="170" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="172" />
             <source>Enter Key Secret...</source>
             <translation>Introducir secreto de clave...</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="143" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="145" />
             <source>Enter Perenual API key...</source>
             <translation>Introducir clave API de Perenual...</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="120" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="122" />
             <source>Enter Trefle API token...</source>
             <translation>Introducir token de API de Trefle...</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="679" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="882" />
             <source>Error testing {api}: {error}</source>
             <translation>Error al probar {api}: {error}</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="124" />
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="147" />
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="174" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="673" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="793" />
+            <source>Field Remote</source>
+            <translation>Field Remote</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="384" />
+            <source>Field Remote (phone)</source>
+            <translation>Field Remote (teléfono)</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="646" />
+            <source>Field Remote and the Agent API cannot share port {port}.</source>
+            <translation>Field Remote y la Agent API no pueden compartir el puerto {port}.</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="674" />
+            <source>Field Remote is not running. Click Save, then open this again.</source>
+            <translation>Field Remote no está en funcionamiento. Haga clic en Guardar y vuelva a abrir esto.</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="126" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="149" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="176" />
             <source>Get API Key</source>
             <translation>Obtener clave API</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="191" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="193" />
             <source>Google Maps</source>
             <translation>Google Maps</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="376" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="474" />
             <source>High</source>
             <translation>Alta</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="381" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="479" />
             <source>How detailed the 3D view is drawn. Automatic picks a level from the frame rate it measures on this computer.</source>
             <translation>Con qué nivel de detalle se dibuja la vista 3D. «Automática» elige un nivel según la velocidad de fotogramas que mide en este equipo.</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="258" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="274" />
             <source>Imperial (in, ft)</source>
             <translation>Imperial (in, ft)</translation>
         </message>
@@ -11612,232 +11912,288 @@ para asignar datos de especie.</translation>
             <translation type="vanished">Mantener quietas las hojas y la hierba en lugar de mecerse con el viento.</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="408" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="506" />
             <source>Keep leaves and grass still instead of swaying in the wind. The operating system's animation-effects setting also stops the wind.</source>
             <translation>Mantener quietas las hojas y la hierba en lugar de mecerse con el viento. La configuración de efectos de animación del sistema operativo también detiene el viento.</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="167" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="169" />
             <source>Key ID:</source>
             <translation>ID de clave:</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="171" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="173" />
             <source>Key Secret:</source>
             <translation>Secreto de clave:</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="324" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="340" />
             <source>Let connected assistants move and delete objects. Each edit is a single undo step. Requires the token below; off by default.</source>
             <translation>Permite a los asistentes conectados mover y eliminar objetos. Cada edición es un paso individual de deshacer. Requiere el token inferior; desactivado por defecto.</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="374" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="389" />
+            <source>Lets a phone on your network open a page served by this computer. Off by default. It uses its own port and access token, separate from the Agent API.</source>
+            <translation>Permite que un teléfono de su red abra una página servida por este ordenador. Desactivado por defecto. Usa su propio puerto y token de acceso, separados de la Agent API.</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="217" />
+            <source>Lets an AI assistant set the initial map from a street address. The address is sent to Google with your API key; the Geocoding API must be enabled for that key. Off by default.</source>
+            <translation>Permite que un asistente de IA establezca el mapa inicial a partir de una dirección postal. La dirección se envía a Google con su clave de API; la API de Geocodificación debe estar habilitada para esa clave. Desactivado de forma predeterminada.</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="434" />
+            <source>Lets the paired phone add pending field records (notes, photos, positions). The phone never edits the plan; you or an AI assistant approve records later. Off by default.</source>
+            <translation>Permite que el teléfono vinculado añada registros de campo pendientes (notas, fotos, posiciones). El teléfono nunca edita el plan; usted o un asistente de IA aprueban los registros más tarde. Desactivado por defecto.</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="472" />
             <source>Low</source>
             <translation>Baja</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="375" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="473" />
             <source>Medium</source>
             <translation>Media</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="257" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="273" />
             <source>Metric (cm, m)</source>
             <translation>Métrico (cm, m)</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="243" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="625" />
+            <source>Not created yet</source>
+            <translation>Aún no creado</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="259" />
             <source>Notify about overdue tasks on startup</source>
             <translation>Notificar tareas vencidas al iniciar</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="270" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="286" />
             <source>On a touch screen, pinch with two fingers to zoom the plan and drag two fingers to move it. A single finger still selects and moves objects as a mouse does.</source>
             <translation>En una pantalla táctil, pellizque con dos dedos para ampliar el plano y arrastre dos dedos para moverlo. Un solo dedo sigue seleccionando y moviendo objetos como un ratón.</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="224" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="240" />
             <source>Orange warning threshold (°C):</source>
             <translation>Umbral de aviso naranja (°C):</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="391" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="489" />
             <source>Painted</source>
             <translation>Pintado</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="396" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="494" />
             <source>Painted: the soft painted sky. Atmosphere with clouds: a physically based sky with volumetric clouds by day, which costs more on the graphics card. The sun, the shadows and the night are the same in both.</source>
             <translation>Pintado: el cielo pintado y suave. Atmósfera con nubes: un cielo de base física con nubes volumétricas de día, que exige más a la tarjeta gráfica. El sol, las sombras y la noche son iguales en ambos.</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="139" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="141" />
             <source>Perenual (perenual.com)</source>
             <translation>Perenual (perenual.com)</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="162" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="164" />
             <source>Permapeople (permapeople.org)</source>
             <translation>Permapeople (permapeople.org)</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="636" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="839" />
             <source>Please enter a Perenual API key first.</source>
             <translation>Por favor, introduzca primero una clave API de Perenual.</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="628" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="831" />
             <source>Please enter a Trefle API token first.</source>
             <translation>Por favor, introduzca primero un token de API de Trefle.</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="647" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="850" />
             <source>Please enter both Permapeople Key ID and Key Secret.</source>
             <translation>Por favor, introduzca tanto el ID de clave como el secreto de clave de Permapeople.</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="304" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="320" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="412" />
             <source>Port:</source>
             <translation>Puerto:</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="77" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="79" />
             <source>Preferences</source>
             <translation>Preferencias</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="386" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="484" />
             <source>Quality:</source>
             <translation>Calidad:</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="234" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="250" />
             <source>Red alert threshold (°C):</source>
             <translation>Umbral de alerta roja (°C):</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="405" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="503" />
             <source>Reduce motion in the 3D view</source>
             <translation>Reducir el movimiento en la vista 3D</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="345" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="361" />
             <source>Regenerate</source>
             <translation>Regenerar</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="347" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="452" />
+            <source>Regenerate certificate</source>
+            <translation>Regenerar certificado</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="446" />
+            <source>Replace the token now; every paired phone must pair again.</source>
+            <translation>Sustituye el token ahora; cada teléfono vinculado deberá vincularse de nuevo.</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="363" />
             <source>Replace the token; assistants using the old one must reconnect.</source>
             <translation>Reemplaza el token; los asistentes que usen el anterior deberán reconectarse.</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="290" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="444" />
+            <source>Rotate token</source>
+            <translation>Renovar token</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="306" />
             <source>Run a local MCP server so AI assistants can read this garden plan. Binds to 127.0.0.1 (this computer) only. Editing stays off unless you enable it below.</source>
             <translation>Ejecutar un servidor local MCP para que los asistentes de IA puedan leer este plano del huerto. Se vincula solo a 127.0.0.1 (este equipo). La edición permanece desactivada a menos que la active abajo.</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="427" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="418" />
+            <source>SHA-256 fingerprint of this computer's certificate. It is not a secret.</source>
+            <translation>Huella SHA-256 del certificado de este ordenador. No es un secreto.</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="525" />
             <source>Save</source>
             <translation>Guardar</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="310" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="326" />
             <source>Server URL:</source>
             <translation>URL del servidor:</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="246" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="262" />
             <source>Show a reminder on startup when the open project has overdue tasks</source>
             <translation>Mostrar un recordatorio al inicio si el proyecto abierto tiene tareas vencidas</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="314" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="442" />
+            <source>Show pairing link…</source>
+            <translation>Mostrar enlace de vinculación…</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="330" />
             <source>Show this URL and help register it with an AI assistant</source>
             <translation>Mostrar esta URL y facilitar su registro con un asistente de IA</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="402" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="500" />
             <source>Sky:</source>
             <translation>Cielo:</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="239" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="255" />
             <source>Tasks</source>
             <translation>Tareas</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="222" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="238" />
             <source>Temperature at or below which half-hardy plants are at risk</source>
             <translation>Temperatura igual o inferior a la cual las plantas semirresistentes corren riesgo</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="232" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="248" />
             <source>Temperature at or below which tender plants are at risk</source>
             <translation>Temperatura igual o inferior a la cual las plantas sensibles corren riesgo</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="129" />
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="152" />
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="181" />
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="628" />
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="636" />
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="646" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="131" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="154" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="183" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="831" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="839" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="849" />
             <source>Test</source>
             <translation>Probar</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="678" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="881" />
             <source>Test Error</source>
             <translation>Error de prueba</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="667" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="870" />
             <source>Test Failed</source>
             <translation>Prueba fallida</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="661" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="864" />
             <source>Test Successful</source>
             <translation>Prueba correcta</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="335" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="643" />
+            <source>The Field Remote address cannot be used: {reason}</source>
+            <translation>No se puede usar la dirección de Field Remote: {reason}</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="351" />
             <source>The access token an assistant must present to edit the plan. "Connect AI Assistant…" hands it to the client for you.</source>
             <translation>El token de acceso que un asistente debe presentar para editar el plano. "Conectar asistente de IA…" se lo entrega al cliente automáticamente.</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="356" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="400" />
+            <source>The one address the server listens on. 127.0.0.1 reaches this computer only. Choose a local-network or Tailscale address to reach it from a phone.</source>
+            <translation>La única dirección en la que escucha el servidor. 127.0.0.1 solo llega a este ordenador. Elija una dirección de la red local o de Tailscale para acceder desde un teléfono.</translation>
+        </message>
+        <message>
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="372" />
             <source>The running server still uses the previous token until you click Save — copying now won't work for a client yet.</source>
             <translation>El servidor en ejecución seguirá usando el token anterior hasta que haga clic en Guardar — copiarlo ahora aún no funcionará para un cliente.</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="116" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="118" />
             <source>Trefle (trefle.io)</source>
             <translation>Trefle (trefle.io)</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="377" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="475" />
             <source>Ultra</source>
             <translation>Ultra</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="254" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="270" />
             <source>Units</source>
             <translation>Unidades</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="201" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="203" />
             <source>Used for Load Satellite Background. The key is stored only in your local user settings and is never included in plans or the installer.</source>
             <translation>Se usa para Cargar fondo satelital. La clave se guarda solo en su configuración local y nunca se incluye en planos ni en el instalador.</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="478" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="577" />
             <source>Using OGP_GOOGLE_MAPS_KEY from environment</source>
             <translation>Usando OGP_GOOGLE_MAPS_KEY del entorno</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="213" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="229" />
             <source>Weather</source>
             <translation>Tiempo meteorológico</translation>
         </message>
@@ -11937,12 +12293,12 @@ para asignar datos de especie.</translation>
     <context>
         <name>ProjectManager</name>
         <message>
-            <location filename="../../core/project.py" line="1276" />
+            <location filename="../../core/project.py" line="1332" />
             <source>Choose a template filename outside the current project and bundled examples.</source>
             <translation>Elija un nombre de archivo de plantilla distinto del proyecto actual y de los ejemplos incluidos.</translation>
         </message>
         <message>
-            <location filename="../../core/project.py" line="358" />
+            <location filename="../../core/project.py" line="382" />
             <source>Untitled</source>
             <translation>Sin título</translation>
         </message>
@@ -17456,13 +17812,13 @@ Detalles: {error}</translation>
     <context>
         <name>_PasswordLineEdit</name>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="53" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="55" />
             <source>Hide</source>
             <translation>Ocultar</translation>
         </message>
         <message>
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="44" />
-            <location filename="../../ui/dialogs/preferences_dialog.py" line="56" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="46" />
+            <location filename="../../ui/dialogs/preferences_dialog.py" line="58" />
             <source>Show</source>
             <translation>Mostrar</translation>
         </message>
