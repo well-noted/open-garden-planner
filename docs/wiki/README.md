@@ -1,6 +1,6 @@
 # Wiki maintenance and publication
 
-The six `.md` source pages in this directory own the GitHub wiki content.
+The seven `.md` source pages in this directory own the GitHub wiki content.
 This README is a maintenance guide. It is not a published wiki page.
 The canonical roadmap remains `docs/roadmap.md`. Issues remain the current work list.
 See ADR-051 in the architecture decision register.
@@ -14,6 +14,7 @@ See ADR-051 in the architecture decision register.
 | Installation | README, release artifacts, installer settings, and deployment documentation. |
 | Contributing | Root CONTRIBUTING.md. |
 | Architecture | arc42 building blocks, runtime documentation, and ADRs. |
+| Render-Styles | User page for the render styles, with the SVG/PDF fidelity table; `docs/functional-requirements.md` FR-RS-* and the ADR for render styles. |
 | _Sidebar | Existing page names and repository policy files. |
 
 All source text is UTF-8. Use literal punctuation and check marks.
@@ -39,11 +40,11 @@ Run the offline check from the main repository:
 .venv/Scripts/python.exe scripts/sync_wiki.py --check
 ```
 
-The check reads all six templates and the canonical roadmap.
+The check reads all seven templates and the canonical roadmap.
 It checks strict UTF-8, known text corruption, inclusion markers, wiki page links,
 and links to files on this repository's master branch using local paths.
 It also checks heading fragments for linked Markdown files.
-Use inline Markdown links (`[label](target)`) in the six templates.
+Use inline Markdown links (`[label](target)`) in the seven templates.
 Reference-style links, raw HTML links, and automatic URL links are not validated.
 External services and release links require manual review. No network request occurs.
 CI runs this check in the existing Lint job. It never needs a wiki checkout or write credential.
@@ -55,7 +56,7 @@ $wikiPreview = Join-Path $env:TEMP 'ogp-wiki-review'
 .venv/Scripts/python.exe scripts/sync_wiki.py --output $wikiPreview
 ```
 
-The tool writes only the six named pages. It preserves other files in the output directory.
+The tool writes only the seven named pages. It preserves other files in the output directory.
 It does not copy this guide, commit, push, delete pages, or access GitHub.
 The output directory must be outside the main repository.
 Do not point it at the live wiki checkout during PR preparation.
@@ -72,7 +73,7 @@ Open the main repository's draft PR with the review checklist and any unmet gate
 4. Read wiki changes since the previous publication. Reconcile direct edits to managed pages into the repository sources through review.
 5. Render again from the approved main checkout into the preview directory.
 6. Compare the preview with the existing wiki. Review every proposed change before copying files.
-7. Copy only the six managed pages. Do not remove unrelated wiki pages or edit the wiki's Git settings.
+7. Copy only the seven managed pages. Do not remove unrelated wiki pages or edit the wiki's Git settings.
 8. Inspect the wiki diff, then commit with its configured identity. Record the source commit SHA in the commit message.
 9. Push normally. If the remote advances, reconcile it. Never force-push to resolve a publication conflict.
 10. Check the published pages and run the comparison below. Record both repository commit SHAs in the handoff.
@@ -83,7 +84,7 @@ Compare a checkout without changing it:
 .venv/Scripts/python.exe scripts/sync_wiki.py --check-published --wiki-dir ../open-garden-planner.wiki
 ```
 
-Exit 0 means all six pages agree. Exit 1 means pages are missing or differ.
+Exit 0 means all seven pages agree. Exit 1 means pages are missing or differ.
 Exit 2 means input, validation, or filesystem failure.
 Line endings are normalized when reading. Text and Unicode content must otherwise agree.
 An unavailable wiki checkout is an error, not a successful or skipped comparison.

@@ -78,6 +78,8 @@ class PdfReportOptions:
     export_date: str = field(default_factory=lambda: date.today().isoformat())
     #: The plan's north orientation (#663), degrees clockwise from plan-up.
     north_angle_deg: float = 0.0
+    #: The style of the plan pages; None is the canvas's own (render styles WP7).
+    render_style: RenderStyle | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -404,7 +406,7 @@ def _render_overview(
 
     canvas_rect = scene.canvas_rect if hasattr(scene, "canvas_rect") else scene.sceneRect()
     plan_rect = _fit_rect(canvas_rect, content_rect)
-    img = _scene_to_image(scene, canvas_rect, plan_rect)
+    img = _scene_to_image(scene, canvas_rect, plan_rect, render_style=opts.render_style)
     painter.drawImage(plan_rect, img)
 
     # North arrow (top-right of content area)
@@ -536,7 +538,7 @@ def _render_bed_detail(
         united = united.united(_bed_rect(member))
     source = _bed_frame(united, canvas_rect)
     bed_rect = _fit_rect(source, content_rect)
-    img = _scene_to_image(scene, source, bed_rect)
+    img = _scene_to_image(scene, source, bed_rect, render_style=opts.render_style)
     painter.drawImage(bed_rect, img)
 
     names = [getattr(member, "name", "") or _tr("Bed") for member in members]

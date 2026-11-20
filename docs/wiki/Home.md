@@ -9,6 +9,7 @@ Choose metric or imperial lengths and areas, and litres or US quarts and gallons
 - [Installation](Installation): download, verify, and install the application.
 - [Roadmap](Roadmap): current work and shipped status.
 - [Architecture](Architecture): the main subsystems and detailed technical documentation.
+- [Render styles](Render-Styles): the Illustrated, Architectural CAD and Line & Wash drawing styles, and what SVG and PDF keep of them.
 - [Contributing](Contributing): development and contribution guidance.
 - [Download statistics](https://cofade.github.io/open-garden-planner/): UTC installer-download
   bars grouped by day, week, month or year. Historical and gap estimates are labelled;

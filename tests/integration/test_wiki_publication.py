@@ -12,7 +12,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts/sync_wiki.py"
 PAGES = {"Home.md", "Roadmap.md", "Installation.md", "Contributing.md",
-         "Architecture.md", "_Sidebar.md"}
+         "Architecture.md", "Render-Styles.md", "_Sidebar.md"}
 
 
 @pytest.fixture

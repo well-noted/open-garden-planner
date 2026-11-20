@@ -62,7 +62,7 @@ Branch `claude/render-styles-wp3-310d4a` (renamed on request if the name matters
 - The Agent API render tool takes no `render_style` argument yet (WP11).
 
 ## Not done
-- UI (WP7), agent (WP11). WP9 (3D Line & Wash) is done: see the WP9 section.
+- Agent (WP11). WP9 (3D Line & Wash) is done: see the WP9 section.
 - No new user-visible strings, so no translation changes needed yet.
 - Full suite not run (only touched areas).
 
@@ -147,8 +147,7 @@ Assumptions:
 - Shadow softening (factor x0.75, PCF x2) is applied in the scene only while the effect is drawn,
   not in the look, so the truth view's shadows (and the IoU gate) are the plain look's.
 - CAD stays plain 3D (Q6). The Agent API `render_3d_view` takes no `render_style` yet (WP11).
-- Live switching of the style in a running app has no caller yet: nothing emits a style change
-  to the 3D workspace until the WP7 menu calls `LookController.set_render_style`.
+- Live switching: done in WP7 (`Workspace.set_render_style` -> `LookController.set_render_style`).
 
 Look, honestly (4 rounds, then stopped): ink silhouettes and roof creases read well; the sky and
 far ground are paper with a soft ragged edge. Weak: tonal bands are hard to see (large flat
@@ -156,3 +155,14 @@ lawns read as a flat digital green, not a wash); roof tiles and wall bricks keep
 foliage edges are speckled ink rather than a drawn outline; window frames get no ink (too
 shallow for the crease threshold). Not judged: other moods (golden hour, night), video flicker,
 WARP/llvmpipe, MSAA-resolved depth beyond this machine.
+
+## WP7: UI and live switching
+Done: `ui/render_style_controller.py` (one controller; View > Render Style radio group + Leader callouts,
+toolbar combo in `ui/widgets/render_style_toolbar.py`, 3D pane button), `ui/widgets/export_style_group.py` (Style combo
+with "Same as canvas", fidelity note, SVG/PDF grain opt-in) in the PNG/SVG (new `ExportSvgDialog`)/PDF report/print
+dialogs, `PdfReportOptions.render_style`, `GardenPlannerApp` wiring, settings key `export/paper_texture_in_vector`,
+wiki page `docs/wiki/Render-Styles.md`, FR-RS-01..05, glossary, translations (de/en/es/ru).
+Tests: `tests/unit/test_render_style_ui.py`, `tests/integration/test_render_style_ui.py`.
+Assumptions: the Leader callouts toggle only stores the preference (no callout layer until WP5); the PDF report
+places plan pages as pictures, so its grain checkbox has no effect there; the toolbar combo is its own toolbar.
+Unverified: no manual click-through; the real Quick3D host (the integration test uses the recording FakeHost).
