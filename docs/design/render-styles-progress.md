@@ -37,6 +37,10 @@ Branch `claude/render-styles-wp3-310d4a` (renamed on request if the name matters
   pictures skipped in CAD), `styled_bounding_rect` adopted by those five `boundingRect`s,
   `PathStylePaint(owner=)`, `CanopySpec`, `drawBackground` uses the style paper. Callouts stay WP5.
 
+- WP6 (Line & Wash 2D): `ui/canvas/style/line_wash.py` registered in `STYLE_PAINTERS`; paper grain via
+  `drawBackground`; `styled_label_font` + `HaloTextItem._label_font`; tests `tests/unit/style/test_line_wash_style.py`,
+  `tests/integration/test_line_wash_render_style.py`. No callouts here (owner decision).
+
 ## Review fixes (Opus review of WP1/WP2)
 - `styled_scene` always enters `CanvasScene.style_for_render(style|None, px_per_cm, dpi)`: a
   `None` style (print, PDF report, default exports) now paints at the output's LOD band.
@@ -92,3 +96,17 @@ Branch `claude/render-styles-wp3-310d4a` (renamed on request if the name matters
 - Furniture sprites, pergola, greenhouse bars and ridge-roof pictures are replaced by plain outlines in CAD; string lights keep their illustrated look.
 - Pad is 0.8 mm paper for all styled items. Gravel/dirt stipple uses a crc32 seed of the style name.
 - Unverified: owner visual check, timing/perf budgets, SVG/PDF in other viewers.
+
+## Assumptions (WP6)
+- Wobble, scallop pitch and canopy masses use the 96-dpi paper-mm conversion of `geometry.py`
+  (a `StyleState` is keyed without dpi, so it cannot depend on it); line weights, misregistration
+  and ring widths are dpi aware. A 300-dpi export therefore has the screen's wobble in plan cm at
+  the same zoom, with heavier ink.
+- Wash colour is the item's `fill_color` run through `pigment`; buildings are always cool grey.
+- The shadow crescent assumes the plan is painted y-up (light from the upper left on screen).
+- Vector detection is by paint engine type (SVG, Pdf, Windows print, and the SVG exporter's
+  recording engine `User`); everything else counts as raster.
+- `scene_rendering.paint_style_paper` stays a no-op seam: the grain is painted by `drawBackground`,
+  which `scene.render` also calls.
+- Label hand changes only the font (halo colours unchanged); no `label_pen` yet.
+- Roof ridge lines, lawn grass ticks and Paper Space specifics are not drawn (Paper Space viewports follow the scene style).

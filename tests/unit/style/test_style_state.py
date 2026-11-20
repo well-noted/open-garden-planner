@@ -80,7 +80,10 @@ class TestCache:
         assert first.key == (RenderStyle.CAD, 1, 3)
         assert cache.builds == 1 and fake.builds == [3]
 
-    def test_a_style_without_a_painter_has_an_empty_state(self) -> None:
+    def test_a_style_without_a_painter_has_an_empty_state(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delitem(base.STYLE_PAINTERS, RenderStyle.LINE_AND_WASH)
         state = StyleStateCache().ensure(None, RenderStyle.LINE_AND_WASH, 0, 0)
         assert state == StyleState(RenderStyle.LINE_AND_WASH, 0, 0, {})
 

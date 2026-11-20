@@ -46,6 +46,7 @@ from open_garden_planner.core.sprite_raster import clear_sprite_cache
 from open_garden_planner.core.units import UnitSystem
 from open_garden_planner.models.layer import Layer, create_default_layers
 from open_garden_planner.ui.canvas.style import cad as _cad  # noqa: F401  (registers the CAD painter)
+from open_garden_planner.ui.canvas.style import line_wash as _line_wash  # noqa: F401  (registers Line & Wash)
 from open_garden_planner.ui.canvas.style.base import OUTPUT_DPI as _OUTPUT_DPI
 from open_garden_planner.ui.canvas.style.base import painter_for as _style_painter_for
 from open_garden_planner.ui.canvas.style.geometry import band_for_scale
@@ -436,6 +437,9 @@ class CanvasScene(QGraphicsScene):
         styled = _style_painter_for(self._render_style)
         paper = getattr(styled, "paper_color", None)
         painter.fillRect(canvas_rect, QBrush(paper if paper is not None else self.CANVAS_COLOR))
+        paint_paper = getattr(styled, "paint_paper", None)
+        if paint_paper is not None:  # the grain of a style with a textured paper
+            paint_paper(painter, canvas_rect, self._style_band)
 
     #: Object labels (``PlanLabelItem``) are painted by ``drawForeground`` here,
     #: after every item, and not by the label items themselves.

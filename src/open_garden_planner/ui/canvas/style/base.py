@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Protocol
 
 from PyQt6.QtCore import QPointF, QRectF
-from PyQt6.QtGui import QColor, QPainter, QPen
+from PyQt6.QtGui import QColor, QFont, QPainter, QPen
 
 from open_garden_planner.core.render_style import RenderStyle, normalise_render_style
 
@@ -122,6 +122,13 @@ def styled_bounding_rect(item: Any, rect: QRectF) -> QRectF:
     if pad <= 0.0:
         return rect
     return rect.adjusted(-pad, -pad, pad, pad)
+
+
+def styled_label_font(item: Any, font: QFont) -> QFont:
+    """``font`` in the label hand of ``item``'s render style (Line & Wash: Segoe
+    Print or italic); unchanged when the style has none."""
+    hand = getattr(painter_for(style_of(item)), "label_font", None)
+    return font if hand is None else hand(font)
 
 
 def style_painter_active(item: Any) -> bool:

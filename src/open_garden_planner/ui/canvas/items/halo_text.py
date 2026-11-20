@@ -46,6 +46,7 @@ from PyQt6.QtWidgets import (
 
 from open_garden_planner.core.legibility import halo_for, legible_ink
 from open_garden_planner.core.plain_text import clip_line
+from open_garden_planner.ui.canvas.style.base import styled_label_font
 
 from .edit_decoration import EditDecorationMixin, note_edit_decoration_changed
 
@@ -195,6 +196,7 @@ class HaloTextItem(EditDecorationMixin, QGraphicsSimpleTextItem):
         self._outline_key: tuple[str, str] | None = None
         self._outline = QPainterPath()
         self._measured: tuple[QRectF, float] | None = None
+        self._measured_family = ""
         self._picture_key: tuple[str, str, int, int, float] | None = None
         self._picture_cache = QPixmap()
         self.setBrush(QColor(0, 0, 0))
@@ -220,11 +222,23 @@ class HaloTextItem(EditDecorationMixin, QGraphicsSimpleTextItem):
         Kept between paints: the label pass asks every label for its rect on
         every repaint, and measuring a font is the costly part of the answer.
         """
-        if self._measured is None:
-            self._measured = (
-                super().boundingRect(), halo_width(self.font()) / 2.0 + 1.0
-            )
+        font = self._label_font()
+        if self._measured is None or self._measured_family != font.key():
+            # The measure follows the render style's label hand (Line & Wash).
+            if font.key() == self.font().key():
+                text_rect = super().boundingRect()
+            else:  # measured as a plain text item in the style's font; own font untouched
+                probe = QGraphicsSimpleTextItem(self.text())
+                probe.setFont(font)
+                text_rect = probe.boundingRect()
+            self._measured = (text_rect, halo_width(font) / 2.0 + 1.0)
+            self._measured_family = font.key()
         return self._measured
+
+    def _label_font(self) -> QFont:
+        """The font the text is measured and painted in: its own, in the label
+        hand of the scene's render style when that has one."""
+        return styled_label_font(self, self.font())
 
     def setBrush(self, brush: QBrush | QColor | Qt.GlobalColor | int | QGradient) -> None:
         """Set the text colour; the halo and the legible ink follow from it."""
@@ -261,7 +275,7 @@ class HaloTextItem(EditDecorationMixin, QGraphicsSimpleTextItem):
 
     def paint_signature(self) -> tuple[str, str, int, int]:
         """The actual ink/halo content, independent of its retained placement."""
-        return (self.text(), self.font().key(), self.brush().color().rgba(),
+        return (self.text(), self._label_font().key(), self.brush().color().rgba(),
                 self._halo_color.rgba())
 
     def text_rect(self) -> QRectF:
@@ -290,9 +304,9 @@ class HaloTextItem(EditDecorationMixin, QGraphicsSimpleTextItem):
         return path
 
     def _text_outline(self) -> QPainterPath:
-        key = (self.text(), self.font().key())
+        key = (self.text(), self._label_font().key())
         if key != self._outline_key:
-            self._outline = text_outline(self.text(), self.font())
+            self._outline = text_outline(self.text(), self._label_font())
             self._outline_key = key
         return self._outline
 
@@ -307,8 +321,11 @@ class HaloTextItem(EditDecorationMixin, QGraphicsSimpleTextItem):
         painter.save()
         painter.translate(origin)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        painter.strokePath(self._text_outline(), halo_pen(self._halo_color, self.font()))
-        super().paint(painter, option or QStyleOptionGraphicsItem(), widget)
+        painter.strokePath(self._text_outline(), halo_pen(self._halo_color, self._label_font()))
+        if self._label_font().key() == self.font().key():
+            super().paint(painter, option or QStyleOptionGraphicsItem(), widget)
+        else:  # a style's label hand: the glyphs are the outline the halo uses
+            painter.fillPath(self._text_outline(), self.brush())
         painter.restore()
 
     def _picture(self, pixel_ratio: float) -> QPixmap:

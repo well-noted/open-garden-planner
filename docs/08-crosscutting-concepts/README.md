@@ -10065,6 +10065,21 @@ repaints, and touches no `plan_changed`, no undo stack, no modified flag and no
   LAYER: `Layer.permaculture_layer == "irrigation"` (`render_style_roles`), never the
   translated name; one colour. Canopies use the item's current size. A style that
   replaces a sprite or painted shadow gates it with `style_painter_active(item)`.
+- **Line & Wash painter (WP6).** `ui/canvas/style/line_wash.py`. Paper `#f4eedf` plus a
+  512 px grain tile (`grain_tile`, numpy lattice noise from a murmur-style hash and a fixed
+  seed, `GRAIN_VERSION`; identical pixels in every process), drawn by
+  `CanvasScene.drawBackground` through the painter's `paint_paper`, anchored to scene
+  (0,0) at `2 ** -band` cm per tile pixel. Ink is `wobble_polyline` (corners) and
+  `wobble_closed` (curves); the wash is the outline shifted by a seeded 0.6-1.8 mm
+  misregistration, with `edge_ring` pooling rings. Multiply glazing and granulation are
+  used only when `is_raster(painter)`; SVG (the recording engine, type `User`), PDF and
+  print get alpha-over washes and no grain (opt-in `PAPER_TEXTURE_IN_VECTOR`, UI in WP7).
+  Canopy masses: tree and shrub circles of one layer are clustered in
+  `build_state`, ordered by item id; every member paints only its part (its disc minus the
+  discs before it, its stretch of the scalloped outline), so no item paints beyond its own
+  padded bounds. Labels: `styled_label_font` (Segoe Print where installed, else italic)
+  is applied by `HaloTextItem._label_font` to measuring, outline and fill. A painter clip
+  must use `IntersectClip` (`test_no_scene_painter_replaces_the_clip_it_was_handed`).
 - **Pad and cache.** A style's ink may reach beyond an item's rect: an item that
   adopts `styled_bounding_rect` re-announces its geometry from
   `style_geometry_changed()`. A style switch or band change also calls
