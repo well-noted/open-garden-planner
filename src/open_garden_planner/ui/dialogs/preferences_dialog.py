@@ -396,6 +396,11 @@ class PreferencesDialog(QDialog):
 
         self._field_remote_bind_combo = QComboBox()
         self._field_remote_bind_combo.setEditable(True)
+        # The editable combo's inner field is squeezed to its frame's content box in the
+        # themed style; keep it at its own hint so the address never compresses.
+        edit = self._field_remote_bind_combo.lineEdit()
+        if edit is not None:
+            edit.setMinimumHeight(edit.minimumSizeHint().height())
         self._field_remote_bind_combo.setToolTip(
             self.tr(
                 "The one address the server listens on. 127.0.0.1 reaches this computer only. "
