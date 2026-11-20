@@ -42,7 +42,7 @@ def test_check_is_offline_and_read_only(source_repo: Path) -> None:
     for args in ((), ("--check",)):
         result = invoke(source_repo, *args)
         assert result.returncode == 0, result.stderr
-        assert "6 wiki pages and 3 roadmap inclusions" in result.stdout
+        assert "7 wiki pages and 3 roadmap inclusions" in result.stdout
     assert snapshot(source_repo) == before
 
 
