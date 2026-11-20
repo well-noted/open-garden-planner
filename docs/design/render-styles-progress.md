@@ -178,12 +178,9 @@ Assumptions:
 - Paper is the 2D paper `#f4eedf`; ink `#2a241d`. Bands are cut in display lightness (gamma 2.2).
 - Shadow softening (factor x0.75, PCF x2) is applied in the scene only while the effect is drawn,
   not in the look, so the truth view's shadows (and the IoU gate) are the plain look's.
-- CAD stays plain 3D (Q6). The Agent API `render_3d_view` takes no `render_style` yet (WP11).
 - Live switching: done in WP7 (`Workspace.set_render_style` -> `LookController.set_render_style`).
 
 - CAD stays plain 3D (Q6). `render_3d_view` takes `render_style` since WP11.
-- Live switching of the style in a running app has no caller yet: nothing emits a style change
-  to the 3D workspace until the WP7 menu calls `LookController.set_render_style`.
 
 Look, honestly (4 rounds, then stopped): ink silhouettes and roof creases read well; the sky and
 far ground are paper with a soft ragged edge. Weak: tonal bands are hard to see (large flat
@@ -192,7 +189,6 @@ foliage edges are speckled ink rather than a drawn outline; window frames get no
 shallow for the crease threshold). Not judged: other moods (golden hour, night), video flicker,
 WARP/llvmpipe, MSAA-resolved depth beyond this machine.
 
-<<<<<<< HEAD
 ## WP5 assumptions
 - Callout text is the common name (owner), else the object name, else Tree / Shrub / Plant; capped at 28 characters.
 - Plants are the three plant roles (tree, shrub, ground); a plant that finds no free slot in 3 rings gets no callout.
@@ -211,7 +207,7 @@ Tests: `tests/unit/test_render_style_ui.py`, `tests/integration/test_render_styl
 Assumptions: the Leader callouts toggle only stores the preference (no callout layer until WP5); the PDF report
 places plan pages as pictures, so its grain checkbox has no effect there; the toolbar combo is its own toolbar.
 Unverified: no manual click-through; the real Quick3D host (the integration test uses the recording FakeHost).
-=======
+
 ## WP11: Agent (MCP) surface
 
 - `render_canvas_image(..., render_style=None, callouts=None)` and `render_3d_view(..., render_style=None)`.
@@ -234,4 +230,3 @@ Unverified: no manual click-through; the real Quick3D host (the integration test
   when the call gave them; `AgentProviders.render_style` returns the current style id.
 - Tests: `tests/integration/test_agent_api_render_style.py`, `tests/unit/test_agent_api_render_style_args.py`,
   additions in `test_agent_api_render_3d.py` and `test_directors_cut.py`.
->>>>>>> feature/render-styles-agent
