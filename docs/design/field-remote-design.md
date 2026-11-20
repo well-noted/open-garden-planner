@@ -375,6 +375,7 @@ targets >= 48 px, one-handed, Wake Lock while recording; strings from `/strings`
    record (under 3 m or 3 points refused). Source is VIO when plan-locked, else the Kalman track.
 7. **AR lock (WebXR, experimental, when supported):** guided lock of two plan points with the reticle, scale
    check shown, then the recorded path uses plan-locked VIO.
+7a. **Tree height (WebXR, experimental, see 4.4):** two taps, base then crown top; live readout; Save stores a pending `measurement`.
 8. **Capture:** OS camera via `<input type="file" accept="image/*" capture="environment">` (keeps EXIF
    GPS/bearing; **never re-encode**), plant name + species search, age, notes, position with `fix_mode`,
    optional compass bearing; Save a pending `plant` record. A list shows each record's status (pending,
@@ -388,6 +389,21 @@ targets >= 48 px, one-handed, Wake Lock while recording; strings from `/strings`
 
 Permissions are explained before each prompt (geolocation, device orientation, camera for WebXR); a denial
 degrades gracefully (map only; tap placement and tape measurement still work).
+
+### 4.4 Tree height (two taps; experimental, owner-approved)
+
+Target device: Samsung Galaxy Z Flip7 (ARCore, no ToF or LiDAR). Not verified on any device.
+
+- **Flow.** Stand a few metres from the tree. Start AR (the Field tab card, or the "Tree height" button inside an AR lock session; the latter keeps the lock so the trunk gets a plan spot). Tap 1: the circle (the hit-test ray runs from the viewer, so the screen centre) on the foot of the trunk. Tap 2: aim at the top of the crown; no hit-test is needed. While aiming, the page asks the server about the pose of now about once a second. Result card: height, range, inputs, warnings, optional tree name and plan object id, Save, Retake.
+- **User steps.** (1) Field tab, "Tree height"; optionally tick "Use tape distance" and type the metres to the trunk. (2) "Start AR tree height", allow the camera. (3) Hold the phone upright, put the circle on the soil at the foot of the trunk, wait for the button to enable, tap "Tap: trunk base". (4) Aim at the top of the crown (the live line shows the estimate), tap "Tap: top of the crown". (5) Read the height, the range and any warnings; step back and "Retake" when a warning asks for it. (6) Optionally name the tree and give the plan object id, then "Save" (needs "phone may save records" on the computer and a saved plan). Without AR: tick "Use tape distance", type the distance, take the base and crown tilt readings, then Save.
+- **Maths, once on the server** (`core/positioning/tree_height.py`; the phone posts raw samples). WebXR frame: right handed, x right, y up, -z forward. Pitch of a tap = `asin(f.y)` with `f = rotate(q, (0, 0, -1))`, positive up; `deviceorientation` is not used except in the explicit no-WebXR fallback.
+  - hit_test: `G` = ground hit at tap 1, `d2 = hypot(G.x - p2.x, G.z - p2.z)`, `e2 = p2.y - G.y`, `height = e2 + d2 tan(pitch_crown)` (the user may move between taps). Cross-check: `d_alt = e1 / tan(-pitch_base)` against the horizontal distance, flagged above 5 %.
+  - manual (typed tape distance `d`): `height = d (tan(pitch_crown) - tan(pitch_base))`, no eye height. With both inputs the typed distance wins and both answers and their disagreement are reported (warning above 10 %).
+  - manual_orientation (no WebXR): pitch `asin(-cos(beta) cos(gamma))` from the phone's tilt, tape distance required, warning `orientation_only_coarse`.
+- **Gates (warnings, machine-readable):** crown pitch over 70 degrees (refused at 89), base pitch not below -5 degrees (hit-test), roll over 25 degrees, taps under 0.5 s apart, tracking not `tracking`, distance under 2 m or over 40 m, ground point more than 2 m off a hand-held eye height, ground geometry mismatch, distance disagreement. NaN or infinity is a hard error; a crown not above the base is refused.
+- **Uncertainty.** First-order propagation of ASSUMED, NOT MEASURED errors (1 degree per tap, 3 % on `d`; the tuning block at the top of the module). It sizes the +/- range only. No accuracy claim is made anywhere; the figure comes from the on-device protocol (5.1, WP-M).
+- **Route and record.** `POST /api/ar/height` is session-only (listed in `SESSION_PATHS`, no toggle, writes nothing). Saving uses `POST /api/records` with `kind` `measurement` and the additive optional fields `height_m`, `height_data` (small flat JSON: mode, range, pitches, warnings, the assumed constants and the raw inputs) and `linked_object_id`; the trunk spot is the point geometry (`fix_mode` `vio_fused`, `precision_hint` `plan_locked`) only while an AR lock holds. Schema version stays 2: the store's rule is to bump only with a migration, the keys are optional, and an older build keeps unknown keys.
+- **On-device checklist for the owner:** (1) is hit-test offered on the Z Flip7 (cover screen and main screen; does the session survive a fold change); (2) does the reticle ray stay steady on grass and gravel, and is its distance right against a tape; (3) quaternion sign conventions: a real tilt up must give a positive crown pitch and the height must match a known tree; (4) camera permission prompt and the DOM overlay buttons (large tap targets) in the AR view; (5) the phone-tilt fallback numbers against the AR ones; (6) the saved record appears in the desktop review list.
 
 ### 4.3 Offline and spotty signal (corrected)
 

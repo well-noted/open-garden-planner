@@ -58,6 +58,7 @@ WRITES_ALLOWED_WITHOUT_RECORDS = frozenset(
         "/api/ar/lock/b",
         "/api/ar/check",
         "/api/ar/unlock",
+        "/api/ar/height",
     }
 )
 _TAILSCALE_NET = ipaddress.ip_network("100.64.0.0/10")

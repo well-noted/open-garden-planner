@@ -120,6 +120,32 @@
       <button id="xr-start" type="button">Start AR lock</button>
       <p id="xr-status" class="hint"></p>
     </div>
+    <div class="card" id="th-card">
+      <h3>Tree height</h3>
+      <p class="hint">Stand a few metres from the tree. Tap once on the foot of the trunk, then once aiming at the top of the crown. Keep the phone upright and steady.</p>
+      <label class="field check"><input id="th-use-tape" type="checkbox"> Use tape distance</label>
+      <label class="field">Distance to the trunk (metres) <input id="th-dist" type="text" inputmode="decimal" maxlength="6" autocomplete="off"></label>
+      <button id="th-ar" type="button" hidden>Start AR tree height</button>
+      <div id="th-tilt-box">
+        <p class="hint">Without AR, use the phone's tilt (coarser; needs the tape distance).</p>
+        <button id="th-tilt-base" type="button">Tilt reading: aimed at the trunk base</button>
+        <button id="th-tilt-crown" type="button">Tilt reading: aimed at the crown top</button>
+      </div>
+      <p id="th-status" class="hint"></p>
+      <div id="th-result" class="card" hidden></div>
+      <div id="th-save-box" hidden>
+        <label class="field">Tree (name or species)
+          <input id="th-name" type="text" maxlength="120" autocomplete="off">
+        </label>
+        <label class="field">Plan object id (optional)
+          <input id="th-link" type="text" maxlength="64" autocomplete="off">
+        </label>
+        <div class="row">
+          <button id="th-retake" type="button">Retake</button>
+          <button id="th-save" class="primary" type="button">Save as pending</button>
+        </div>
+      </div>
+    </div>
     <div class="card">
       <h3>Record an irrigation line</h3>
       <div id="rec-idle">
@@ -154,11 +180,22 @@
 </main>
 <div id="xr-overlay" hidden>
   <div id="xr-banner" class="banner" hidden></div>
+  <div id="xr-cross" data-for="height" hidden></div>
+  <div id="xr-th-panel" data-for="height" hidden>
+    <p id="xr-th-prompt"></p>
+    <div id="xr-th-read"></div>
+    <button id="xr-tap" type="button" disabled>Tap: trunk base</button>
+    <div class="row">
+      <button id="xr-th-retake" type="button">Retake</button>
+      <button id="xr-th-save" class="primary" type="button" disabled>Save</button>
+    </div>
+  </div>
   <div id="xr-bar" class="row">
-    <button id="xr-a" type="button" disabled>Lock A</button>
-    <button id="xr-b" type="button" disabled>Lock B</button>
-    <button id="xr-c" type="button" disabled>Check C</button>
-    <button id="xr-unlock" type="button" disabled>Unlock</button>
+    <button id="xr-a" data-for="lock" type="button" disabled>Lock A</button>
+    <button id="xr-b" data-for="lock" type="button" disabled>Lock B</button>
+    <button id="xr-c" data-for="lock" type="button" disabled>Check C</button>
+    <button id="xr-unlock" data-for="lock" type="button" disabled>Unlock</button>
+    <button id="xr-th" type="button">Tree height</button>
     <button id="xr-end" type="button">End AR</button>
   </div>
 </div>

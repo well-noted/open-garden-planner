@@ -15,6 +15,12 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from open_garden_planner.core.georef import GeoReference
 from open_garden_planner.core.positioning import GnssSample
+from open_garden_planner.core.positioning.tree_height import (
+    HeightError,
+    TapSample,
+    TiltSample,
+    compute_tree_height,
+)
 from open_garden_planner.field_remote import projection
 from open_garden_planner.field_remote.session import RecordingSession, SessionError
 
@@ -30,6 +36,8 @@ SESSION_PATHS = frozenset(
     {
         "/api/survey", "/api/calibrate", "/api/track/start", "/api/track/finish", "/api/track/cancel",
         "/api/ar/lock/a", "/api/ar/lock/b", "/api/ar/check", "/api/ar/unlock",
+        # computes a number from the posted samples and writes nothing; saving is /api/records
+        "/api/ar/height",
     }
 )
 
@@ -92,6 +100,37 @@ class ArHit(_Strict):
     x: XR_M
     y: XR_M
     z: XR_M
+
+
+Unit = Annotated[float, Field(ge=-1.5, le=1.5, allow_inf_nan=False)]
+
+
+class TapIn(_Strict):
+    """One tap of the tree-height mode: the viewer pose at that moment (WebXR ``local`` space)."""
+
+    position: Annotated[list[XR_M], Field(min_length=3, max_length=3)]
+    quaternion: Annotated[list[Unit], Field(min_length=4, max_length=4)]  # x, y, z, w
+    tracking: Literal["tracking", "limited", "lost"]
+    t: EpochS
+
+
+class TiltIn(_Strict):
+    """No-WebXR fallback: the phone's deviceorientation beta and gamma at the tap, degrees."""
+
+    beta_deg: Annotated[float, Field(ge=-180, le=180, allow_inf_nan=False)]
+    gamma_deg: Annotated[float, Field(ge=-90, le=90, allow_inf_nan=False)]
+
+
+class HeightIn(_Strict):
+    """Either two ``taps`` (optionally with the trunk-base ``ground`` hit and/or a typed
+    ``manual_distance_m``) or, with no WebXR, two ``tilts`` and ``manual_distance_m``."""
+
+    tap1: TapIn | None = None
+    tap2: TapIn | None = None
+    ground: ArHit | None = None
+    manual_distance_m: Annotated[float, Field(gt=0, le=1000, allow_inf_nan=False)] | None = None
+    tilt1: TiltIn | None = None
+    tilt2: TiltIn | None = None
 
 
 class ArLockIn(_Strict):
@@ -236,7 +275,49 @@ def tracking_routes(
             return bad or error(409, "not_georeferenced")
         return ok(await run_in_threadpool(session.ar_status, geo))
 
+    async def ar_height(request: Request) -> Response:
+        parsed = await body(request, HeightIn)
+        if not isinstance(parsed, HeightIn):
+            return parsed
+
+        def tap(t: TapIn | None) -> TapSample | None:
+            if t is None:
+                return None
+            return TapSample(
+                (float(t.position[0]), float(t.position[1]), float(t.position[2])),
+                (float(t.quaternion[0]), float(t.quaternion[1]), float(t.quaternion[2]), float(t.quaternion[3])),
+                t.tracking,
+                float(t.t),
+            )
+
+        def tilt(t: TiltIn | None) -> TiltSample | None:
+            return None if t is None else TiltSample(float(t.beta_deg), float(t.gamma_deg))
+
+        g = parsed.ground
+        try:
+            result = compute_tree_height(
+                tap(parsed.tap1),
+                tap(parsed.tap2),
+                ground=None if g is None else (float(g.x), float(g.y), float(g.z)),
+                manual_distance_m=parsed.manual_distance_m,
+                tilt1=tilt(parsed.tilt1),
+                tilt2=tilt(parsed.tilt2),
+            )
+        except HeightError as exc:
+            return error(422, exc.code, exc.detail)
+        result["trunk_plan"] = None
+        if g is not None:  # the trunk's place on the plan, when an AR lock and a georeference exist
+            try:
+                snap = await run_in_threadpool(snapshot)
+                geo = projection.georef_of(snap)
+            except (TimeoutError, RuntimeError):
+                geo = None
+            if geo is not None:
+                result["trunk_plan"] = await run_in_threadpool(session.ar_plan_point, geo, (float(g.x), float(g.z)))
+        return ok(result)
+
     return [
+        Route("/api/ar/height", ar_height, methods=["POST"]),
         Route("/api/ar/lock/a", ar_point("a"), methods=["POST"]),
         Route("/api/ar/lock/b", ar_point("b"), methods=["POST"]),
         Route("/api/ar/check", ar_point("c"), methods=["POST"]),

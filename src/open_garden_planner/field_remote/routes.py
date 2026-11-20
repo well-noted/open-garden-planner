@@ -97,6 +97,11 @@ class _Fields(_Strict):
     closes_on: StrictBool | None = None
     distances: Annotated[list[Number | dict[str, Any]], Field(max_length=fr.MAX_DISTANCES)] | None = None
     rms: Number | None = None
+    # a tree-height measurement (kind "measurement" only; the store enforces it): the number, the
+    # raw inputs and the computed answer in one small object, and the plan object it belongs to
+    height_m: Annotated[Number, Field(ge=0, le=fr.MAX_HEIGHT_M)] | None = None
+    height_data: dict[str, Any] | None = None
+    linked_object_id: Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{1,64}$")] | None = None
 
 
 class RecordIn(_Fields):

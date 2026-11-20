@@ -274,6 +274,13 @@ class PositioningEngine:
         """Free residual at a third known point, metres ("closure at C")."""
         return self._locked.third_point_residual(hit_xz, plan_en, vio_t)
 
+    def ar_plan_cm(self, xz: tuple[float, float]) -> tuple[float, float] | None:
+        """Plan centimetres of a WebXR ground point (x, z), or ``None`` unless the plan lock holds."""
+        lk = self._locked
+        if lk.transform is None or lk.state not in (FusionState.LOCKED, FusionState.LOCKED_LIMITED):
+            return None
+        return self._to_cm(*lk.transform.apply(*xz))
+
     def fused_estimate(self, t: float) -> PositionEstimate | None:
         """The plan-locked VIO estimate when it is no older than ``VIO_FRESH_S`` at ``t``."""
         est, vf = self._vio_estimate_last, self._vio_fix

@@ -239,6 +239,18 @@ class RecordingSession:
             engine.ar_unlock("user")
             return {"state": engine.ar_status()["state"]}
 
+    def ar_plan_point(self, geo: GeoReference, xz: tuple[float, float]) -> dict[str, float] | None:
+        """Where a WebXR ground point is on the plan (cm and GPS), only while the AR lock holds."""
+        with self.lock:
+            cm = self.engine_for(geo).ar_plan_cm(xz)
+        if cm is None:
+            return None
+        try:
+            lat, lon = geo.canvas_to_gps(*cm)
+        except ValueError:
+            return None
+        return {"x_cm": round(cm[0], 1), "y_cm": round(cm[1], 1), "lat": round(lat, 9), "lon": round(lon, 9)}
+
     def ar_status(self, geo: GeoReference) -> dict[str, Any]:
         with self.lock:
             return self._status(self.engine_for(geo), None)

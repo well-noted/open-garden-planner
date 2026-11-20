@@ -52,6 +52,9 @@ MAX_RECORDS = 5000
 MAX_PENDING = 500
 MAX_POLYLINE_POINTS = 2000
 MAX_DISTANCES = 50
+#: A measured tree height (metres), and the size of the small JSON block that keeps its raw inputs.
+MAX_HEIGHT_M = 1000.0
+MAX_HEIGHT_DATA_CHARS = 6000
 #: Whole-file and photo budgets, so one client cannot make every write rewrite a huge file or fill the disk.
 MAX_SIDECAR_BYTES = 16 * 1024 * 1024
 MAX_PHOTO_TOTAL_BYTES = 2 * 1024 * 1024 * 1024
@@ -92,13 +95,14 @@ _KNOWN_KEYS = frozenset(
         "kind", "status", "geometry", "sigma_m", "idempotency_key", "group_id", "what",
         "requester", "precision_hint", "source", "name", "diameter_mm", "flow_lph",
         "emitter_spacing_cm", "closes_on", "distances", "rms", "payload_hash",
+        "height_m", "height_data", "linked_object_id",
     }
 )
 #: The v2 keys written only when set, so a v1 record stays as small as it was.
 _OPTIONAL_V2 = (
     "geometry", "sigma_m", "idempotency_key", "group_id", "what", "requester", "precision_hint",
     "source", "name", "diameter_mm", "flow_lph", "emitter_spacing_cm", "closes_on", "distances", "rms",
-    "payload_hash",
+    "payload_hash", "height_m", "height_data", "linked_object_id",
 )
 # Single writer (ADR-080/081): the Field Remote server runs in the GUI process, so the phone
 # routes, the agent tools and the desktop panel are threads of one process under this one lock;
@@ -227,6 +231,43 @@ def _distances(value: object) -> list[Any] | None:
     return out
 
 
+def _small_json(value: object, depth: int = 0) -> object:
+    """A bounded JSON value (scalars, short lists, small objects, three levels at most)."""
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            raise FieldRecordError("height_data may not hold NaN or infinity")
+        return value
+    if value is None or isinstance(value, (bool, int)):
+        return value
+    if isinstance(value, str):
+        if len(value) > MAX_NAME:
+            raise FieldRecordError("height_data text is too long")
+        return value
+    if depth >= 3:
+        raise FieldRecordError("height_data is nested too deeply")
+    if isinstance(value, (list, tuple)):
+        if len(value) > 16:
+            raise FieldRecordError("height_data lists hold at most 16 entries")
+        return [_small_json(v, depth + 1) for v in value]
+    if isinstance(value, Mapping):
+        if len(value) > 24 or not all(isinstance(k, str) and len(k) <= 40 for k in value):
+            raise FieldRecordError("height_data objects hold at most 24 short keys")
+        return {k: _small_json(v, depth + 1) for k, v in value.items()}
+    raise FieldRecordError("height_data may hold only plain JSON values")
+
+
+def _height_data(value: object) -> dict[str, Any] | None:
+    if value is None:
+        return None
+    if not isinstance(value, Mapping):
+        raise FieldRecordError("height_data must be an object")
+    out = _small_json(value)
+    assert isinstance(out, dict)
+    if len(json.dumps(out)) > MAX_HEIGHT_DATA_CHARS:
+        raise FieldRecordError("height_data is too large")
+    return out
+
+
 def _derive_status(data: Mapping[str, Any]) -> str:
     return "placed" if data.get("placed_object_id") else "pending"
 
@@ -267,6 +308,9 @@ class FieldRecord:
     closes_on: bool | None = None
     distances: list[Any] | None = None
     rms: float | None = None
+    height_m: float | None = None
+    height_data: dict[str, Any] | None = None
+    linked_object_id: str | None = None
     #: Hash of what the client sent under ``idempotency_key`` (to tell a retry from a reused key).
     payload_hash: str | None = None
     #: Keys this build does not know (a newer writer, the Field Remote); kept verbatim.
@@ -357,6 +401,9 @@ class FieldRecord:
         hint = _text(data.get("precision_hint"), 40, "precision_hint")
         if hint is not None and hint not in PRECISION_HINTS:
             raise FieldRecordError("precision_hint must be one of " + ", ".join(sorted(PRECISION_HINTS)))
+        linked = _text(data.get("linked_object_id"), 64, "linked_object_id")
+        if linked is not None and not _ID_RE.match(linked):
+            raise FieldRecordError("linked_object_id must be 1-64 letters, digits, '-' or '_'")
         closes = data.get("closes_on")
         if closes is not None and not isinstance(closes, bool):
             raise FieldRecordError("closes_on must be true or false")
@@ -392,6 +439,9 @@ class FieldRecord:
             closes_on=closes,
             distances=_distances(data.get("distances")),
             rms=_number(data.get("rms"), "rms", 0.0, 1.0e6),
+            height_m=_number(data.get("height_m"), "height_m", 0.0, MAX_HEIGHT_M),
+            height_data=_height_data(data.get("height_data")),
+            linked_object_id=linked,
             extra=extra,
         )
 
@@ -611,6 +661,8 @@ def check_kind_rules(rec: FieldRecord) -> None:
         raise FieldRecordError(f"{rec.kind} needs a point geometry")
     if rec.kind == "reference_point" and not rec.name:
         raise FieldRecordError("reference_point needs name")
+    if rec.kind != "measurement" and (rec.height_m is not None or rec.height_data or rec.linked_object_id):
+        raise FieldRecordError("only a measurement has height_m, height_data or linked_object_id")
     if rec.kind == "placement_request" and not (rec.what and rec.group_id):
         raise FieldRecordError("placement_request needs what and group_id")
 
