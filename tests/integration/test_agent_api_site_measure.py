@@ -28,6 +28,14 @@ ENCANTO = Path(r"C:\Users\tetuo\Documents\OpenGardenPlanner\3830-E-Encanto-St.og
 pytestmark = pytest.mark.skipif(not ENCANTO.exists(), reason="Encanto plan copy not available")
 
 
+def _shoelace(points: list[dict[str, float]]) -> tuple[float, float]:
+    """Area and perimeter of a closed polygon given as ``[{x, y}, ...]``."""
+    pts = [(float(p["x"]), float(p["y"])) for p in points]
+    pairs = list(zip(pts, pts[1:] + pts[:1], strict=True))
+    area = abs(sum(x1 * y2 - x2 * y1 for (x1, y1), (x2, y2) in pairs)) / 2.0
+    return area, sum(math.dist(a, b) for a, b in pairs)
+
+
 def _call(server: Any, qtbot: Any, body: Any) -> dict[str, Any]:
     result: dict[str, Any] = {}
     threading.Thread(target=_drive, args=(server, body, result), name="mcp-test-client").start()
@@ -91,8 +99,11 @@ def test_site_measure_tools_on_the_encanto_plan(canvas: Any, qtbot: Any, tmp_pat
         out["rows"] = (await call("list_object_heights", {"limit": 3})).structuredContent
         out["bad_nan"] = await call("measure_points", {
             "a": {"x_cm": 0.0, "y_cm": 0.0}, "b": {"x_cm": 1e12, "y_cm": 0.0}})
+        # An error whether or not the plan is georeferenced (the owner has since linked it to
+        # GPS): without a link the point cannot be placed; with one it lies ~18 000 km away,
+        # beyond the 100 km limit.
         out["bad_geo"] = await call("measure_points", {
-            "a": {"lat": 33.0, "lon": -111.0}, "b": {"x_cm": 0.0, "y_cm": 0.0}})
+            "a": {"lat": 33.0, "lon": 69.0}, "b": {"x_cm": 0.0, "y_cm": 0.0}})
         out["unknown"] = (await call("measure_clearance", {"id_a": "nope", "id_b": "boundary"})).structuredContent
 
     try:
@@ -106,9 +117,11 @@ def test_site_measure_tools_on_the_encanto_plan(canvas: Any, qtbot: Any, tmp_pat
                  "list_object_heights"):
         assert name in out["tools"], name
 
-    # Driveway: axis-aligned 1186 x 1587 cm rectangle (x 1237..2423, y 84..1671).
-    assert out["area"]["area_cm2"] == pytest.approx(1186 * 1587)  # 1 882 182
-    assert out["area"]["perimeter_cm"] == pytest.approx(2 * (1186 + 1587))
+    # Driveway: the owner reshapes this plan, so the expected area and perimeter come from
+    # the polygon points the file holds now (shoelace and edge sum), not from constants.
+    area_cm2, perimeter_cm = _shoelace(driveway["points"])
+    assert out["area"]["area_cm2"] == pytest.approx(area_cm2)
+    assert out["area"]["perimeter_cm"] == pytest.approx(perimeter_cm)
     # Boundary wall: open 4-point line, legs 4699 + 3799 + 4699.
     assert out["length"]["length_cm"] == pytest.approx(4699 + 3799 + 4699)
     assert out["length"]["vertex_count"] == 4 and out["length"]["closed"] is False
@@ -119,7 +132,7 @@ def test_site_measure_tools_on_the_encanto_plan(canvas: Any, qtbot: Any, tmp_pat
     assert out["clear"]["point_b"]["x_cm"] == pytest.approx(52.0)
     assert out["clear"]["point_a"]["x_cm"] == pytest.approx(306.0)
     assert out["clear_alias"]["distance_cm"] == pytest.approx(254.0)
-    # Driveway SW corner to NE corner: sqrt(1186^2 + 1587^2).
+    # The two points the call passed: dx 1186, dy 1587 (a fixed pair, independent of the plan).
     assert out["points"]["distance_cm"] == pytest.approx(math.hypot(1186, 1587))
     assert out["points"]["dx_cm"] == pytest.approx(1186.0) and out["points"]["dy_cm"] == pytest.approx(1587.0)
     assert out["points"]["compass_bearing_deg"] == pytest.approx(math.degrees(math.atan2(1186, 1587)))
@@ -131,7 +144,8 @@ def test_site_measure_tools_on_the_encanto_plan(canvas: Any, qtbot: Any, tmp_pat
     assert ext["boundary"]["area_cm2"] == pytest.approx(3799 * 4699)
     assert ext["boundary"]["closed_implicitly"] is True
     assert ext["min_x_cm"] == pytest.approx(52.0) and ext["min_y_cm"] == pytest.approx(9.0)
-    assert sum(ext["layer_counts"].values()) == ext["object_count"] == 23 - 0
+    typed = sum(1 for o in snapshot["objects"] if o.get("object_type"))  # the owner keeps adding objects
+    assert sum(ext["layer_counts"].values()) == ext["object_count"] == typed
     assert ext["tallest"]["item_id"] == house["item_id"]
     # Heights equal what core.object_height computes from the loaded metadata.
     plan_date = None
