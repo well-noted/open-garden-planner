@@ -879,6 +879,9 @@ class PropertiesPanel(QWidget):
         # Spacing radius section (for plant types only)
         self._add_spacing_properties(item)
 
+        # Custom 3D recipe (trees, shrubs, perennials) - ADR-079, FR-RECIPE-06
+        self._add_plant_recipe_properties(item)
+
         # Styling section
         self._add_styling_properties(item)
 
@@ -2137,6 +2140,196 @@ class PropertiesPanel(QWidget):
                 sm.get(getattr(it, "frost_protection_needed", None), Qt.CheckState.PartiallyChecked)
             ),
         )
+
+    # ── Custom 3D plant recipe (ADR-079, FR-RECIPE-06) ────────────────────────
+
+    @staticmethod
+    def _recipe_inputs(item: QGraphicsItem) -> tuple[str, str, str | None, object, object] | None:
+        """``(kind, species, category, species_override, instance_override)`` of a plant
+        item that can carry a recipe, else ``None``."""
+        from open_garden_planner.core.plant_art.recipe_edit import RECIPE_KINDS
+
+        object_type = getattr(item, "object_type", None)
+        kind = getattr(object_type, "name", "")
+        metadata = getattr(item, "metadata", None)
+        if kind not in RECIPE_KINDS or not isinstance(metadata, dict):
+            return None
+        species = metadata.get("plant_species")
+        instance = metadata.get("plant_instance")
+        category = getattr(item, "plant_category", None)
+        return (
+            kind,
+            str(getattr(item, "plant_species", "") or ""),
+            category.name if category is not None else None,
+            species.get("traits3d_override") if isinstance(species, dict) else None,
+            instance.get("traits3d_override") if isinstance(instance, dict) else None,
+        )
+
+    def _add_plant_recipe_properties(self, item: QGraphicsItem) -> None:
+        """Show and edit the plant's effective 3D recipe (specimen over species).
+
+        Every edit becomes ONE ``SetPlantRecipeCommand`` writing the specimen override
+        (``plant_instance``); "Reset to species default" clears it, leaving the species
+        recipe (or the bundled one). The values are validated by
+        ``plant_art.recipe_edit`` - the same bounds the agent tool enforces.
+        """
+        from open_garden_planner.core.plant_art import recipe_edit as re_
+
+        inputs = self._recipe_inputs(item)
+        if inputs is None or re_.effective_recipe(*inputs) is None:
+            return
+
+        def view() -> re_.RecipeView:
+            fresh = self._recipe_inputs(item)
+            current = re_.effective_recipe(*fresh) if fresh is not None else None
+            assert current is not None
+            return current
+
+        header = QLabel(self.tr("3D Recipe"))
+        set_text_role(header, "h2")
+        header.setStyleSheet("margin-top: 6px;")
+        self._form_layout.addRow(header)
+
+        status = QLabel()
+        self._form_layout.addRow(status)
+
+        def status_text(v: re_.RecipeView) -> str:
+            if v.specimen_overridden:
+                return self.tr("Custom recipe for this plant")
+            if v.species_overridden:
+                return self.tr("Species recipe")
+            return self.tr("Species default")
+
+        initial = view()
+        status.setText(status_text(initial))
+
+        archetype = QComboBox()
+        for key in re_.archetype_choices():
+            archetype.addItem(key, key)
+        archetype.setToolTip(self.tr("Overall growth form of the plant in the 3D view"))
+        archetype.setCurrentIndex(max(0, archetype.findData(initial.archetype)))
+        archetype.currentIndexChanged.connect(
+            lambda _i, it=item, c=archetype: self._on_recipe_field_changed(
+                it, re_.FIELD_ARCHETYPE, c.currentData()
+            )
+        )
+        self._form_layout.addRow(self.tr("Growth form:"), archetype)
+
+        stems = QSpinBox()
+        lo, hi = re_.field_bounds(re_.FIELD_BASAL_STEMS)
+        stems.setRange(int(lo), int(hi))
+        stems.setValue(initial.basal_stems)
+        stems.setKeyboardTracking(False)
+        stems.setToolTip(self.tr("Number of main stems from the base (1 = single trunk)"))
+        _style_numeric_field(stems)
+        stems.valueChanged.connect(
+            lambda val, it=item: self._on_recipe_field_changed(it, re_.FIELD_BASAL_STEMS, int(val))
+        )
+        self._form_layout.addRow(self.tr("Basal stems:"), stems)
+
+        def percent_spin(field: tuple[str | None, str], value: float, tip: str) -> QDoubleSpinBox:
+            flo, fhi = re_.field_bounds(field)
+            spin = QDoubleSpinBox()
+            spin.setRange(flo * 100.0, fhi * 100.0)
+            spin.setDecimals(0)
+            spin.setSuffix(" %")
+            spin.setValue(round(value * 100.0))
+            spin.setKeyboardTracking(False)
+            spin.setToolTip(tip)
+            _style_numeric_field(spin)
+            spin.valueChanged.connect(
+                lambda val, it=item, f=field: self._on_recipe_field_changed(it, f, val / 100.0)
+            )
+            return spin
+
+        fork = percent_spin(
+            re_.FIELD_FORK_HEIGHT, initial.fork_height_share,
+            self.tr("Height of the first fork, as a share of the plant height (0 = at the soil)"),
+        )
+        self._form_layout.addRow(self.tr("Fork height:"), fork)
+
+        lean_az = QDoubleSpinBox()
+        azlo, azhi = re_.field_bounds(re_.FIELD_LEAN_AZIMUTH)
+        lean_az.setRange(azlo, azhi)
+        lean_az.setDecimals(0)
+        lean_az.setSuffix("°")
+        lean_az.setValue(round(initial.lean_azimuth_deg))
+        lean_az.setKeyboardTracking(False)
+        lean_az.setToolTip(
+            self.tr("Direction the canopy leans towards (0° = plan up, clockwise)")
+        )
+        _style_numeric_field(lean_az)
+        lean_az.valueChanged.connect(
+            lambda val, it=item: self._on_recipe_field_changed(it, re_.FIELD_LEAN_AZIMUTH, float(val))
+        )
+        self._form_layout.addRow(self.tr("Canopy lean direction:"), lean_az)
+
+        lean_strength = percent_spin(
+            re_.FIELD_LEAN_STRENGTH, initial.lean_strength,
+            self.tr("How strongly the canopy leans (0 = symmetric)"),
+        )
+        self._form_layout.addRow(self.tr("Canopy lean:"), lean_strength)
+
+        reset = QPushButton(self.tr("Reset to species default"))
+        reset.setEnabled(initial.specimen_overridden)
+        reset.setToolTip(self.tr("Remove this plant's own recipe and use the species recipe"))
+        reset.clicked.connect(lambda _checked=False, it=item: self._on_recipe_reset(it))
+        self._form_layout.addRow(reset)
+
+        def refresh_all() -> None:
+            v = view()
+            status.setText(status_text(v))
+            reset.setEnabled(v.specimen_overridden)
+
+        self._register_refresh(
+            archetype, lambda: archetype.setCurrentIndex(max(0, archetype.findData(view().archetype)))
+        )
+        self._register_refresh(stems, lambda: stems.setValue(view().basal_stems))
+        self._register_refresh(fork, lambda: fork.setValue(round(view().fork_height_share * 100.0)))
+        self._register_refresh(lean_az, lambda: lean_az.setValue(round(view().lean_azimuth_deg)))
+        self._register_refresh(
+            lean_strength, lambda: lean_strength.setValue(round(view().lean_strength * 100.0))
+        )
+        self._register_refresh(status, refresh_all)
+
+    def _on_recipe_field_changed(
+        self, item: QGraphicsItem, field: tuple[str | None, str], value: Any
+    ) -> None:
+        """One panel edit -> the specimen's new override -> one undoable command."""
+        if self._updating:
+            return
+        from open_garden_planner.core.commands import SetPlantRecipeCommand
+        from open_garden_planner.core.plant_art import recipe_edit as re_
+
+        inputs = self._recipe_inputs(item)
+        if inputs is None:
+            return
+        current = inputs[4]
+        try:
+            new = re_.override_with_field(current, field, value)
+        except ValueError:
+            return  # out of bounds: leave the stored recipe alone
+        if re_.same_recipe(new, current if isinstance(current, dict) else None):
+            return
+        self._run_recipe_command(SetPlantRecipeCommand(item, new, target="instance"))
+
+    def _on_recipe_reset(self, item: QGraphicsItem) -> None:
+        """Clear the specimen override (back to the species recipe) as one undo step."""
+        if self._updating:
+            return
+        from open_garden_planner.core.commands import SetPlantRecipeCommand
+
+        inputs = self._recipe_inputs(item)
+        if inputs is None or not inputs[4]:
+            return
+        self._run_recipe_command(SetPlantRecipeCommand(item, None, target="instance"))
+
+    def _run_recipe_command(self, cmd: Any) -> None:
+        if self._command_manager is not None:
+            self._command_manager.execute(cmd)
+        else:
+            cmd.execute()  # the command itself updates the item and moves the plan revision
+        self._refresh_field_values()
 
     def _on_frost_protection_changed(self, item: QGraphicsItem, state: Qt.CheckState) -> None:
         """Handle frost protection tristate change with undo support."""

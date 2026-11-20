@@ -473,6 +473,36 @@ class CircleItem(RotationHandleMixin, ResizeHandlesMixin, GardenItemMixin, QGrap
         )
         return grown if grown is not None else footprint_diameter
 
+    def _plant_tint(self) -> QColor | None:
+        """The wash over the plant sprite: the canopy colour of an overridden 3D-recipe
+        palette (FR-RECIPE-07) while the fill is still the type's default; else the fill.
+
+        A plant is built with its type's default fill, so "the user chose a colour" means
+        "the fill differs from that default": a chosen colour always wins over the recipe.
+        """
+        fill = self.fill_color
+        default = get_style(self.object_type).fill_color if self.object_type else None
+        if fill is not None and not (default is not None and fill.rgba() == default.rgba()):
+            return fill
+        metadata = getattr(self, "metadata", None)
+        if not isinstance(metadata, dict) or not (
+            metadata.get("plant_species") or metadata.get("plant_instance")
+        ):
+            return fill
+        from open_garden_planner.core.plant_art.recipe_edit import recipe_tint_hex
+
+        species = metadata.get("plant_species")
+        instance = metadata.get("plant_instance")
+        category = self._plant_category
+        hex_color = recipe_tint_hex(
+            self.object_type.name if self.object_type is not None else "",
+            self._plant_species,
+            category.name if category is not None else None,
+            species.get("traits3d_override") if isinstance(species, dict) else None,
+            instance.get("traits3d_override") if isinstance(instance, dict) else None,
+        )
+        return QColor(hex_color) if hex_color else fill
+
     def _paint_styled_canopy(
         self, painter: QPainter, rect: QRectF, diameter: float
     ) -> bool:
@@ -553,7 +583,7 @@ class CircleItem(RotationHandleMixin, ResizeHandlesMixin, GardenItemMixin, QGrap
                 item_id=str(self._item_id),
                 species=self._plant_species,
                 category=self._plant_category,
-                tint_color=self.fill_color,
+                tint_color=self._plant_tint(),
             ):
 
                 # Draw selection highlight
