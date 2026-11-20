@@ -96,9 +96,10 @@ def user_visible_strings(text: str) -> list[str]:
 
 
 def test_there_is_qml_to_scan() -> None:
-    # Garden.qml, since L7 (#391) the atmosphere sky it creates, and photo mode's blur (#743)
+    # Garden.qml, since L7 (#391) the atmosphere sky it creates, photo mode's blur (#743)
+    # and the 3D Line & Wash style (render styles WP9)
     assert [path.name for path in sorted(QML_DIR.glob("*.qml"))] == [
-        "AtmosphereSky.qml", "Garden.qml", "PhotoBlur.qml"]
+        "AtmosphereSky.qml", "Garden.qml", "NprStyle.qml", "PhotoBlur.qml"]
 
 
 @pytest.mark.parametrize("path", sorted(QML_DIR.glob("*.qml")), ids=lambda p: p.name)
@@ -321,6 +322,7 @@ def test_shaders_named_by_the_scene_ship_beside_it_and_none_is_orphaned() -> Non
     in front of a user. The data loop of ``installer/ogp.spec`` ships this directory."""
     sky = strip_comments((QML_DIR / "AtmosphereSky.qml").read_text(encoding="utf-8"))
     blur = strip_comments((QML_DIR / "PhotoBlur.qml").read_text(encoding="utf-8"))
+    blur += strip_comments((QML_DIR / "NprStyle.qml").read_text(encoding="utf-8"))
     named = set(re.findall(r'"([^"\n]+\.(?:vert|frag))"', _scene() + sky + blur))
     shipped = {path.name for path in QML_DIR.iterdir() if path.suffix in (".frag", ".vert")}
     assert named == shipped == {"foliage.vert", "foliage.frag", "grass.vert", "water.frag",
@@ -338,13 +340,15 @@ def test_shaders_named_by_the_scene_ship_beside_it_and_none_is_orphaned() -> Non
                                 # photo mode's depth of field (#743)
                                 "photoblur_layer.frag", "photoblur_rows.frag",
                                 "photoblur_compose.frag",
+                                # the 3D Line & Wash style (render styles WP9)
+                                "npr_edges.frag", "npr_wash.frag", "npr_compose.frag",
                                 # a built surface's detail picture: roof tiles, wall courses (#801)
                                 "built_detail.vert", "built_detail.frag",
                                 "built_snow.frag", "built_snow.vert",   # snow on built tops (#687)
                                 "plant_sway.vert"}   # a plant's wood and fruit in the wind (#800)
     # L7 (#391): the atmosphere sky came from Qt with its provenance and licence texts
     assert {path.name for path in QML_DIR.iterdir()} == shipped | {
-        "Garden.qml", "AtmosphereSky.qml", "PhotoBlur.qml", "PROVENANCE.md",
+        "Garden.qml", "AtmosphereSky.qml", "PhotoBlur.qml", "NprStyle.qml", "PROVENANCE.md",
         "LICENSE-qt-skymaterial.txt"}
 
 
@@ -469,7 +473,7 @@ def test_the_look_rules_the_spike_paid_for() -> None:
     assert "readonly property bool skyShown: paintedShown || atmosphereShown" in code
     assert "lightProbe: view.paintedShown ? view.skyTexture : null" in code
     assert "skyMaterial: view.atmosphereShown ? view.atmosphere : null" in code
-    assert "root.topDown ? SceneEnvironment.TonemapModeNone" in code
+    assert "(root.topDown || root.nprActive) ? SceneEnvironment.TonemapModeNone" in code
     assert "csmNumSplits: root.topDown ? 0 : root.shadowCascades" in code
     assert '(root.topDown || root.antialiasing === "msaa")' in code
     # reflections, blur and glow in one chain took Qt's render thread down on Ultra (PF-E3D-21):
@@ -479,7 +483,9 @@ def test_the_look_rules_the_spike_paid_for() -> None:
     assert "readonly property bool depthOfFieldActive: !root.topDown && root.photoBlur > 0" in code
     # photo mode's blur is the app's own (#743), in the chain only while it is drawn; Qt's
     # half-resolution depth of field is never switched on
-    assert "effects: root.depthOfFieldActive ? [photoBlur] : []" in code
+    # render styles WP9: the Line & Wash effect is the ONLY user effect while it is drawn
+    assert ("effects: root.nprActive ? [nprEffect] : (root.depthOfFieldActive ? [photoBlur] : [])"
+            in code)
     assert "depthOfField" not in code.replace("depthOfFieldActive", ""), "Qt's blur is not used"
     # with a sky the sky is the fill (and in twilight the look's twilight fill, #802: an
     # ambient lights the garden, never the skybox); without one, the look's flat fill

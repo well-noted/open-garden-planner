@@ -74,7 +74,7 @@ from .adapter import Quick3DSink
 from .host import Quick3DHost, shown_quick_windows
 from .look import NEUTRAL_DAY, LookSpec
 from .runlog import RenderLog, watchdog
-from .shots import Shot
+from .shots import Shot, TopDownShot
 
 __all__ = ["OffscreenFrame", "RenderError", "RenderLog", "ensure_application", "image_rgba",
            "render_records", "watchdog"]
@@ -208,6 +208,7 @@ def render_records(
     lamps: Sequence[tuple[float, float, float, float]] = (),
     sky_probe: bool = True,
     fitted_shadows: bool = False,
+    render_style: str | None = None,
 ) -> OffscreenFrame:
     """Render ``records`` from ``shot`` under ``sun`` into an image of ``size``
     (logical pixels), through the real ``SceneSync`` → ``Quick3DSink`` path.
@@ -242,7 +243,9 @@ def render_records(
     light probe — nothing lit by a sky, no probe to filter — what the self-test renders
     on a machine without a GPU (``Quick3DHost.sky_probe``). ``fitted_shadows=True`` (#734):
     the shadow map fitted to the casters, as a picture's (``Quick3DHost.capture``); the
-    default is the view's texel-locked fit.
+    default is the view's texel-locked fit. ``render_style`` (render styles WP9): the
+    frame in that style (``look.styled_look``; ``line_and_wash`` draws the NPR effect);
+    None draws ``look`` as given, and so does a top-down (truth) shot.
 
     Raises ``RenderError`` on a QML or shader error, when this backend cannot
     render 3D, when a Qt Quick window is shown in this process (module
@@ -254,6 +257,11 @@ def render_records(
         raise ValueError("render_records: no sky light on the software adapter — a light probe "
                          "costs tens of seconds there (the compatibility mode's rule)")
     emit: Callable[..., None] = log if log is not None else _silent
+    if render_style is not None and not isinstance(shot, TopDownShot):
+        # the top-down truth view ignores the style completely (its lawn blades included)
+        from open_garden_planner.core.scene3d.look import styled_look
+
+        look = styled_look(look, render_style)
     started = time.perf_counter()
     breakdown: dict[str, float] = {}
     ensure_application()

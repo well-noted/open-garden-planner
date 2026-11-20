@@ -121,6 +121,36 @@ Item {
     property real aoBias: 1.0
     property real builtSnow: 0.0            // snow on built TOPS: a roof, a bed's soil (#687)
 
+    // render styles WP9: the 3D Line & Wash look (NprStyle.qml; look.NprSpec through
+    // quick3d/look.py npr_properties). The defaults are "no style": the plain look, pixel
+    // for pixel. Never in the truth view (topDown): it ignores the render style entirely.
+    // While it is drawn it is the ONLY user effect (the depth of field is folded into it),
+    // SSR, glow and the vignette stand down, and the environment's tone mapping is None at
+    // exposure 1: the effect writes the finished picture (paper and ink exact).
+    property bool nprStyle: false
+    property real nprEdgeShare: 0.0015
+    property real nprSilhouetteThresh: 0.03
+    property real nprCreaseThresh: 0.006
+    property real nprCreaseInk: 0.55
+    property real nprInkSpread: 0.85
+    property real nprBusyCut: 0.35
+    property real nprBands: 4.0
+    property real nprBandSoft: 0.06
+    property real nprEdgeDarken: 0.35
+    property real nprWashLift: 0.15
+    property real nprWashSaturation: 1.0
+    property real nprGrainShare: 0.0016
+    property real nprGrainStrength: 0.12
+    property vector3d nprPaper: Qt.vector3d(0.9568627451, 0.9333333333, 0.8745098039)
+    property vector3d nprInk: Qt.vector3d(0.1647058824, 0.1411764706, 0.1137254902)
+    property real nprFogNear: 6000.0
+    property real nprFogFar: 14000.0
+    // ground.frag's uStyleFlatten while the style is drawn: 0 keeps the plain ground
+    property real groundFlatten: 0.0
+    // the shadow softened while the style is drawn (never in the truth view)
+    property real nprShadowScale: 0.75
+    property real nprPcfScale: 2.0
+
     // ---- key light (Quick3DHost: the sun the pipeline sent, or a night look's moon) ----
     property bool sunUp: false              // false until the first sun, and whenever there is no key light
     property quaternion sunRotation: Qt.quaternion(1, 0, 0, 0)   // rotates -Z onto the light's travel
@@ -205,7 +235,10 @@ Item {
     // then. Screen-space reflections stand down while it is (PF-E3D-21): with glow on, Qt
     // 6.12's chain breaks as soon as TWO effects run ahead of its own scene effect - SSR and
     // the blur here - (a crash in d3d11.dll at OMSetRenderTargets, or a wrong picture)
-    readonly property bool depthOfFieldActive: !root.topDown && root.photoBlur > 0
+    readonly property bool depthOfFieldActive: !root.topDown && root.photoBlur > 0 && !root.nprStyle
+    // render styles WP9: the Line & Wash effect is drawn (never in the truth view)
+    readonly property bool nprActive: !root.topDown && root.nprStyle
+
 
     // A grade's table: ONE Texture per grade, with its data object, for the host's life
     // (Quick3DHost holds both). A Texture is never pointed at a second data object: that
@@ -992,6 +1025,7 @@ Item {
                 property real uRough: root.groundRoughness
                 property real uSpecular: root.groundSpecular
                 property real uSnowCover: root.snowCover
+                property real uStyleFlatten: root.nprActive ? root.groundFlatten : 0.0   // render styles WP9
                 shadingMode: CustomMaterial.Shaded
                 fragmentShader: "ground.frag"
             }
@@ -1181,9 +1215,9 @@ Item {
             skyMaterial: view.atmosphereShown ? view.atmosphere : null
             probeExposure: root.probeExposure
             skyboxBlurAmount: 0.0
-            tonemapMode: root.topDown ? SceneEnvironment.TonemapModeNone
-                                      : SceneEnvironment.TonemapModeFilmic
-            exposure: root.topDown ? 1.0 : root.exposure * root.photoExposure
+            tonemapMode: (root.topDown || root.nprActive) ? SceneEnvironment.TonemapModeNone
+                                                          : SceneEnvironment.TonemapModeFilmic
+            exposure: (root.topDown || root.nprActive) ? 1.0 : root.exposure * root.photoExposure
             ditheringEnabled: !root.topDown
             aoEnabled: !root.topDown && root.ambientOcclusion && root.aoFade > 0
             // 0 wherever AO is off: Qt's setAoStrength turns AO on whenever the strength
@@ -1199,7 +1233,7 @@ Item {
             aoBias: root.aoBias * root.captureAoDistanceScale
             aoSoftness: 45
             aoSampleRate: root.aoSampleRate
-            glowEnabled: !root.topDown && root.glow
+            glowEnabled: !root.topDown && root.glow && !root.nprActive
             glowStrength: 1.05
             glowIntensity: 0.55
             glowBloom: 0.18
@@ -1229,7 +1263,7 @@ Item {
             specularAAEnabled: !root.topDown && root.antialiasing === "fxaa"
             // SSGI renders a black frame on Mesa llvmpipe: no preset turns it on
             ssgiEnabled: false
-            ssrEnabled: !root.topDown && root.reflections && !root.depthOfFieldActive
+            ssrEnabled: !root.topDown && root.reflections && !root.depthOfFieldActive && !root.nprActive
             // No sharpening ever - 0.08 overshot every thin lit/dark edge to near-black,
             // red-less pixels (1,500-3,100 isolated dark pixels per daytime frame at
             // 1280x720); 0.03 is nearly as bad. The render tier bounds the speckles.
@@ -1242,7 +1276,7 @@ Item {
             adjustmentSaturation: root.photoGraded ? 1.0 : root.saturation
             adjustmentContrast: root.photoGraded ? 1.0 : root.contrast
             // photo mode (L6.1): off unless a setting asks, and never in the truth view
-            vignetteEnabled: !root.topDown && root.photoVignette > 0
+            vignetteEnabled: !root.topDown && root.photoVignette > 0 && !root.nprActive
             // Qt: colour x (u (1-u) v (1-v) x strength) ^ radius, towards this colour. Its
             // default grey brightens whatever is darker (34 % of a night's pixels). A LOWER
             // strength darkens the middle of the picture too; the exponent is what reaches only
@@ -1254,7 +1288,32 @@ Item {
             // photo mode's depth of field (#743): the app's own picture-relative blur, never
             // Qt's depthOfField* (a half-resolution copy, about 2 px at any picture size). In
             // the chain only while it is drawn, so blur 0 is the view to the level
-            effects: root.depthOfFieldActive ? [photoBlur] : []
+            effects: root.nprActive ? [nprEffect] : (root.depthOfFieldActive ? [photoBlur] : [])
+        }
+
+        NprStyle {
+            id: nprEffect
+            edgeShare: root.nprEdgeShare
+            silhouetteThresh: root.nprSilhouetteThresh
+            creaseThresh: root.nprCreaseThresh
+            creaseInk: root.nprCreaseInk
+            inkSpread: root.nprInkSpread
+            busyCut: root.nprBusyCut
+            bands: root.nprBands
+            bandSoft: root.nprBandSoft
+            edgeDarken: root.nprEdgeDarken
+            washLift: root.nprWashLift
+            washSaturation: root.nprWashSaturation
+            grainShare: root.nprGrainShare
+            grainStrength: root.nprGrainStrength
+            paperColor: root.nprPaper
+            inkColor: root.nprInk
+            fogNear: root.nprFogNear
+            fogFar: root.nprFogFar
+            exposure: root.exposure * root.photoExposure
+            focusDistance: root.photoFocusDistance
+            focusRange: root.photoFocusRange
+            blurShare: root.photoBlur
         }
 
         PhotoBlur {
@@ -1296,7 +1355,7 @@ Item {
             brightness: root.sunBrightness
             ambientColor: Qt.rgba(0, 0, 0, 1)
             castsShadow: true
-            shadowFactor: root.shadowFactor
+            shadowFactor: root.shadowFactor * (root.nprActive ? root.nprShadowScale : 1.0)
             shadowMapQuality: root.shadowMapQuality === "ultra" ? Light.ShadowMapQualityUltra
                             : root.shadowMapQuality === "high" ? Light.ShadowMapQualityHigh
                             : Light.ShadowMapQualityVeryHigh
@@ -1305,7 +1364,7 @@ Item {
             softShadowQuality: root.softShadows === "pcf4" ? Light.PCF4
                              : root.softShadows === "pcf8" ? Light.PCF8
                              : root.softShadows === "pcf32" ? Light.PCF32 : Light.PCF16
-            pcfFactor: root.pcfFactor
+            pcfFactor: root.pcfFactor * (root.nprActive ? root.nprPcfScale : 1.0)
             shadowBias: root.shadowBias
             // as far as the fog begins (the spike's 9000 its floor): with the fog following
             // the camera, a framed plan beyond 90 m lay clear and shadowless (3D review).
@@ -1370,6 +1429,7 @@ Item {
                 property real uRough: root.groundRoughness     // 1.0 dry; wet in the rain (L5)
                 property real uSpecular: root.groundSpecular   // 0.15 dry
                 property real uSnowCover: root.snowCover
+                property real uStyleFlatten: root.nprActive ? root.groundFlatten : 0.0   // render styles WP9
                 shadingMode: CustomMaterial.Shaded
                 fragmentShader: "ground.frag"
             }
@@ -1403,6 +1463,7 @@ Item {
                 property real uRough: root.groundRoughness     // 1.0 dry; wet in the rain (L5)
                 property real uSpecular: root.groundSpecular   // 0.15 dry
                 property real uSnowCover: root.snowCover
+                property real uStyleFlatten: root.nprActive ? root.groundFlatten : 0.0   // render styles WP9
                 shadingMode: CustomMaterial.Shaded
                 fragmentShader: "ground.frag"
             }

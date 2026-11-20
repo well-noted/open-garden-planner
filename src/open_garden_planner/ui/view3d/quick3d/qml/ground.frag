@@ -159,6 +159,20 @@ void MAIN()
         albedo += open * groundLinear(uMeadow) * (grass - 1.0);
         slope += open * grassSlope;
     }
+    // Render styles WP9: a drawn style (Line & Wash) fades the relief and the grass's
+    // variation (uStyleFlatten 0..1), so the ground reads as a flat wash and its blade
+    // texture does not turn into ink noise. 0 (every look but a drawn style, and the truth
+    // view) skips the branch: the pixels are the plain shader's, bit for bit.
+    if (uStyleFlatten > 0.0) {
+        float keep = 1.0 - clamp(uStyleFlatten, 0.0, 1.0);
+        vec3 plainColour = groundLinear(uHasTile > 0.5 ? tile.rgb : uMeadow);
+        if (uSurface > 0.5) {
+            float open = (1.0 - tile.a) * uGrassShare;
+            plainColour = mix(plainColour, groundLinear(uMeadow), open);
+        }
+        albedo = mix(plainColour, albedo, keep);
+        slope *= keep;
+    }
     albedo *= groundLinear(uGroundTint);
     BASE_COLOR = vec4(mix(albedo, vec3(0.80, 0.84, 0.89), uSnowCover), 1.0);
     ROUGHNESS = uRough;

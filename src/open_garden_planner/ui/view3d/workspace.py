@@ -886,11 +886,16 @@ class Workspace(QWidget):
             # for at most its budget (10 ms) a pass — the controller runs the rest
             controller = Scene3DController(scene, clock, self._location, sink, parent=self,
                                            ground_baker=GroundBaker(), north=self._north)
-            from ...core.scene3d.look import PRESET_SPECS
+            from ...core.scene3d.look import PRESET_SPECS, npr_for
 
-            controller.set_lawn_blades(PRESET_SPECS[look.preset].lawn_blades)
+            # the lawn's blades: the preset's, and never under a drawn style (WP9: Line &
+            # Wash leaves them out - their edges would be ink noise)
+            def lawn_blades(preset: str, styles: LookController = look) -> bool:
+                return PRESET_SPECS[preset].lawn_blades and npr_for(styles.render_style) is None
+
+            controller.set_lawn_blades(lawn_blades(look.preset))
             look.preset_changed.connect(
-                lambda preset: controller.set_lawn_blades(PRESET_SPECS[preset].lawn_blades))
+                lambda preset: controller.set_lawn_blades(lawn_blades(preset)))
         except Exception as error:  # noqa: BLE001 - an import, the scene file, anything
             guard.init_failed()
             _log_failure("The 3D view could not be started", error)

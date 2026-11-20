@@ -62,7 +62,7 @@ Branch `claude/render-styles-wp3-310d4a` (renamed on request if the name matters
 - The Agent API render tool takes no `render_style` argument yet (WP11).
 
 ## Not done
-- No painters (WP4-6), UI (WP7), agent (WP11), NprStyle production code (WP9).
+- UI (WP7), agent (WP11). WP9 (3D Line & Wash) is done: see the WP9 section.
 - No new user-visible strings, so no translation changes needed yet.
 - Full suite not run (only touched areas).
 
@@ -110,3 +110,49 @@ Branch `claude/render-styles-wp3-310d4a` (renamed on request if the name matters
   which `scene.render` also calls.
 - Label hand changes only the font (halo colours unchanged); no `label_pen` yet.
 - Roof ridge lines, lawn grass ticks and Paper Space specifics are not drawn (Paper Space viewports follow the scene style).
+
+## WP9: 3D Line & Wash (NprStyle)
+Done:
+- `core/scene3d/look.py`: `NprSpec` (one table: effect values and the look overrides),
+  `LINE_AND_WASH_NPR`, `LookSpec.npr` / `.unstyled`, `npr_for`, `styled_look` (plain styles
+  return the same object; a styled look goes back to its plain look).
+- `qml/NprStyle.qml` + `npr_edges.frag`, `npr_wash.frag`, `npr_compose.frag` (runtime-compiled
+  like PhotoBlur's; the ogp.spec data loop ships the whole qml folder, no .qsb step exists).
+- `Garden.qml`: `nprStyle`/`nprActive` (never in `topDown`), the effect is the ONLY user effect
+  while drawn, PhotoBlur stands down (its DOF is folded into the wash pass), SSR/glow/vignette off,
+  tone mapping None at exposure 1, shadow softening gated by `nprActive`; ground.frag
+  `uStyleFlatten` on all three ground materials (guarded branch: 0 is the old shader exactly).
+- Wiring: `LookController(render_style=...)`, `set_render_style`, `from_settings` reads the
+  preference; workspace leaves lawn blades out under the style; `Quick3DHost.capture(render_style=)`
+  (the view's look put back after); `render_records(render_style=)` (ignored for a TopDownShot).
+- Tests: `tests/unit/test_render_style_3d_look.py` (17), render tier
+  `tests/integration/test_render_style_3d.py` (4, driver scenario `npr`): truth view identical,
+  Illustrated == default, deterministic, paper sky and ink on the boxes' outlines.
+
+Measured (this machine: Intel Iris Xe, Direct3D 11, Qt 6.12, 2026-11-19):
+- Default plain 3D is byte-identical to the branch tip before WP9: the Encanto plan (copy),
+  1600x900 at DPR 1.5, compared pixel for pixel against a render from the stashed tree.
+- Effect cost, shown host 1280x720 logical (1920x1080 device), Encanto, median of 30 grabs:
+  plain 6.09 / 6.01 ms, Line & Wash 7.06 / 6.97 ms: about +1 ms (+16 %) per frame.
+  One-shot offscreen frames (open to readback): 7.0-9.2 s both ways, dominated by setup.
+- Edges: second difference of 1/depth (zero on planes), silhouettes on the near side only;
+  creases at 0.55 ink; ink widened by a 3x3 max (`ink_spread`); crowded 3x3 (foliage) fades ink.
+- Pre-existing, not WP9: `test_at_rest_a_vertex_with_full_wind_weight...` fails on this Iris Xe
+  at HEAD too (foliage offset exactly 0.5 px against `< 0.5`).
+
+Assumptions:
+- Tone mapping: the design said "as illustrated"; the effect does its own exposure and ACES-fit
+  curve and writes sRGB with the environment at None, so paper and ink are exact colours.
+- Paper is the 2D paper `#f4eedf`; ink `#2a241d`. Bands are cut in display lightness (gamma 2.2).
+- Shadow softening (factor x0.75, PCF x2) is applied in the scene only while the effect is drawn,
+  not in the look, so the truth view's shadows (and the IoU gate) are the plain look's.
+- CAD stays plain 3D (Q6). The Agent API `render_3d_view` takes no `render_style` yet (WP11).
+- Live switching of the style in a running app has no caller yet: nothing emits a style change
+  to the 3D workspace until the WP7 menu calls `LookController.set_render_style`.
+
+Look, honestly (4 rounds, then stopped): ink silhouettes and roof creases read well; the sky and
+far ground are paper with a soft ragged edge. Weak: tonal bands are hard to see (large flat
+lawns read as a flat digital green, not a wash); roof tiles and wall bricks keep their texture;
+foliage edges are speckled ink rather than a drawn outline; window frames get no ink (too
+shallow for the crease threshold). Not judged: other moods (golden hour, night), video flicker,
+WARP/llvmpipe, MSAA-resolved depth beyond this machine.

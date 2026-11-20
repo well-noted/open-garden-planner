@@ -87,6 +87,7 @@ from typing import Any, Final, Protocol
 from PyQt6.QtCore import QObject, QTimer, pyqtSignal
 
 from open_garden_planner.core.plain_text import log_text
+from open_garden_planner.core.render_style import normalise_render_style
 from open_garden_planner.core.scene3d import SunState
 from open_garden_planner.core.scene3d.look import (
     ATMOSPHERE,
@@ -103,6 +104,7 @@ from open_garden_planner.core.scene3d.look import (
     normalise_sky_model,
     sky_is_stale,
     sky_must_build_now,
+    styled_look,
 )
 from open_garden_planner.core.scene3d.weather import (
     TODAY,
@@ -187,7 +189,8 @@ class LookController(QObject):
                  on_auto_bars: Callable[[dict[str, tuple[float, float]]], None] | None = None,
                  policy: AutoPolicy | None = None, parent: QObject | None = None,
                  clock: Callable[[], float] = time.monotonic,
-                 wall_clock: Callable[[], float] = time.time) -> None:
+                 wall_clock: Callable[[], float] = time.time,
+                 render_style: str = "illustrated") -> None:
         """``software``: the host renders on a software adapter (the workspace's
         compatibility mode) — no sky, no wind, ``auto`` = ``low``.
         ``reduced_motion``: the app's setting; ``system_reduced_motion``: the
@@ -201,6 +204,8 @@ class LookController(QObject):
         self._software = bool(software)
         self._sky_light = not self._software
         self._quality = normalise_quality(quality)
+        # render styles WP9: Line & Wash draws the 3D NPR look (look.styled_look)
+        self._render_style = normalise_render_style(render_style)
         self._reduced_motion = bool(reduced_motion)
         self._system_reduced_motion = bool(system_reduced_motion)
         self._on_auto_level = on_auto_level
@@ -274,7 +279,8 @@ class LookController(QObject):
                          sky_model=settings.view3d_sky_model,
                          auto_level=settings.view3d_auto_level,
                          auto_bars=settings.view3d_auto_bars,
-                         on_auto_level=keep_level, on_auto_bars=keep_bars, parent=parent)
+                         on_auto_level=keep_level, on_auto_bars=keep_bars, parent=parent,
+                         render_style=settings.render_style)
         controller._follow_system_motion()
         return controller
 
@@ -586,14 +592,27 @@ class LookController(QObject):
         self.look_calls += 1
 
     def _living_look(self, sun: SunState) -> LookSpec:
-        """The look to show at ``sun``: the weather shown, and the dew unless a drape
-        lies on the ground."""
+        """The look to show at ``sun``: the weather shown, the dew unless a drape
+        lies on the ground, in the render style (WP9: Line & Wash draws the NPR look)."""
         look = living_look(sun, self.preset, self.weather, dew=not self._analysing,
                            southern=self._southern)
         model = self.sky_model_shown
-        if model == look.sky.model:
-            return look
-        return replace(look, sky=replace(look.sky, model=model))
+        if model != look.sky.model:
+            look = replace(look, sky=replace(look.sky, model=model))
+        return styled_look(look, self._render_style)
+
+    @property
+    def render_style(self) -> str:
+        """The render style the look is drawn in (``core.render_style`` id)."""
+        return self._render_style.value
+
+    def set_render_style(self, render_style: str) -> None:
+        """Draw the look in ``render_style`` (lenient: unknown ids are Illustrated)."""
+        style = normalise_render_style(render_style)
+        if style is self._render_style:
+            return
+        self._render_style = style
+        self._apply()
 
     def _build_sky(self, sky: SkySpec) -> None:
         """Build ``sky`` — or, when the engine cannot, log it ONCE and go on for the rest
