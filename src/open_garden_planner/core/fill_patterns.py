@@ -261,7 +261,8 @@ def _color_key(color: QColor) -> int:
     return color.rgba()
 
 
-def _tint_texture(texture: QPixmap, color: QColor) -> QPixmap:
+def _tint_texture(texture: QPixmap, color: QColor,
+                  pattern: FillPattern | None = None) -> QPixmap:
     """Recolour a texture to the user's colour, keeping its detail (issues #502).
 
     Maps every pixel to the user's colour scaled by the texture's **relative**
@@ -285,6 +286,8 @@ def _tint_texture(texture: QPixmap, color: QColor) -> QPixmap:
     Args:
         texture: Base texture pixmap (RGB; the asset forge ships no alpha)
         color: Colour to recolour the texture with
+        pattern: The pattern the texture is, for the few that keep their own
+            stone hues (``HUE_KEEP``)
 
     Returns:
         Recoloured pixmap
@@ -292,7 +295,8 @@ def _tint_texture(texture: QPixmap, color: QColor) -> QPixmap:
     image = texture.toImage()
     if image.width() == 0 or image.height() == 0:
         return QPixmap(texture.size())
-    return _tint_image(image, color, _mean_luminance(image))
+    return _tint_image(image, color, _mean_luminance(image),
+                       _hue_reference(pattern, image))
 
 
 def _luminance(image: QImage) -> np.ndarray:
@@ -314,23 +318,98 @@ def _luminance(image: QImage) -> np.ndarray:
     return luminance
 
 
+def _rgb(image: QImage) -> np.ndarray:
+    """Per-pixel R, G, B of ``image`` (float32, rows x columns x 3)."""
+    image = image.convertToFormat(QImage.Format.Format_RGB32)
+    width, height = image.width(), image.height()
+    buffer: Any = image.bits()
+    buffer.setsize(image.sizeInBytes())
+    rows = np.frombuffer(buffer, dtype=np.uint8).reshape(height, image.bytesPerLine() // 4, 4)
+    result: np.ndarray = rows[:, :width, 2::-1].astype(np.float32)  # R, G, B
+    return result
+
+
 def _mean_luminance(image: QImage) -> float:
     """The mean a texture's tint is normalised with (never below 1)."""
     return max(float(_luminance(image).mean()), 1.0)
 
 
-def _tint_image(image: QImage, color: QColor, mean_lum: float) -> QPixmap:
+#: Patterns whose stones keep their own hue differences under a tint, and how much
+#: (0 = the luminance map above, 1 = a pure white-balance shift). A gravel picture is
+#: stones of tan, grey, rust and pink: the luminance map makes every one the fill's
+#: hue, so a blue-grey plan colour gave blue-grey gravel. The mix shifts the picture's
+#: MEAN colour to the fill's and leaves each stone its hue relative to that mean:
+#: a tan fill is tan gravel with warm and cool stones, a grey one grey with a few rust
+#: ones. Every other pattern is untouched (``tests/unit/test_gravel_colors`` pins them).
+HUE_KEEP: dict[FillPattern, float] = {FillPattern.GRAVEL: 0.5}
+
+
+#: The gravel colours the properties panel offers: (key, English name, fill colour).
+#: Each is a fill colour like any other (no file-format change: a plan stores only the
+#: colour); ``HUE_KEEP`` makes the gravel picture read as that colour with its own stones'
+#: variation. The names are translated at the panel (``PropertiesPanel``).
+GRAVEL_COLORS: tuple[tuple[str, str, str], ...] = (
+    ("grey", "Grey", "#8f8c85"),
+    ("rust", "Rust", "#96593b"),
+    ("yellow", "Yellow", "#b49c4c"),
+    ("tan", "Tan", "#ad967a"),
+)
+
+#: How near (RGB distance, 0..441) a fill colour must be to a gravel colour to count as
+#: that colour in the panel; any other fill is "Custom" and stays exactly as stored.
+GRAVEL_COLOR_MATCH: float = 24.0
+
+
+def gravel_color_key(color: QColor) -> str | None:
+    """The key of the gravel colour ``color`` is (within ``GRAVEL_COLOR_MATCH``), else None."""
+    best: tuple[float, str] | None = None
+    for key, _name, hex_rgb in GRAVEL_COLORS:
+        ref = QColor(hex_rgb)
+        dist = math.sqrt((color.red() - ref.red()) ** 2 + (color.green() - ref.green()) ** 2
+                         + (color.blue() - ref.blue()) ** 2)
+        if dist <= GRAVEL_COLOR_MATCH and (best is None or dist < best[0]):
+            best = (dist, key)
+    return best[1] if best else None
+
+
+def _hue_reference(pattern: FillPattern | None, image: QImage) -> tuple[float, float, float, float] | None:
+    """(keep, mean R, G, B) of a texture the tint keeps hues of, else None."""
+    keep = HUE_KEEP.get(pattern) if pattern is not None else None
+    if not keep:
+        return None
+    image = image.convertToFormat(QImage.Format.Format_RGB32)
+    width, height = image.width(), image.height()
+    buffer: Any = image.bits()
+    buffer.setsize(image.sizeInBytes())
+    rows = np.frombuffer(buffer, dtype=np.uint8).reshape(height, image.bytesPerLine() // 4, 4)
+    mean = rows[:, :width, :3].reshape(-1, 3).astype(np.float64).mean(axis=0)  # B, G, R
+    return keep, max(float(mean[2]), 1.0), max(float(mean[1]), 1.0), max(float(mean[0]), 1.0)
+
+
+def _tint_image(image: QImage, color: QColor, mean_lum: float,
+                hue_reference: tuple[float, float, float, float] | None = None) -> QPixmap:
     """``image`` recoloured to ``color`` by its luminance relative to
     ``mean_lum`` (``_tint_texture``'s map). A detail tile is tinted with the
-    256-px tile's mean, so the two levels are the same picture."""
+    256-px tile's mean, so the two levels are the same picture. With a
+    ``hue_reference`` (``HUE_KEEP``) the result is mixed with the picture's own
+    colours scaled so their mean is ``color``."""
     lum = _luminance(image)
     height, width = lum.shape
     scale = lum / mean_lum
 
     out = np.empty((height, width, 4), dtype=np.uint8)
-    out[:, :, 0] = np.clip(color.blue() * scale, 0, 255).astype(np.uint8)
-    out[:, :, 1] = np.clip(color.green() * scale, 0, 255).astype(np.uint8)
-    out[:, :, 2] = np.clip(color.red() * scale, 0, 255).astype(np.uint8)
+    if hue_reference is None:
+        out[:, :, 0] = np.clip(color.blue() * scale, 0, 255).astype(np.uint8)
+        out[:, :, 1] = np.clip(color.green() * scale, 0, 255).astype(np.uint8)
+        out[:, :, 2] = np.clip(color.red() * scale, 0, 255).astype(np.uint8)
+    else:
+        keep, mean_r, mean_g, mean_b = hue_reference
+        rgb = _rgb(image)
+        for ch, target, mean in ((0, color.blue(), mean_b), (1, color.green(), mean_g),
+                                 (2, color.red(), mean_r)):
+            plain = target * scale
+            kept = rgb[:, :, 2 - ch] * (target / mean)
+            out[:, :, ch] = np.clip(plain * (1.0 - keep) + kept * keep, 0, 255).astype(np.uint8)
     out[:, :, 3] = color.alpha()
     # An opaque fill stays RGB32: a per-pixel alpha channel would make every
     # textured item blend on every repaint (measured ~2x on the NFR-PERF-01
@@ -389,7 +468,7 @@ def _tinted_tile(pattern: FillPattern, texture: QPixmap, color: QColor) -> QPixm
         if len(_tinted_cache) >= _TINTED_CACHE_MAX:
             _tinted_cache.clear()
         # Create tinted texture
-        tinted = _tint_texture(texture, color)
+        tinted = _tint_texture(texture, color, pattern)
         _tinted_cache[key] = tinted
     if len(_brush_tiles) >= _BRUSH_TILES_MAX:
         _brush_tiles.clear()
@@ -435,7 +514,9 @@ def level_tile(pattern: FillPattern, color: QColor, level: float) -> QPixmap | N
     if texture is None or detail is None:
         return None
     # normalised with the 256-px tile's mean: the same picture, finer
-    tile = _tint_image(detail, color, _mean_luminance(texture.toImage()))
+    reference = texture.toImage()
+    tile = _tint_image(detail, color, _mean_luminance(reference),
+                       _hue_reference(pattern, reference))
     _level_tiles.put(key, tile)
     return tile
 
