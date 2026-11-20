@@ -1,10 +1,61 @@
 """Plant data models for storing botanical information from APIs."""
 
+import json
+import math
 from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import date
 from enum import Enum
 from typing import Any
+
+#: Longest custom 3D recipe (canonical JSON) a record may carry; mirrors
+#: ``core.plant_art.traits3d.MAX_OVERRIDE_JSON_CHARS`` (``models`` cannot import ``core``).
+MAX_TRAITS3D_OVERRIDE_CHARS = 4096
+_MAX_OVERRIDE_DEPTH = 4
+
+
+def _check_override_node(value: Any, path: str, depth: int) -> Any:
+    """Structural check of one node of a recipe override: plain JSON data, finite numbers."""
+    if depth > _MAX_OVERRIDE_DEPTH:
+        raise ValueError(f"{path} is nested too deeply")
+    if isinstance(value, bool) or value is None or isinstance(value, str):
+        return value
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            raise ValueError(f"{path} must be finite")
+        return value
+    if isinstance(value, dict):
+        result: dict[str, Any] = {}
+        for key, child in value.items():
+            if not isinstance(key, str):
+                raise ValueError(f"{path} has a non-string key")
+            result[key] = _check_override_node(child, f"{path}.{key}", depth + 1)
+        return result
+    if isinstance(value, (list, tuple)):
+        return [_check_override_node(c, f"{path}[{i}]", depth + 1) for i, c in enumerate(value)]
+    raise ValueError(f"{path} is not plain JSON data")
+
+
+def validate_traits3d_override(raw: Any) -> dict[str, Any] | None:
+    """Structurally validate a stored custom 3D recipe; ``None`` = no override.
+
+    ``models`` is the lowest layer, so this checks only what every consumer needs to
+    trust: a plain JSON object, finite numbers (no ``NaN``/``Inf``), bounded size and
+    depth. The recipe's *domain* rules (archetype, palette, field bounds) live in
+    ``core.plant_art.traits3d.validate_traits3d_override``, run by every writer and
+    tolerantly by the 3D reader. Raises ``ValueError`` so malformed ``.ogp`` or
+    custom-plant JSON is rejected cleanly instead of reaching the renderer.
+    """
+    if raw is None:
+        return None
+    if not isinstance(raw, dict):
+        raise ValueError("traits3d_override must be an object or null")
+    clean = _check_override_node(deepcopy(raw), "traits3d_override", 0)
+    if len(json.dumps(clean, sort_keys=True, separators=(",", ":"))) > MAX_TRAITS3D_OVERRIDE_CHARS:
+        raise ValueError("traits3d_override is too large")
+    return clean or None
 
 
 class PermacultureLayer(Enum):
@@ -204,6 +255,10 @@ class PlantSpeciesData:
     p_demand: str | None = None
     k_demand: str | None = None
 
+    # Custom 3D recipe for this species (Plant Forge ``Traits3D`` override, additive and
+    # optional: None = the bundled recipe). Domain rules: core.plant_art.traits3d.
+    traits3d_override: dict[str, Any] | None = None
+
     # Extensible metadata for API-specific fields
     raw_data: dict[str, Any] = field(default_factory=dict)
 
@@ -213,7 +268,7 @@ class PlantSpeciesData:
         Returns:
             Dictionary representation of the plant data
         """
-        return {
+        result: dict[str, Any] = {
             "scientific_name": self.scientific_name,
             "common_name": self.common_name,
             "family": self.family,
@@ -270,6 +325,9 @@ class PlantSpeciesData:
             "k_demand": self.k_demand,
             "raw_data": self.raw_data,
         }
+        if self.traits3d_override:
+            result["traits3d_override"] = deepcopy(self.traits3d_override)
+        return result
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "PlantSpeciesData":
@@ -361,6 +419,7 @@ class PlantSpeciesData:
             p_demand=data.get("p_demand"),
             k_demand=data.get("k_demand"),
             raw_data=raw_data,
+            traits3d_override=validate_traits3d_override(data.get("traits3d_override")),
         )
 
 
@@ -386,13 +445,17 @@ class PlantInstance:
     # Link to species data (optional - may be None for custom entries)
     species_data: PlantSpeciesData | None = None
 
+    # Custom 3D recipe for THIS specimen, layered over the species recipe
+    # (core.plant_art.traits3d.merge_overrides). Additive; None = the species' own.
+    traits3d_override: dict[str, Any] | None = None
+
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization.
 
         Returns:
             Dictionary representation of the plant instance
         """
-        return {
+        result: dict[str, Any] = {
             "variety_cultivar": self.variety_cultivar,
             "planting_date": self.planting_date.isoformat() if self.planting_date else None,
             "current_spread_cm": self.current_spread_cm,
@@ -401,6 +464,9 @@ class PlantInstance:
             "custom_fields": self.custom_fields,
             "species_data": self.species_data.to_dict() if self.species_data else None,
         }
+        if self.traits3d_override:
+            result["traits3d_override"] = deepcopy(self.traits3d_override)
+        return result
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "PlantInstance":
@@ -431,6 +497,7 @@ class PlantInstance:
             notes=data.get("notes", ""),
             custom_fields=data.get("custom_fields", {}),
             species_data=species_data,
+            traits3d_override=validate_traits3d_override(data.get("traits3d_override")),
         )
 
 

@@ -22,10 +22,12 @@ from ..plant_art import (
     resolve_sprite,
     traits_for,
 )
+from ..plant_art.traits3d import traits_with_override_json
 from ..scene3d import (
     MAX_LENGTH_CM,
     PARAM_RADIUS_CM,
     PARAM_SEED,
+    PARAM_TRAITS3D_OVERRIDE,
     BuilderRegistry,
     MeshPart,
     Record,
@@ -65,6 +67,7 @@ from .climbers import (
     climber_support_signature,
     enrich_climber_record,
     enrich_climber_records,
+    recipe_traits,
     resolve_climber_support,
 )
 from .foliage import RawGeo, concat_geo, empty_geo, micro_leaves, palette_leaf_colors
@@ -123,8 +126,14 @@ def forge_plant(
     cache: ForgeCache | None = DEFAULT_FORGE_CACHE,
     support: Mapping[str, Any] | None = None,
     include_accents: bool = True,
+    traits_override_json: str = "",
 ) -> tuple[MeshPart, ...]:
-    """Forge a 3D plant mesh for ``sprite`` at ``(height_cm, radius_cm, seed, lod)``."""
+    """Forge a 3D plant mesh for ``sprite`` at ``(height_cm, radius_cm, seed, lod)``.
+
+    ``traits_override_json`` is the canonical JSON of a custom recipe (specimen over
+    species, ``traits3d.merge_overrides``). It is part of the cache key, so editing a
+    recipe can never serve a mesh forged from the old one.
+    """
     validate_lod(lod)
     h = float(height_cm)
     r = float(radius_cm)
@@ -134,10 +143,12 @@ def forge_plant(
     extra_sig = _support_signature(support)
     if not include_accents:
         extra_sig = f"{extra_sig}|no_accents"
+    if traits_override_json:
+        extra_sig = f"{extra_sig}|recipe={traits_override_json}"
     key = make_cache_key(sprite.group, sprite.name, seed, lod, h, r, extra_sig)
 
     def _build() -> tuple[MeshPart, ...]:
-        traits = traits_for(sprite)
+        traits = traits_with_override_json(traits_for(sprite), traits_override_json)
         if traits.archetype == "canopy":
             parts = build_forged_tree(traits, h, r, seed, lod=lod)
         elif traits.archetype == "conifer":
@@ -187,6 +198,7 @@ def forge_species_plant(
     lod: int = LOD0,
     cache: ForgeCache | None = DEFAULT_FORGE_CACHE,
     support: Mapping[str, Any] | None = None,
+    traits_override_json: str = "",
 ) -> tuple[MeshPart, ...]:
     """Resolve ``(kind, common_name, scientific_name, plant_category)`` and forge the plant."""
     species_text = f"{common_name} {scientific_name}".strip() if scientific_name else common_name
@@ -206,6 +218,7 @@ def forge_species_plant(
         lod=lod,
         cache=cache,
         support=support,
+        traits_override_json=traits_override_json,
     )
 
 
@@ -249,6 +262,8 @@ def forge_record(
         if height is None or height > MAX_LENGTH_CM or radius > MAX_LENGTH_CM:
             return placeholder_parts(radius)
 
+    raw_recipe = record.params.get(PARAM_TRAITS3D_OVERRIDE)
+    recipe_json = raw_recipe if isinstance(raw_recipe, str) else ""
     raw_seed = record.params.get(PARAM_SEED)
     seed = item_seed(str(raw_seed) if raw_seed is not None else "", "plant")
     support = record.params.get("climber_support")
@@ -275,6 +290,7 @@ def forge_record(
         lod=lod,
         cache=cache,
         support=support_map,
+        traits_override_json=recipe_json,
     )
 
 
@@ -366,6 +382,7 @@ __all__ = [
     "micro_leaves",
     "palette_leaf_colors",
     "register_forged_plants",
+    "recipe_traits",
     "resolve_climber_support",
     "select_lod",
     "silhouette_iou",

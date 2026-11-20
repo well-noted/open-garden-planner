@@ -719,7 +719,7 @@ def test_too_many_cutouts_keep_the_largest() -> None:
 
 def test_the_context_params_are_build_only() -> None:
     assert {"door_wall", "lawn_cutouts", "lawn_blades", "roof_style", "roof_pitch_deg",
-            "roof_overhang_cm", "surface_pattern"} == BUILD_ONLY_PARAMS
+            "roof_overhang_cm", "surface_pattern", "traits3d_override"} == BUILD_ONLY_PARAMS
     lawn_record = polygon_record("LAWN", rectangle(800.0, 600.0), None)
     cut = dataclasses.replace(lawn_record, params=lawn_record.params.merged({"lawn_cutouts": ()}))
     assert not lawn_record.same_geometry(cut) and lawn_record.same_ground_geometry(cut)

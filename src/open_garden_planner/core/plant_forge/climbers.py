@@ -20,8 +20,8 @@ import numpy as np
 from numpy.typing import NDArray
 
 from ..plant_art import PLANT_KINDS, traits_for
-from ..plant_art.traits3d import Traits3D
-from ..scene3d import PARAM_RADIUS_CM, MeshPart, Params, Record
+from ..plant_art.traits3d import Traits3D, traits_with_override_json
+from ..scene3d import PARAM_RADIUS_CM, PARAM_TRAITS3D_OVERRIDE, MeshPart, Params, Record
 from ..scene3d.builders.plants import plant_sprite
 from .assemble import fit_forged_parts
 from .foliage import RawGeo, empty_geo, micro_leaves, normalize_vec, palette_leaf_colors
@@ -45,6 +45,11 @@ SUPPORT_KINDS: Final[frozenset[str]] = frozenset({
 })
 
 
+def recipe_traits(rec: Record, sprite: Any) -> Traits3D:
+    """``traits_for(sprite)`` with the record's custom recipe layered on (tolerant)."""
+    return traits_with_override_json(traits_for(sprite), rec.params.get(PARAM_TRAITS3D_OVERRIDE))
+
+
 def climber_support_signature(records: Iterable[Record]) -> tuple[tuple[object, ...], ...]:
     """Exact dependencies of support enrichment, excluding a plant's own height.
 
@@ -57,7 +62,8 @@ def climber_support_signature(records: Iterable[Record]) -> tuple[tuple[object, 
         if rec.kind in PLANT_KINDS:
             signature.append((rec.item_id, rec.kind, rec.transform, rec.parent_id,
                               tuple((key, rec.params.get(key)) for key in
-                                    ("sprite_species", "plant_category", "radius_cm", PARAM_CLIMBER_SUPPORT))))
+                                    ("sprite_species", "plant_category", "radius_cm",
+                                     PARAM_TRAITS3D_OVERRIDE, PARAM_CLIMBER_SUPPORT))))
         elif rec.kind in ("TRELLIS", "PERGOLA", "ARBOUR", "FENCE", "WALL"):
             signature.append((rec.item_id, rec.kind, rec.transform, rec.path,
                               rec.footprints, rec.path_width_cm, rec.height_cm))
@@ -192,7 +198,7 @@ def enrich_climber_record(
     if rec.kind not in PLANT_KINDS or PARAM_CLIMBER_SUPPORT in rec.params:
         return rec
     sprite = plant_sprite(rec)
-    if sprite is None or traits_for(sprite).archetype != "climber":
+    if sprite is None or recipe_traits(rec, sprite).archetype != "climber":
         return rec
     sup = resolve_climber_support(rec, scene_records)
     merged = dict(rec.params)
@@ -477,6 +483,7 @@ __all__ = [
     "build_forged_climber",
     "climber_support_signature",
     "enrich_climber_record",
+    "recipe_traits",
     "enrich_climber_records",
     "resolve_climber_support",
 ]

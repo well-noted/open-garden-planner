@@ -61,6 +61,7 @@ from open_garden_planner.core.container_model import container_material
 from open_garden_planner.core.object_height import effective_height_cm
 from open_garden_planner.core.object_types import PathFenceStyle, is_container_type
 from open_garden_planner.core.plant_art import PLANT_KINDS
+from open_garden_planner.core.plant_art.traits3d import layered_recipe_json
 from open_garden_planner.core.plant_height_estimate import (
     ESTIMATED_HEIGHT_PARAM,
     estimated_height_cm,
@@ -82,6 +83,7 @@ from open_garden_planner.core.scene3d import (
     PARAM_SPECIES_KEY,
     PARAM_SPECIES_NAME,
     PARAM_SPRITE_SPECIES,
+    PARAM_TRAITS3D_OVERRIDE,
     LocalFrame,
     Material,
     Paint,
@@ -1063,6 +1065,15 @@ def _record_of(item: Any, object_type: Any, item_id: str, at_date: date | None,
     category = getattr(item, "plant_category", None)
     if category is not None:
         params[PARAM_PLANT_CATEGORY] = category.name
+    if kind in ("TREE", "SHRUB", "PERENNIAL") and isinstance(metadata, dict):
+        # A custom 3D recipe (specimen over species): geometry, so a recipe edit re-forges.
+        instance = metadata.get("plant_instance")
+        recipe = layered_recipe_json(
+            species.get("traits3d_override") if isinstance(species, dict) else None,
+            instance.get("traits3d_override") if isinstance(instance, dict) else None,
+        )
+        if recipe:
+            params[PARAM_TRAITS3D_OVERRIDE] = recipe
     if is_container_type(object_type):
         params[PARAM_CONTAINER_MATERIAL] = container_material(metadata)
     if kind in BUILDING_KINDS:  # the roof the user chose (L4.1, core/roof_style)

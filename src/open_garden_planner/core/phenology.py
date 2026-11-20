@@ -39,8 +39,10 @@ from .plant_art import (
     recipe_for,
     traits_for,
 )
+from .plant_art.traits3d import traits_with_override_json
 from .scene3d import Record, srgb_to_linear
 from .scene3d.builders.plants import plant_sprite
+from .scene3d.record import PARAM_TRAITS3D_OVERRIDE
 from .solar import plan_place
 
 #: Default temperate Northern-Hemisphere latitude when a plan has no coordinates set.
@@ -250,8 +252,9 @@ def _evaluate_cached(
     snow_q: float | None,
     frost_window: tuple[str | None, str | None] = (None, None),
     harvest_override: tuple[float, float] | None = None,
+    traits_override_json: str = "",
 ) -> PhenologyState:
-    traits = traits_for(sprite)
+    traits = traits_with_override_json(traits_for(sprite), traits_override_json)
     recipe = recipe_for(sprite)
     doy = seasonal_day_of_year(plan_date, lat_q)
     s_month = seasonal_month(plan_date, lat_q)
@@ -400,7 +403,13 @@ def evaluate_phenology(
     snow_q = round(float(snow_override), 3) if snow_override is not None else None
     frost_window = _frost_window(frost_dates)
     override = _record_harvest(plant) if isinstance(plant, Record) else None
-    return _evaluate_cached(sprite, plan_date, lat_q, last_frost, snow_q, frost_window, override)
+    recipe_json = ""
+    if isinstance(plant, Record):
+        raw = plant.params.get(PARAM_TRAITS3D_OVERRIDE)
+        recipe_json = raw if isinstance(raw, str) else ""
+    return _evaluate_cached(
+        sprite, plan_date, lat_q, last_frost, snow_q, frost_window, override, recipe_json,
+    )
 
 
 def evaluate_phenology_batch(
