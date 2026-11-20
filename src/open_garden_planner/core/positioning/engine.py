@@ -310,7 +310,7 @@ class PositioningEngine:
             "gnss_alert": lk.gnss_alert,
             "unlock_reason": lk.unlock_reason,
             "lock_t": lk.lock_t,
-            "sigma_m": lk.anchor_sigma_m if fresh else None,
+            "sigma_m": None,  # the anchor sigma is an unmeasured placeholder: never published as a spread
             "relative_sigma_m_per_10m": None,
             "fallback_reasons": list(self._fallback.reasons),
         }

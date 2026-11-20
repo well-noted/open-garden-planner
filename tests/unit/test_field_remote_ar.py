@@ -60,6 +60,7 @@ def test_locked_vio_is_the_published_position_and_reports_vio_fused(env: Env) ->
     assert tele["sigma_m"] is None  # the plan-lock sigma is a placeholder, never shown as a spread
     assert tele["fused"]["state"] == "locked" and tele["fused"]["source"] == "plan_locked"
     assert tele["fused"]["relative_sigma_m_per_10m"] is None
+    assert tele["fused"]["sigma_m"] is None  # nor in the lock status: the anchor sigma is not measured
     assert env.source.positions[-1]["fix_mode"] == "vio_fused"  # the desktop puck got it
 
 

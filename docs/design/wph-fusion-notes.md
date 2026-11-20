@@ -53,7 +53,7 @@
 
 **Fused sigma**
 
-- `sigma_m` is the anchor sigma. `PLAN_POINT_SIGMA_M` is a labelled placeholder, not a measurement.
+- `sigma_m` is the anchor sigma. `PLAN_POINT_SIGMA_M` is a labelled placeholder, not a measurement, so `ar_status()` (`fused.sigma_m`) publishes it as null, like the telemetry `sigma_m`.
 - `relative_sigma_m_per_10m` stays None until WP-M supplies a value.
 - The plan-locked estimate has `quality` `unknown` (the phone shows no OK badge for it) and telemetry `sigma_m` null: the placeholder must never read as an accuracy.
 - **Not in any sigma:** a review of the synthetic fallback runs saw the aligner's yaw keep a steady-state jitter of about 3.4° after convergence, which is about 1.2 m at 20 m from the window centroid. The fallback `sigma_m` (window residual rms, floored by the GNSS weight) does not include this term. It is a test observation, not a measured error; WP-M owns the real numbers.
