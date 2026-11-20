@@ -697,20 +697,73 @@ def generate_grass(rng: random.Random) -> Image.Image:
     return t.finish(blur=0.35)
 
 
+def _pack_stones(rng: random.Random, classes: list[tuple[int, float, float]],
+                 gap: float = 0.86) -> list[tuple[float, float, float, float]]:
+    """Dart-throwing on the torus: (count, r_min, r_max) classes, biggest first,
+    each stone refused when it would sink into a placed one by more than
+    ``1 - gap`` of their radii, so stones sit shoulder to shoulder with narrow
+    dark gaps. Plain IEEE arithmetic on squared distances (no hypot) keeps the
+    accept/refuse decision, and so the picture, the same on every platform.
+    Returns (x, y, r, elongation)."""
+    total = sum(c for c, _, _ in classes)
+    px = np.zeros(total)
+    py = np.zeros(total)
+    pr = np.zeros(total)
+    n = 0
+    placed: list[tuple[float, float, float, float]] = []
+    for count, r0, r1 in classes:
+        done = 0
+        tries = 0
+        while done < count and tries < count * 24:
+            tries += 1
+            x, y, r = rng.uniform(0, SIZE), rng.uniform(0, SIZE), rng.uniform(r0, r1)
+            e = rng.uniform(0.62, 0.95)
+            if n:
+                dx = np.abs(px[:n] - x)
+                dy = np.abs(py[:n] - y)
+                dx = np.minimum(dx, SIZE - dx)
+                dy = np.minimum(dy, SIZE - dy)
+                lim = (pr[:n] + r) * gap
+                if np.any(dx * dx + dy * dy < lim * lim):
+                    continue
+            px[n], py[n], pr[n] = x, y, r
+            n += 1
+            placed.append((x, y, r, e))
+            done += 1
+    return placed
+
+
 def generate_gravel(rng: random.Random) -> Image.Image:
-    """Crushed stone: fines ground, hundreds of small angular-ish stones with
-    occlusion halos and rim→crown shading, in greys, tans and whites."""
-    t = Tile((150, 142, 128))
-    t.mottle(rng, 5, 3, 0.07)
-    t.grain(rng, 0.05)
-    palette = [
-        (172, 166, 156), (188, 182, 172), (150, 146, 140), (204, 198, 188),
-        (166, 154, 138), (140, 132, 122), (196, 186, 170), (158, 152, 148),
-    ]
-    scatter_stones(t, rng, 1500, (1.6, 4.4), palette, (96, 90, 82), elong=(0.55, 0.95),
-                   rim=0.72, crown=1.18, occ_grow=1.35, occ_alpha=0.5)
-    scatter_stones(t, rng, 500, (0.9, 1.8), palette, (96, 90, 82), elong=(0.7, 1.0),
-                   rim=0.8, crown=1.12, occ_grow=1.3, occ_alpha=0.35)
+    """Arizona gravel (decomposed granite / river rock): packed, rounded stones
+    of three sizes in tans, rust, greys and pink granite, each with its own
+    rim -> crown shading and a small highlight, dark contact shadows in the
+    gaps between them and loose fines in the cracks. The stones differ in
+    LIGHTNESS as well as hue, so the luminance-map tint (#502) still shows
+    stones, not a flat colour."""
+    gap_col = (74, 64, 56)
+    t = Tile((118, 104, 88))
+    t.mottle(rng, 5, 3, 0.10)
+    t.grain(rng, 0.06)
+    # loose fines lying in the gaps (drawn first, the stones cover most of them)
+    speckle(t, rng, 700, (0.6, 1.3),
+            [(170, 150, 120), (140, 120, 96), (190, 172, 142), (146, 140, 132), (166, 124, 100)])
+    # muted desert palette, tans and greys most common, rust and pink as accents
+    # (repeated entries are the weights)
+    tans = [(206, 182, 140), (190, 164, 122), (222, 202, 164), (176, 150, 112)]
+    greys = [(156, 152, 148), (190, 186, 180), (118, 114, 112), (170, 164, 156)]
+    rust = [(176, 112, 78), (150, 94, 66)]
+    pink = [(204, 158, 144), (188, 142, 128)]
+    quartz = [(232, 220, 196)]
+    palette = tans * 3 + greys * 2 + rust + pink + quartz
+    stones = _pack_stones(rng, [(45, 4.6, 6.6), (650, 2.8, 4.2), (2400, 1.7, 2.6), (2600, 1.0, 1.5)])
+    for x, y, r, e in stones:
+        col = jitter(rng, rng.choice(palette), 0.07)
+        rot = rng.uniform(0, 180)
+        t.blob(x, y, r, r * e, col, rot=rot, rim=0.66, crown=1.16, gamma=0.75,
+               occ=gap_col, occ_grow=1.32, occ_alpha=0.6)
+    # patches of lighter and darker stones, about 30 cm across: the part of the picture
+    # that survives a drawn style's softened ground and a far view's mip chain
+    t.mottle(rng, 9, 2, 0.17)
     return t.finish(blur=0.3)
 
 

@@ -737,7 +737,8 @@ class NprSpec:
     ground_wash_cm: float = 800.0
     #: ... and the ground's own pictures (gravel, decking, paving) softened to their local
     #: mean: this many mip levels up (the plan's shapes stay; their edges soften a little).
-    ground_soften: float = 3.0
+    #: 1.5, not 3: at 3 a gravel's stones averaged out to a flat grey wash.
+    ground_soften: float = 1.5
     paper_rgb: str = "#f4eedf"   # the 2D Line & Wash paper (ui/canvas/style/line_wash.PAPER)
     ink_rgb: str = "#2a241d"
     #: The paper fog: from here (cm along the view) the distance fades to paper ...

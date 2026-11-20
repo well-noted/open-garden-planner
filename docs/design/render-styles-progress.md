@@ -158,7 +158,8 @@ ink, no ink on window frames):
 - Surfaces: `built_detail.frag` `uStyleFlatten` (`surface_flatten`) fades roof tiles, courses,
   plaster and their relief behind a guarded branch; `ground.frag` softens the tile picture by a
   mip bias (`ground_soften`) and lays a world-anchored uneven wash (`ground_wash`,
-  `ground_wash_cm`), both inside the existing flatten guard.
+  `ground_wash_cm`), both inside the existing flatten guard. `ground_soften` is 1.5 (was 3):
+  at 3 the packed-stone gravel texture averaged to a flat grey; at 1.5 it keeps a stipple.
 - Wash: 5 bands with a softer step, a dried rim along a band step on smooth surfaces
   (`band_rim`), screen-anchored blooms (`wash_mottle`) and clumped granulation.
 - Default plain 3D still byte-identical (Encanto copy, high and street-level views, against a
