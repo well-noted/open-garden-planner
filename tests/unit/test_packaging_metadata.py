@@ -128,7 +128,7 @@ def test_the_spec_bundles_the_openssl_pair_beside_the_ssl_extension(tmp_path: Pa
     match = re.search(r"^def _pin_openssl_pair\(binaries\):\n(?:[ \t]+.*\n|\n)+", spec, re.M)
     assert match, "installer/ogp.spec lost _pin_openssl_pair"
     namespace: dict[str, object] = {"Path": Path}
-    exec(match.group(0), namespace)  # noqa: S102 - the spec's own pure helper
+    exec(match.group(0), namespace)  # the spec's own pure helper
     pin = namespace["_pin_openssl_pair"]
 
     dlls = tmp_path / "DLLs"
