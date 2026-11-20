@@ -1436,7 +1436,7 @@ Pins: `tests/unit/test_render_style_ui.py`, `tests/integration/test_render_style
 
 Pins: `tests/unit/test_custom_plant_recipes.py`, `tests/unit/test_georeference.py`, `tests/integration/test_custom_plant_recipe_3d.py`, `tests/integration/test_georeference_workflow.py`.
 
-## FR-MULCH: The mulch surface (ADR-080)
+## FR-MULCH: The mulch surface (ADR-082)
 
 - **FR-MULCH-01:** Mulch is a polygon ground-surface object type (`ObjectType.MULCH`), drawn with the Mulch tool from the Beds & Surfaces gallery. It starts with the bark-chip fill pattern and a bark-brown fill, lies on the ground (FR-STACK-09, FR-SUN-02: no height until the user gives one), is placed on a layer, moves, copies and undoes like any polygon, and has a gallery entry (no shortcut) and saves as the object type name `MULCH` (no new file key, no `FILE_VERSION` change; an older build reads it as a generic polygon with its fill).
 - **FR-MULCH-02:** The Properties panel shows a **Mulch Type** combo (Bark, Cedar, Pine, Black, or Custom) under the Fill Pattern while the pattern is mulch; choosing one sets the fill colour as one undo step, like the gravel colours.
