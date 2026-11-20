@@ -84,8 +84,10 @@ STYLE_PAINTERS: dict[RenderStyle, StylePainter] = {}
 def style_of(item: Any) -> RenderStyle:
     """The render style ``item``'s scene is painted in (illustrated when the
     item is in no scene, or in one without a style)."""
-    scene = item.scene()
-    return normalise_render_style(getattr(scene, "render_style", None))
+    style = getattr(item.scene(), "render_style", None)
+    if style is RenderStyle.ILLUSTRATED:  # the common case, asked for on every paint
+        return style
+    return normalise_render_style(style)
 
 
 def painter_for(style: RenderStyle) -> StylePainter | None:
@@ -114,7 +116,10 @@ def styled_bounding_rect(item: Any, rect: QRectF) -> QRectF:
     calls on a style switch.
     """
     scene = item.scene()
-    style = normalise_render_style(getattr(scene, "render_style", None))
+    style = getattr(scene, "render_style", None)
+    if style is RenderStyle.ILLUSTRATED:  # asked for by every item on every paint
+        return rect
+    style = normalise_render_style(style)
     if style is RenderStyle.ILLUSTRATED:
         return rect
     band = int(getattr(scene, "style_band", 0))
