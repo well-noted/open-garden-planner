@@ -1,6 +1,6 @@
 // Field Remote phone page. No framework, no build step. All user and plan text is written with
 // textContent/createElement, never as markup; there is no eval and no inline script or style.
-import { api, clockNow, errorText, fetchBasemap, fetchPhoto, initToken, sendQueued, uuid } from './api.js';
+import { api, clockNow, errorText, fetchBasemap, fetchPhoto, initToken, sendQueued, uuid, Outbox, idbStore, isRetryable, memoryStore } from './api.js';
 import { canvasToGps, trilaterate } from './geo.js';
 import { PlanMap } from './map.js';
 import { initRecord } from './record.js';
@@ -268,26 +268,65 @@ function recordBody(c, extra) {
 
 async function ensurePlanId() {
   if (S.planId) return true;
-  const r = await api('/api/field-records?limit=1');
+  let r;
+  try { r = await api('/api/field-records?limit=1'); } catch (e) { return true; } // offline: the outbox sends it later
   if (r.ok) { S.planId = r.json.plan_id; return true; }
   toast(errorText(r));
   return false;
 }
 
-async function post(body, photo) {
-  let init;
+// One POST of a record. Also used by the outbox, which passes the plan id it saved with the entry.
+async function send(body, photo, planId) {
+  const headers = planId ? { 'X-Plan-Id': planId } : {};
+  const init = { method: 'POST', headers };
   if (photo) {
     const form = new FormData();
     form.append('meta', JSON.stringify(body));
     form.append('photo', photo, photo.name || 'photo.jpg'); // the original file: never re-encoded
-    init = { method: 'POST', body: form, headers: { 'X-Plan-Id': S.planId } };
+    init.body = form;
   } else {
-    init = { method: 'POST', body, headers: { 'X-Plan-Id': S.planId } };
+    init.body = body;
   }
   const r = await api('/api/records', init);
   if (r.status === 409 && r.json && r.json.error === 'plan_changed') S.planId = null;
   return r;
 }
+
+let outbox = null;
+async function post(body, photo) {
+  const planId = S.planId;
+  let r;
+  try { r = await send(body, photo, planId); } catch (e) { r = { status: 0, ok: false, json: null }; }
+  if (r.ok || !isRetryable(r.status) || !outbox) return r;
+  // The computer could not be reached (or is busy): keep the save. The same idempotency key goes
+  // out again later, so a save that actually arrived the first time is not stored twice.
+  if (!(await outbox.enqueue({ body, photo: photo || null, planId }))) return r;
+  return { ok: true, queued: true, status: 202, json: null };
+}
+
+function renderOutbox(o) {
+  const bar = $('outbox');
+  const nRej = o.rejected.length;
+  bar.hidden = !o.pending && !nRej;
+  const parts = [];
+  if (o.pending) parts.push(o.pending + ' waiting to send' + (navigator.onLine === false ? ' (offline)' : ''));
+  if (nRej) parts.push(nRej + ' refused by the computer: ' + o.rejected[0].rejected);
+  $('outbox-text').textContent = parts.join('. ');
+  $('btn-outbox-retry').hidden = !o.pending;
+  $('btn-outbox-discard').hidden = !nRej;
+}
+
+try {
+  outbox = new Outbox({
+    store: window.indexedDB ? idbStore(window.indexedDB) : memoryStore(),
+    send: (e) => send(e.body, e.photo, e.planId),
+    onChange: renderOutbox,
+  });
+} catch (e) { outbox = new Outbox({ store: memoryStore(), send: (x) => send(x.body, x.photo, x.planId), onChange: renderOutbox }); }
+$('btn-outbox-retry').addEventListener('click', () => outbox.flush({ manual: true }).then((n) => { if (n) toast(n + ' sent'); }));
+$('btn-outbox-discard').addEventListener('click', () => outbox.discardRejected());
+window.addEventListener('online', () => outbox.flush({ manual: true }));
+outbox.refresh().then(() => outbox.flush()).catch(() => {});
 
 $('btn-save').addEventListener('click', async () => {
   if (!S.state || !S.state.records_enabled) { toast('Saving is turned off on the computer.'); return; }
@@ -314,15 +353,15 @@ $('btn-save').addEventListener('click', async () => {
       extra = { kind, plant_name: $('plant-name').value.trim() || undefined, age: $('age').value.trim() || undefined, notes };
       if (S.species) extra.species_key = S.species;
     }
-    let saved = 0;
+    let saved = 0, queuedAny = false;
     for (const c of list) {
       const r = await post(recordBody(c, Object.fromEntries(Object.entries(extra).filter(([, v]) => v !== undefined))), c.photo);
       if (!r.ok) { toast(errorText(r)); break; }
-      saved += 1; c.done = true;
+      saved += 1; c.done = true; if (r.queued) queuedAny = true;
     }
     S.candidates = S.candidates.filter((c) => !c.done);
     if (saved === list.length) {
-      toast('Saved for review on the computer');
+      toast(queuedAny ? 'Kept on this phone; it is sent when the computer is reachable' : 'Saved for review on the computer');
       resetForm();
     } else if (saved) toast(saved + ' of ' + list.length + ' saved. Press Save again for the rest.');
   } finally {

@@ -76,7 +76,7 @@ export function initRecord(ctx) {
     const name = $('rec-name').value.trim();
     if (name) body.name = name;
     const r = await ctx.post(body, null);
-    if (r.ok) { toast('Saved for review on the computer'); discard(); } else toast(errorText(r));
+    if (r.ok) { toast(r.queued ? 'Kept on this phone; it is sent when the computer is reachable' : 'Saved for review on the computer'); discard(); } else toast(errorText(r));
   }
 
   async function discard() {
