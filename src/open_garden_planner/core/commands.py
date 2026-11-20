@@ -4643,6 +4643,9 @@ class SetPlantRecipeCommand(Command):
         old = container.get("traits3d_override") if isinstance(container, dict) else None
         self._old: dict[str, Any] | None = deepcopy(old)
         self._new: dict[str, Any] | None = deepcopy(new_override)
+        #: True once ``_apply`` had to create the container dict, so undo removes the
+        #: empty shell it leaves instead of an empty ``plant_instance: {}`` for ever.
+        self._created_container = False
 
     @property
     def description(self) -> str:
@@ -4654,9 +4657,12 @@ class SetPlantRecipeCommand(Command):
         if not isinstance(container, dict) and value is not None:
             container = {}
             metadata[self._key] = container
+            self._created_container = True
         if isinstance(container, dict):
             if value is None:
                 container.pop("traits3d_override", None)
+                if self._created_container and not container and not applying:
+                    metadata.pop(self._key, None)
             else:
                 container["traits3d_override"] = deepcopy(value)
         scene = self._item.scene()

@@ -2936,6 +2936,9 @@ class AgentHost:
         clean = validate_traits3d_override(recipe)  # ValueError names the offending field
         item = host._agent_resolve_plant(item_id, "set_plant_recipe")
 
+        if target == "plan_species":
+            return self._agent_set_plan_species_recipe(item_id, item, clean)
+
         command_target = "instance" if target == "instance" else "species"
         if command_target == "species" and not isinstance(item.metadata.get("plant_species"), dict):
             raise ValueError(
@@ -2964,6 +2967,68 @@ class AgentHost:
             "y": cy,
         }
 
+    @staticmethod
+    def _recipe_species_names(data: Any) -> tuple[str, str]:
+        """(scientific, common) names, lower-cased, of a species dict or object."""
+        get = data.get if isinstance(data, dict) else lambda k, d="": getattr(data, k, d)
+        return (
+            str(get("scientific_name", "") or "").strip().lower(),
+            str(get("common_name", "") or "").strip().lower(),
+        )
+
+    @classmethod
+    def _recipe_species_match(cls, a: Any, b: Any) -> bool:
+        """Whether two species records name the same species (needs a non-empty name).
+
+        The scientific name decides when both have one, else the common name.
+        """
+        a_sci, a_common = cls._recipe_species_names(a)
+        b_sci, b_common = cls._recipe_species_names(b)
+        if a_sci and b_sci:
+            return a_sci == b_sci
+        return bool(a_common) and a_common == b_common
+
+    def _agent_set_plan_species_recipe(
+        self, item_id: str, item: Any, clean: dict[str, Any] | None
+    ) -> dict[str, Any]:
+        """``plan_species`` target: every plant of ``item``'s species on the plan, ONE undo step."""
+        host = self._host
+        from open_garden_planner.core.commands import CompoundCommand, SetPlantRecipeCommand
+        from open_garden_planner.ui.canvas.items import GardenItemMixin
+
+        species = item.metadata.get("plant_species")
+        if not isinstance(species, dict) or not any(self._recipe_species_names(species)):
+            raise ValueError(
+                f"{item_id} has no named species record to match other plants by; call "
+                "set_species first or use target='instance'."
+            )
+        commands: list[Any] = []
+        for other in host.canvas_scene.items():
+            if not isinstance(other, GardenItemMixin) or not is_plant_type(other.object_type):
+                continue
+            theirs = other.metadata.get("plant_species")
+            if not isinstance(theirs, dict) or not self._recipe_species_match(species, theirs):
+                continue
+            try:  # skips group members and locked layers, as the single-plant targets refuse them
+                host._agent_resolve_plant(str(other.item_id), "set_plant_recipe")
+            except ValueError:
+                continue
+            if clean == (theirs.get("traits3d_override") or None):
+                continue
+            commands.append(SetPlantRecipeCommand(other, clean, target="species"))
+        if not commands:
+            raise ValueError("every matching plant already has this recipe; nothing to change.")
+        cmd = CompoundCommand(commands, QCoreApplication.translate("Commands", "Set plant 3D recipe"))
+        host.canvas_view.command_manager.execute(cmd)
+        cx, cy = host._agent_item_center(item)
+        return {
+            "item_id": item_id,
+            "action": "set_plant_recipe",
+            "undo_description": cmd.description,
+            "x": cx,
+            "y": cy,
+        }
+
     def _agent_library_recipe_writer(
         self, species: dict[str, Any], new_value: dict[str, Any] | None
     ) -> Any:
@@ -2973,34 +3038,43 @@ class AgentHost:
         """
         from open_garden_planner.services.plant_library import get_plant_library
 
-        def names(data: Any) -> tuple[str, str]:
-            get = data.get if isinstance(data, dict) else lambda k, d="": getattr(data, k, d)
-            return (
-                str(get("scientific_name", "") or "").strip().lower(),
-                str(get("common_name", "") or "").strip().lower(),
-            )
-
         # The library keys its entries by their own id (``source_id``), so a species is
         # matched by name: the scientific name when both have one, else the common name.
-        wanted_sci, wanted_common = names(species)
-        library = get_plant_library()
-        match = next(
-            (
-                (plant_id, plant)
-                for plant_id, plant in library.get_all_plants()
-                if (
-                    names(plant)[0] == wanted_sci
-                    if wanted_sci and names(plant)[0]
-                    else names(plant)[1] == wanted_common
-                )
-            ),
-            None,
-        )
-        if match is None:
+        # An unnamed species can match nothing, and a name shared by several entries is
+        # ambiguous - both are refused rather than writing to whichever came first.
+        wanted_sci, wanted_common = self._recipe_species_names(species)
+        label = wanted_sci or wanted_common
+        if not label:
             raise ValueError(
-                f"no species named {wanted_sci or wanted_common!r} is in the custom plant "
-                "library; add it there first or use target='species'."
+                "the species has no scientific or common name to look up in the custom "
+                "plant library; use target='species'."
             )
+        library = get_plant_library()
+        matches = [
+            (plant_id, plant)
+            for plant_id, plant in library.get_all_plants()
+            if self._recipe_species_match(species, plant)
+        ]
+        if not matches:
+            raise ValueError(
+                f"no species named {label!r} is in the custom plant library; add it there "
+                "first or use target='species'."
+            )
+        if len(matches) > 1:
+            raise ValueError(
+                f"{len(matches)} custom-library species match {label!r} "
+                f"({', '.join(sorted(pid for pid, _ in matches))}); rename or remove the "
+                "duplicates, or use target='species'."
+            )
+        # Refuse up front when the library file cannot be written: the library swallows
+        # write errors for the UI, which would let this tool report a recipe it did not keep.
+        try:
+            library.save_checked()
+        except OSError as exc:
+            raise ValueError(
+                f"the custom plant library cannot be saved ({exc}); nothing changed."
+            ) from exc
+        match = matches[0]
         plant_id, plant = match
         prior = None if plant.traits3d_override is None else dict(plant.traits3d_override)
 

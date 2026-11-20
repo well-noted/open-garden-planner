@@ -106,7 +106,7 @@ def test_setting_a_recipe_is_one_undo_step_that_the_snapshot_sees(app: Any) -> N
     assert record.same_ground_geometry(before_record)  # ... but no ground tile is repainted
 
     app.canvas_view.command_manager.undo()
-    assert "traits3d_override" not in item.metadata["plant_instance"]
+    assert "traits3d_override" not in item.metadata.get("plant_instance", {})
     assert _record(app, item).geometry_sig == before_record.geometry_sig
     app.canvas_view.command_manager.redo()
     assert item.metadata["plant_instance"]["traits3d_override"] == V_FORK
@@ -410,3 +410,85 @@ def test_set_plant_recipe_needs_the_write_token(app: Any, qtbot: Any) -> None:
             reader.stop()
     finally:
         server.stop()
+
+
+# --- review fixes: ambiguity, persistence, undo hygiene, plan-wide species -----------
+
+
+def test_library_target_refuses_an_unnamed_or_ambiguous_species(app: Any) -> None:
+    item = _tree(app)
+    pid = str(item.item_id)
+    library = plant_library_module.get_plant_library()
+    first = PlantSpeciesData.from_dict(item.metadata["plant_species"])
+    second = PlantSpeciesData.from_dict(item.metadata["plant_species"])
+    second.source_id = ""
+    library.add_plant(first)
+    library.add_plant(second)
+    depth = _depth(app)
+    with pytest.raises(ValueError, match="match"):
+        app._do_agent_set_plant_recipe(pid, BUSH, "library")
+    assert _depth(app) == depth and "traits3d_override" not in item.metadata["plant_species"]
+
+    nameless = _tree(app)
+    nameless.metadata["plant_species"] = {"scientific_name": "", "common_name": ""}
+    with pytest.raises(ValueError, match="no scientific or common name"):
+        app._do_agent_set_plant_recipe(str(nameless.item_id), BUSH, "library")
+
+
+def test_library_target_refuses_when_the_library_cannot_be_saved(app: Any, tmp_path: Path) -> None:
+    item = _tree(app)
+    pid = str(item.item_id)
+    library = plant_library_module.get_plant_library()
+    plant_id = library.add_plant(PlantSpeciesData.from_dict(item.metadata["plant_species"]))
+    library._library_path = tmp_path  # a directory: opening it for writing raises OSError
+    depth = _depth(app)
+    with pytest.raises(ValueError, match="cannot be saved"):
+        app._do_agent_set_plant_recipe(pid, BUSH, "library")
+    assert _depth(app) == depth
+    assert library.get_plant(plant_id).traits3d_override is None  # type: ignore[union-attr]
+    library._save()  # other callers still swallow the failure
+    with pytest.raises(OSError):
+        library.save_checked()
+
+
+def test_undo_removes_a_plant_instance_dict_the_command_created(app: Any) -> None:
+    item = _tree(app)
+    item.metadata.pop("plant_instance", None)
+    app._do_agent_set_plant_recipe(str(item.item_id), V_FORK, "instance")
+    assert item.metadata["plant_instance"]["traits3d_override"] == V_FORK
+    app.canvas_view.command_manager.undo()
+    assert "plant_instance" not in item.metadata
+    app.canvas_view.command_manager.redo()
+    assert item.metadata["plant_instance"]["traits3d_override"] == V_FORK
+
+    # a container that already held other data is kept
+    other = _tree(app)
+    other.metadata["plant_instance"] = {"planted": "2026-05-01"}
+    app._do_agent_set_plant_recipe(str(other.item_id), V_FORK, "instance")
+    app.canvas_view.command_manager.undo()
+    assert other.metadata["plant_instance"] == {"planted": "2026-05-01"}
+
+
+def test_plan_species_target_reaches_every_plant_of_the_species_in_one_undo_step(
+    app: Any,
+) -> None:
+    a, b = _tree(app), _tree(app)
+    other_species = _tree(app, species="Malus domestica")
+    c, d = _tree(app), _tree(app)  # same species, but only touched by 'species' below
+    depth = _depth(app)
+    result = app._do_agent_set_plant_recipe(str(a.item_id), BUSH, "plan_species")
+    assert _depth(app) == depth + 1 and result["action"] == "set_plant_recipe"
+    for item in (a, b, c, d):
+        assert item.metadata["plant_species"]["traits3d_override"] == BUSH
+    assert "traits3d_override" not in other_species.metadata["plant_species"]
+
+    # plain 'species' stays this plant's own snapshot
+    app._do_agent_set_plant_recipe(str(c.item_id), V_FORK, "species")
+    assert d.metadata["plant_species"]["traits3d_override"] == BUSH
+    assert c.metadata["plant_species"]["traits3d_override"] == V_FORK
+
+    app.canvas_view.command_manager.undo()  # the single-plant 'species' step
+    assert c.metadata["plant_species"]["traits3d_override"] == BUSH
+    app.canvas_view.command_manager.undo()  # the whole plan-wide step at once
+    for item in (a, b, c, d):
+        assert "traits3d_override" not in item.metadata["plant_species"]

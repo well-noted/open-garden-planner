@@ -32,7 +32,7 @@ from open_garden_planner.core.plant_art.traits3d import (
     LeafTraits,
 )
 
-RECIPE_TARGETS = ("instance", "species", "library")
+RECIPE_TARGETS = ("instance", "species", "library", "plan_species")
 
 
 def _bounds_schema(
@@ -93,7 +93,10 @@ def plant_archetype_catalogue() -> dict[str, Any]:
         "Send recipe=null to clear.",
         "targets": {
             "instance": "this plant only (plant_instance metadata)",
-            "species": "this plant's own species record on the plan",
+            "species": "THIS plant's own species snapshot only; other plants of the same "
+            "species on the plan keep theirs",
+            "plan_species": "every plant of this plant's species on the plan (matched by "
+            "scientific name, else common name), as one undo step",
             "library": "also the species record in the local custom plant library "
             "(future plants added from it keep the recipe)",
         },
