@@ -33,7 +33,7 @@ from open_garden_planner.core.positioning import ImuSample, VioSample
 from open_garden_planner.field_remote import limits, projection, server
 from open_garden_planner.field_remote.events import EventHub
 from open_garden_planner.field_remote.session import RecordingSession
-from open_garden_planner.field_remote.tracking_routes import tracking_routes
+from open_garden_planner.field_remote.tracking_routes import EpochS, tracking_routes
 from open_garden_planner.services import field_records as fr
 
 if TYPE_CHECKING:
@@ -373,8 +373,6 @@ class PlanSource(Protocol):
 
 
 MAX_AR_BATCH = 50
-MAX_EPOCH_S = 4_102_444_800  # 2100-01-01: a sample time beyond this is not a phone clock
-EpochS = Annotated[Number, Field(ge=0, le=MAX_EPOCH_S)]
 XrM = Annotated[Number, Field(ge=-100_000, le=100_000)]  # WebXR local space, metres
 QuatC = Annotated[Number, Field(ge=-1.5, le=1.5)]  # a unit quaternion component, with slack
 Accel = Annotated[Number, Field(ge=-1000, le=1000)]  # m/s^2, far beyond any phone sensor

@@ -287,3 +287,19 @@ def test_the_page_sends_every_compared_time_on_one_clock_and_claims_no_quality_f
     assert "Date.now()" not in survey and "p.timestamp" not in app  # GNSS, IMU, resets, locks: clockNow()
     assert "innerHTML" not in survey and "insertAdjacentHTML" not in survey
     assert "t.quality === 'unknown' ? ''" in app  # the AR lock track gets no OK badge
+
+
+@pytest.mark.parametrize("bad", ['"1000"', "true"])
+def test_lock_and_survey_numbers_sent_as_strings_or_bools_are_refused(env: Env, bad: str) -> None:
+    post_vio(env, [vio(T0, 0.0, 0.0)])
+    text = '{"plan":{"x_cm":' + bad + ',"y_cm":500},"hit":{"x":0,"y":0,"z":0},"vio_t":' + str(T0) + "}"
+    assert _raw_post(env, "/api/ar/lock/a", text).status_code == 422
+    survey = '{"samples":[{"t":' + str(T0) + ',"lat":' + bad + ',"lon":-111.7,"accuracy_m":3}]}'
+    assert _raw_post(env, "/api/survey", survey).status_code == 422
+
+
+def test_every_phone_route_shares_one_sample_time_bound() -> None:
+    from open_garden_planner.field_remote import routes, tracking_routes
+
+    assert routes.EpochS is tracking_routes.EpochS
+    assert not hasattr(routes, "MAX_EPOCH_S")

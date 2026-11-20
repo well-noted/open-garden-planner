@@ -35,20 +35,23 @@ SESSION_PATHS = frozenset(
 
 
 class _Strict(BaseModel):
-    # allow_inf_nan=False: an Infinity or 1e400 would be stored and then break every JSON answer
-    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+    # allow_inf_nan=False: an Infinity or 1e400 would be stored and then break every JSON answer.
+    # strict: a number sent as a string or a bool is refused, like every other phone route.
+    model_config = ConfigDict(extra="forbid", strict=True, allow_inf_nan=False)
 
 
-#: Bounds for the AR lock models. WebXR ``local`` space is metres around the session start;
-#: plan centimetres are bounded like any plan coordinate; times are epoch seconds before 2100.
+#: The one sample-time bound for every phone route (``routes`` imports it): epoch seconds,
+#: before 2100-01-01. A time beyond this is not a phone clock.
 MAX_EPOCH_S = 4_102_444_800.0
+EpochS = Annotated[float, Field(ge=0, le=MAX_EPOCH_S, allow_inf_nan=False)]
+#: Bounds for the AR lock models. WebXR ``local`` space is metres around the session start;
+#: plan centimetres are bounded like any plan coordinate.
 XR_M = Annotated[float, Field(ge=-100_000, le=100_000, allow_inf_nan=False)]
 PLAN_CM = Annotated[float, Field(ge=-1e9, le=1e9, allow_inf_nan=False)]
-EpochS = Annotated[float, Field(ge=0, le=MAX_EPOCH_S, allow_inf_nan=False)]
 
 
 class SurveySample(_Strict):
-    t: Annotated[float, Field(ge=0)]
+    t: EpochS
     lat: Annotated[float, Field(ge=-90, le=90)]
     lon: Annotated[float, Field(ge=-180, le=180)]
     accuracy_m: Annotated[float, Field(ge=0, le=100_000)]
