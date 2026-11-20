@@ -62,15 +62,35 @@ The script writes only the import-owned keys `usda_symbol`, `usda_duration`,
 | ARS GRIN taxonomy (ars-grin.gov, GRIN-Global) | accepted name, synonyms, family, genus, common names, economic-plant flags | per-plant hardiness or edibility fields in the bulk taxonomy export | data.gov lists GRIN-Global as US government public domain; the ARS site carries no separate data-use text; the GBIF copy of GRIN Taxonomy cites Wiersema (2019) |
 | `plantsservices.sc.egov.usda.gov` REST API | what the plants.usda.gov web app calls | n/a | undocumented, no published terms: **not used** |
 
-Caveats, stated plainly. On 2026-11-19 `plants.usda.gov`, `plants.sc.egov.usda.gov`
-and `npgsweb.ars-grin.gov` answered 504/503, so the PLANTS terms PDF, the download page
-and the GRIN bulk export were not read at the primary source: the terms above come from
-the data.gov catalogue entries and search summaries of those documents, and the column
-names the importer accepts come from archived download pages. Re-read both on first use
-and adjust `_PLANTS_HEADERS`/`_GRIN_HEADERS` if a header differs (the importer stops with
-the header list when a required column is missing). **No USDA value has been imported
-into `plant_species.json` yet**, so no USDA field is bundled and no in-app credit is
-due; add the About-dialog credit in the same change that first imports data.
+Retrieved 2026-11-20 (owner-approved download, polite single requests, 2 s apart, cached
+outside the repo, never committed):
+
+- **PLANTS Complete Checklist**: `https://plants.sc.egov.usda.gov/DocumentLibrary/Txt/plantlst.txt`
+  (`plants.usda.gov/home/downloads` redirects there; the Downloads page links it as
+  "Download the Complete PLANTS Checklist"). 7,038,655 bytes, `Last-Modified` 2025-05-29,
+  columns Symbol, Synonym Symbol, Scientific Name with Authors, Common Name, Family. **It
+  carries no duration, growth habit or native status**, so the import fills only
+  `usda_symbol` (149 of 159 species matched; the 10 unmatched are cultivar/hybrid names such
+  as `Brassica oleracea var. capitata`, `Fragaria ananassa`, `Magnolia x soulangeana`).
+  Family, genus and cycle were already present, so nothing else changed.
+- **State checklist**: the Downloads page offers per-state lists only to "NRCS personnel and
+  cooperators", and `DocumentLibrary/Txt/AZ_NRCS_csv.txt` is not served publicly (the host
+  returns the app shell). **Not imported**, so `usda_state_presence` stays unset.
+- **Duration, growth habit, native status** exist only through the site's Search Results
+  CSV, which the web app builds from the undocumented `plantsservices` REST API listed above
+  as not used. **Not imported**: needs the owner's decision to use that API.
+- **ARS GRIN**: `npgsweb.ars-grin.gov/gringlobal/taxon/taxonomysearch` answers 200 but the
+  taxonomy pages link no bulk export file (the obvious `taxonomydownload` URL is 404).
+  **Not imported.**
+
+Terms read at the primary source on 2026-11-20: the PLANTS Downloads and Usage pages state
+no terms for the data files; the Usage page's "not copyrighted" sentence is about images,
+and the live site no longer serves the older Citations/Help PDFs. The data licence therefore
+still rests on the data.gov CC0 entry and the earlier "uncopyrighted, please cite" wording
+above. The GRIN site states no data-use terms at all. Credit to add with the first real data
+import: USDA, NRCS. The PLANTS Database, https://plants.usda.gov. The only value bundled so
+far is the PLANTS symbol (a database identifier); the in-app credit is due when taxonomy
+or native-status values are imported.
 
 ## Arizona lower-desert set
 

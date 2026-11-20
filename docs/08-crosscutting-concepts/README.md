@@ -10110,6 +10110,13 @@ A callout names a plant (common name, else the object name, else "Tree" / "Shrub
   in its own CRLF/2-space format. Hand-curated keys are never overwritten; only the
   `usda_*` keys are import-owned. Sources, terms and what each does not provide:
   `resources/data/PROVENANCE.md`.
+- **First import (2026-11-20).** The only public static download is the Complete PLANTS
+  Checklist (`plantlst.txt`: symbol, name, family, no duration/habit/native), so
+  `--plants-csv plantlst.txt --write` added `usda_symbol` to 149 of 159 species and changed
+  nothing else. Duration, habit, native status and state presence are not downloadable as
+  static files (state lists are NRCS-only; the rest sits behind the undocumented
+  `plantsservices` API), and GRIN has no bulk file. Check a rewrite with a before/after
+  key diff: only `usda_*`, `family`, `genus` and `cycle` may differ.
 - **Adding species moves pinned numbers.** The sprite-resolution golden
   (`scripts/make_sprite_resolution_golden.py`), the counts in `test_plant_art.py` and the
   harness figures quoted in the ADR and pitfall docs (`test_retracted_figures.py`) all

@@ -76,7 +76,8 @@
       "p_demand": "medium",
       "k_demand": "high",
       "permaculture_layer": "herbaceous",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "SOLYL"
     },
     {
       "scientific_name": "Capsicum annuum",
@@ -125,7 +126,8 @@
       "p_demand": "medium",
       "k_demand": "high",
       "permaculture_layer": "herbaceous",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "CAANG"
     },
     {
       "scientific_name": "Capsicum chinense",
@@ -171,7 +173,8 @@
       "p_demand": "medium",
       "k_demand": "high",
       "permaculture_layer": "herbaceous",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "CACH30"
     },
     {
       "scientific_name": "Solanum melongena",
@@ -217,7 +220,8 @@
       "p_demand": "medium",
       "k_demand": "high",
       "permaculture_layer": "herbaceous",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "SOME"
     },
     {
       "scientific_name": "Cucumis sativus",
@@ -265,7 +269,8 @@
       "p_demand": "medium",
       "k_demand": "high",
       "permaculture_layer": "vine",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "CUSA4"
     },
     {
       "scientific_name": "Cucurbita pepo",
@@ -314,7 +319,8 @@
       "p_demand": "medium",
       "k_demand": "medium",
       "permaculture_layer": "herbaceous",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "CUPET"
     },
     {
       "scientific_name": "Cucurbita maxima",
@@ -368,7 +374,8 @@
       "permaculture_layer": "vine",
       "functions": [
         "ground_cover"
-      ]
+      ],
+      "usda_symbol": "CUMAA"
     },
     {
       "scientific_name": "Phaseolus vulgaris",
@@ -416,7 +423,8 @@
       "permaculture_layer": "herbaceous",
       "functions": [
         "nitrogen_fixer"
-      ]
+      ],
+      "usda_symbol": "PHVU"
     },
     {
       "scientific_name": "Pisum sativum",
@@ -464,7 +472,8 @@
       "permaculture_layer": "vine",
       "functions": [
         "nitrogen_fixer"
-      ]
+      ],
+      "usda_symbol": "PISA6"
     },
     {
       "scientific_name": "Daucus carota",
@@ -506,7 +515,8 @@
       "p_demand": "high",
       "k_demand": "high",
       "permaculture_layer": "root",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "DACAS2"
     },
     {
       "scientific_name": "Beta vulgaris",
@@ -549,7 +559,8 @@
       "p_demand": "medium",
       "k_demand": "high",
       "permaculture_layer": "root",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "BEVUM2"
     },
     {
       "scientific_name": "Raphanus sativus",
@@ -592,7 +603,8 @@
       "p_demand": "medium",
       "k_demand": "medium",
       "permaculture_layer": "root",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "RASA2"
     },
     {
       "scientific_name": "Spinacia oleracea",
@@ -634,7 +646,8 @@
       "p_demand": "medium",
       "k_demand": "medium",
       "permaculture_layer": "herbaceous",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "SPOL"
     },
     {
       "scientific_name": "Lactuca sativa",
@@ -682,7 +695,8 @@
       "p_demand": "medium",
       "k_demand": "medium",
       "permaculture_layer": "herbaceous",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "LASA3"
     },
     {
       "scientific_name": "Brassica oleracea var. capitata",
@@ -958,7 +972,8 @@
       "p_demand": "medium",
       "k_demand": "high",
       "permaculture_layer": "root",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "ALCE"
     },
     {
       "scientific_name": "Allium porrum",
@@ -1005,7 +1020,8 @@
       "p_demand": "medium",
       "k_demand": "medium",
       "permaculture_layer": "herbaceous",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "ALPO2"
     },
     {
       "scientific_name": "Allium sativum",
@@ -1047,7 +1063,8 @@
       "p_demand": "medium",
       "k_demand": "medium",
       "permaculture_layer": "root",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "ALSA2"
     },
     {
       "scientific_name": "Allium schoenoprasum",
@@ -1094,7 +1111,8 @@
       "p_demand": "medium",
       "k_demand": "medium",
       "permaculture_layer": "herbaceous",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "ALSCS2"
     },
     {
       "scientific_name": "Solanum tuberosum",
@@ -1136,7 +1154,8 @@
       "p_demand": "medium",
       "k_demand": "high",
       "permaculture_layer": "root",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "SOTU"
     },
     {
       "scientific_name": "Ipomoea batatas",
@@ -1179,7 +1198,8 @@
       "p_demand": "medium",
       "k_demand": "high",
       "permaculture_layer": "root",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "IPBA2"
     },
     {
       "scientific_name": "Petroselinum crispum",
@@ -1226,7 +1246,8 @@
       "p_demand": "medium",
       "k_demand": "medium",
       "permaculture_layer": "herbaceous",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "PECR2"
     },
     {
       "scientific_name": "Ocimum basilicum",
@@ -1274,7 +1295,8 @@
       "p_demand": "medium",
       "k_demand": "medium",
       "permaculture_layer": "herbaceous",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "OCBA"
     },
     {
       "scientific_name": "Coriandrum sativum",
@@ -1320,7 +1342,8 @@
       "p_demand": "medium",
       "k_demand": "medium",
       "permaculture_layer": "herbaceous",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "COSA"
     },
     {
       "scientific_name": "Anethum graveolens",
@@ -1363,7 +1386,8 @@
       "p_demand": "medium",
       "k_demand": "medium",
       "permaculture_layer": "herbaceous",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "ANGR2"
     },
     {
       "scientific_name": "Foeniculum vulgare",
@@ -1409,7 +1433,8 @@
       "p_demand": "medium",
       "k_demand": "medium",
       "permaculture_layer": "herbaceous",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "FOVU"
     },
     {
       "scientific_name": "Mentha spicata",
@@ -1456,7 +1481,8 @@
       "p_demand": "medium",
       "k_demand": "medium",
       "permaculture_layer": "herbaceous",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "MESP3"
     },
     {
       "scientific_name": "Thymus vulgaris",
@@ -1500,7 +1526,8 @@
       "p_demand": "low",
       "k_demand": "low",
       "permaculture_layer": "ground_cover",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "THVU"
     },
     {
       "scientific_name": "Rosmarinus officinalis",
@@ -1544,7 +1571,8 @@
       "p_demand": "low",
       "k_demand": "low",
       "permaculture_layer": "shrub",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "ROOF"
     },
     {
       "scientific_name": "Salvia officinalis",
@@ -1588,7 +1616,8 @@
       "p_demand": "low",
       "k_demand": "low",
       "permaculture_layer": "shrub",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "SAOF2"
     },
     {
       "scientific_name": "Origanum vulgare",
@@ -1632,7 +1661,8 @@
       "p_demand": "low",
       "k_demand": "low",
       "permaculture_layer": "herbaceous",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "ORVUG"
     },
     {
       "scientific_name": "Lavandula angustifolia",
@@ -1676,7 +1706,8 @@
       "p_demand": "low",
       "k_demand": "low",
       "permaculture_layer": "shrub",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "LAAN81"
     },
     {
       "scientific_name": "Chamaemelum nobile",
@@ -1718,7 +1749,8 @@
       "p_demand": "low",
       "k_demand": "low",
       "permaculture_layer": "ground_cover",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "CHNO3"
     },
     {
       "scientific_name": "Valeriana officinalis",
@@ -1762,7 +1794,8 @@
       "p_demand": "low",
       "k_demand": "low",
       "permaculture_layer": "herbaceous",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "VAOF"
     },
     {
       "scientific_name": "Echinacea purpurea",
@@ -1806,7 +1839,8 @@
       "p_demand": "low",
       "k_demand": "low",
       "permaculture_layer": "herbaceous",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "ECPU"
     },
     {
       "scientific_name": "Pastinaca sativa",
@@ -1848,7 +1882,8 @@
       "p_demand": "medium",
       "k_demand": "high",
       "permaculture_layer": "root",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "PASAS2"
     },
     {
       "scientific_name": "Apium graveolens",
@@ -1895,7 +1930,8 @@
       "p_demand": "medium",
       "k_demand": "medium",
       "permaculture_layer": "herbaceous",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "APGRR"
     },
     {
       "scientific_name": "Asparagus officinalis",
@@ -1939,7 +1975,8 @@
       "p_demand": "medium",
       "k_demand": "medium",
       "permaculture_layer": "herbaceous",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "ASOF"
     },
     {
       "scientific_name": "Rheum rhabarbarum",
@@ -1983,7 +2020,8 @@
       "p_demand": "medium",
       "k_demand": "medium",
       "permaculture_layer": "herbaceous",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "RHRH2"
     },
     {
       "scientific_name": "Fragaria ananassa",
@@ -2079,7 +2117,8 @@
       "p_demand": "medium",
       "k_demand": "medium",
       "permaculture_layer": "herbaceous",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "ZEMAP"
     },
     {
       "scientific_name": "Cichorium intybus",
@@ -2122,7 +2161,8 @@
       "p_demand": "medium",
       "k_demand": "medium",
       "permaculture_layer": "herbaceous",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "CIIN"
     },
     {
       "scientific_name": "Cichorium endivia",
@@ -2164,7 +2204,8 @@
       "p_demand": "medium",
       "k_demand": "medium",
       "permaculture_layer": "herbaceous",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "CIEN"
     },
     {
       "scientific_name": "Eruca vesicaria",
@@ -2206,7 +2247,8 @@
       "p_demand": "medium",
       "k_demand": "medium",
       "permaculture_layer": "herbaceous",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "ERVES"
     },
     {
       "scientific_name": "Brassica napus",
@@ -2253,7 +2295,8 @@
       "p_demand": "medium",
       "k_demand": "medium",
       "permaculture_layer": "herbaceous",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "BRNAP"
     },
     {
       "scientific_name": "Cynara scolymus",
@@ -2297,7 +2340,8 @@
       "p_demand": "medium",
       "k_demand": "medium",
       "permaculture_layer": "herbaceous",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "CYSC2"
     },
     {
       "scientific_name": "Cucumis melo",
@@ -2343,7 +2387,8 @@
       "p_demand": "medium",
       "k_demand": "high",
       "permaculture_layer": "vine",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "CUME"
     },
     {
       "scientific_name": "Citrullus lanatus",
@@ -2389,7 +2434,8 @@
       "p_demand": "medium",
       "k_demand": "high",
       "permaculture_layer": "vine",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "CILAL"
     },
     {
       "scientific_name": "Phaseolus coccineus",
@@ -2439,7 +2485,8 @@
       "permaculture_layer": "vine",
       "functions": [
         "nitrogen_fixer"
-      ]
+      ],
+      "usda_symbol": "PHCO6"
     },
     {
       "scientific_name": "Vicia faba",
@@ -2484,7 +2531,8 @@
       "permaculture_layer": "herbaceous",
       "functions": [
         "nitrogen_fixer"
-      ]
+      ],
+      "usda_symbol": "VIFA"
     },
     {
       "scientific_name": "Lathyrus odoratus",
@@ -2528,7 +2576,8 @@
       "p_demand": "medium",
       "k_demand": "medium",
       "permaculture_layer": "vine",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "LAOD"
     },
     {
       "scientific_name": "Helianthus annuus",
@@ -2574,7 +2623,8 @@
       "p_demand": "medium",
       "k_demand": "medium",
       "permaculture_layer": "herbaceous",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "HEAN3"
     },
     {
       "scientific_name": "Tropaeolum majus",
@@ -2618,7 +2668,8 @@
       "p_demand": "low",
       "k_demand": "low",
       "permaculture_layer": "ground_cover",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "TRMA7"
     },
     {
       "scientific_name": "Tagetes erecta",
@@ -2666,7 +2717,8 @@
       "p_demand": "low",
       "k_demand": "low",
       "permaculture_layer": "herbaceous",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "TAER"
     },
     {
       "scientific_name": "Borago officinalis",
@@ -2711,7 +2763,8 @@
       "permaculture_layer": "herbaceous",
       "functions": [
         "pollinator_attractor"
-      ]
+      ],
+      "usda_symbol": "BOOF"
     },
     {
       "scientific_name": "Melissa officinalis",
@@ -2757,7 +2810,8 @@
       "p_demand": "low",
       "k_demand": "low",
       "permaculture_layer": "herbaceous",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "MEOF2"
     },
     {
       "scientific_name": "Hyssopus officinalis",
@@ -2802,7 +2856,8 @@
       "p_demand": "low",
       "k_demand": "low",
       "permaculture_layer": "herbaceous",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "HYOF"
     },
     {
       "scientific_name": "Linum usitatissimum",
@@ -2844,7 +2899,8 @@
       "p_demand": "low",
       "k_demand": "low",
       "permaculture_layer": "herbaceous",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "LIUS"
     },
     {
       "scientific_name": "Calendula officinalis",
@@ -2888,7 +2944,8 @@
       "p_demand": "low",
       "k_demand": "low",
       "permaculture_layer": "herbaceous",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "CAOF"
     },
     {
       "scientific_name": "Brassica oleracea var. acephala",
@@ -2966,7 +3023,8 @@
       "p_demand": "medium",
       "k_demand": "high",
       "permaculture_layer": "sub_canopy",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "MAPU"
     },
     {
       "scientific_name": "Prunus avium",
@@ -2998,7 +3056,8 @@
       "p_demand": "medium",
       "k_demand": "high",
       "permaculture_layer": "sub_canopy",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "PRAV"
     },
     {
       "scientific_name": "Pyrus communis",
@@ -3030,7 +3089,8 @@
       "p_demand": "medium",
       "k_demand": "high",
       "permaculture_layer": "sub_canopy",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "PYCO"
     },
     {
       "scientific_name": "Prunus domestica",
@@ -3062,7 +3122,8 @@
       "p_demand": "medium",
       "k_demand": "high",
       "permaculture_layer": "sub_canopy",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "PRDOI"
     },
     {
       "scientific_name": "Prunus persica",
@@ -3094,7 +3155,8 @@
       "p_demand": "medium",
       "k_demand": "high",
       "permaculture_layer": "sub_canopy",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "PRPEP2"
     },
     {
       "scientific_name": "Ficus carica",
@@ -3126,7 +3188,8 @@
       "p_demand": "low",
       "k_demand": "medium",
       "permaculture_layer": "sub_canopy",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "FICA"
     },
     {
       "scientific_name": "Olea europaea",
@@ -3158,7 +3221,8 @@
       "p_demand": "low",
       "k_demand": "medium",
       "permaculture_layer": "sub_canopy",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "OLEUE"
     },
     {
       "scientific_name": "Citrus limon",
@@ -3190,7 +3254,8 @@
       "p_demand": "medium",
       "k_demand": "high",
       "permaculture_layer": "sub_canopy",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "CILI5"
     },
     {
       "scientific_name": "Citrus sinensis",
@@ -3222,7 +3287,8 @@
       "p_demand": "medium",
       "k_demand": "high",
       "permaculture_layer": "sub_canopy",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "CISI3"
     },
     {
       "scientific_name": "Juglans regia",
@@ -3254,7 +3320,8 @@
       "p_demand": "medium",
       "k_demand": "medium",
       "permaculture_layer": "canopy",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "JURE80"
     },
     {
       "scientific_name": "Quercus robur",
@@ -3284,7 +3351,8 @@
       "p_demand": "low",
       "k_demand": "low",
       "permaculture_layer": "canopy",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "QURO2"
     },
     {
       "scientific_name": "Acer platanoides",
@@ -3314,7 +3382,8 @@
       "p_demand": "low",
       "k_demand": "low",
       "permaculture_layer": "canopy",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "ACPL"
     },
     {
       "scientific_name": "Betula pendula",
@@ -3344,7 +3413,8 @@
       "p_demand": "low",
       "k_demand": "low",
       "permaculture_layer": "canopy",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "BEPE3"
     },
     {
       "scientific_name": "Salix alba",
@@ -3374,7 +3444,8 @@
       "p_demand": "low",
       "k_demand": "low",
       "permaculture_layer": "canopy",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "SAAL2"
     },
     {
       "scientific_name": "Magnolia x soulangeana",
@@ -3434,7 +3505,8 @@
       "p_demand": "low",
       "k_demand": "low",
       "permaculture_layer": "canopy",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "PISY"
     },
     {
       "scientific_name": "Picea abies",
@@ -3464,7 +3536,8 @@
       "p_demand": "low",
       "k_demand": "low",
       "permaculture_layer": "canopy",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "PIAB"
     },
     {
       "scientific_name": "Buxus sempervirens",
@@ -3494,7 +3567,8 @@
       "p_demand": "low",
       "k_demand": "low",
       "permaculture_layer": "shrub",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "BUSE2"
     },
     {
       "scientific_name": "Rhododendron ponticum",
@@ -3556,7 +3630,8 @@
       "p_demand": "low",
       "k_demand": "medium",
       "permaculture_layer": "shrub",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "VACO"
     },
     {
       "scientific_name": "Rubus idaeus",
@@ -3588,7 +3663,8 @@
       "p_demand": "medium",
       "k_demand": "high",
       "permaculture_layer": "shrub",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "RUIDS2"
     },
     {
       "scientific_name": "Rubus fruticosus",
@@ -3620,7 +3696,8 @@
       "p_demand": "medium",
       "k_demand": "high",
       "permaculture_layer": "shrub",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "RUFR80"
     },
     {
       "scientific_name": "Ribes uva-crispa",
@@ -3652,7 +3729,8 @@
       "p_demand": "medium",
       "k_demand": "high",
       "permaculture_layer": "shrub",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "RIUVS"
     },
     {
       "scientific_name": "Ribes rubrum",
@@ -3684,7 +3762,8 @@
       "p_demand": "medium",
       "k_demand": "high",
       "permaculture_layer": "shrub",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "RIRU80"
     },
     {
       "scientific_name": "Ilex aquifolium",
@@ -3714,7 +3793,8 @@
       "p_demand": "low",
       "k_demand": "low",
       "permaculture_layer": "shrub",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "ILAQ80"
     },
     {
       "scientific_name": "Juniperus communis",
@@ -3744,7 +3824,8 @@
       "p_demand": "low",
       "k_demand": "low",
       "permaculture_layer": "shrub",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "JUCOM2"
     },
     {
       "scientific_name": "Forsythia x intermedia",
@@ -3774,7 +3855,8 @@
       "p_demand": "low",
       "k_demand": "low",
       "permaculture_layer": "shrub",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "FOIN3"
     },
     {
       "scientific_name": "Syringa vulgaris",
@@ -3804,7 +3886,8 @@
       "p_demand": "low",
       "k_demand": "low",
       "permaculture_layer": "shrub",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "SYVU"
     },
     {
       "scientific_name": "Sambucus nigra",
@@ -3837,7 +3920,8 @@
       "p_demand": "medium",
       "k_demand": "medium",
       "permaculture_layer": "shrub",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "SANIN2"
     },
     {
       "scientific_name": "Ligustrum vulgare",
@@ -3867,7 +3951,8 @@
       "p_demand": "low",
       "k_demand": "low",
       "permaculture_layer": "shrub",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "LIVU"
     },
     {
       "scientific_name": "Viburnum opulus",
@@ -3897,7 +3982,8 @@
       "p_demand": "low",
       "k_demand": "low",
       "permaculture_layer": "shrub",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "VIOPS"
     },
     {
       "scientific_name": "Berberis vulgaris",
@@ -3927,7 +4013,8 @@
       "p_demand": "low",
       "k_demand": "low",
       "permaculture_layer": "shrub",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "BEVU"
     },
     {
       "scientific_name": "Camellia japonica",
@@ -3957,7 +4044,8 @@
       "p_demand": "low",
       "k_demand": "low",
       "permaculture_layer": "shrub",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "CAJA9"
     },
     {
       "scientific_name": "Spiraea japonica",
@@ -3987,7 +4075,8 @@
       "p_demand": "low",
       "k_demand": "low",
       "permaculture_layer": "shrub",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "SPJAF"
     },
     {
       "scientific_name": "Rosa rugosa",
@@ -4019,7 +4108,8 @@
       "p_demand": "medium",
       "k_demand": "high",
       "permaculture_layer": "shrub",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "RORU"
     },
     {
       "scientific_name": "Tulipa gesneriana",
@@ -4049,7 +4139,8 @@
       "p_demand": "medium",
       "k_demand": "medium",
       "permaculture_layer": "herbaceous",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "TUGE"
     },
     {
       "scientific_name": "Narcissus pseudonarcissus",
@@ -4079,7 +4170,8 @@
       "p_demand": "low",
       "k_demand": "low",
       "permaculture_layer": "herbaceous",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "NAPS"
     },
     {
       "scientific_name": "Dahlia pinnata",
@@ -4109,7 +4201,8 @@
       "p_demand": "medium",
       "k_demand": "medium",
       "permaculture_layer": "herbaceous",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "DAPI3"
     },
     {
       "scientific_name": "Paeonia lactiflora",
@@ -4139,7 +4232,8 @@
       "p_demand": "medium",
       "k_demand": "medium",
       "permaculture_layer": "herbaceous",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "PALA27"
     },
     {
       "scientific_name": "Iris germanica",
@@ -4169,7 +4263,8 @@
       "p_demand": "low",
       "k_demand": "low",
       "permaculture_layer": "herbaceous",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "IRGEF"
     },
     {
       "scientific_name": "Lilium candidum",
@@ -4199,7 +4294,8 @@
       "p_demand": "medium",
       "k_demand": "medium",
       "permaculture_layer": "herbaceous",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "LICA22"
     },
     {
       "scientific_name": "Zinnia elegans",
@@ -4229,7 +4325,8 @@
       "p_demand": "medium",
       "k_demand": "medium",
       "permaculture_layer": "herbaceous",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "ZIVI2"
     },
     {
       "scientific_name": "Cosmos bipinnatus",
@@ -4259,7 +4356,8 @@
       "p_demand": "low",
       "k_demand": "low",
       "permaculture_layer": "herbaceous",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "COBI2"
     },
     {
       "scientific_name": "Symphyotrichum novi-belgii",
@@ -4291,7 +4389,8 @@
       "permaculture_layer": "herbaceous",
       "functions": [
         "pollinator_attractor"
-      ]
+      ],
+      "usda_symbol": "SYNOV"
     },
     {
       "scientific_name": "Chrysanthemum x morifolium",
@@ -4321,7 +4420,8 @@
       "p_demand": "medium",
       "k_demand": "medium",
       "permaculture_layer": "herbaceous",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "CHMO14"
     },
     {
       "scientific_name": "Pelargonium x hortorum",
@@ -4351,7 +4451,8 @@
       "p_demand": "medium",
       "k_demand": "medium",
       "permaculture_layer": "herbaceous",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "PEHO2"
     },
     {
       "scientific_name": "Petunia x atkinsiana",
@@ -4381,7 +4482,8 @@
       "p_demand": "medium",
       "k_demand": "medium",
       "permaculture_layer": "herbaceous",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "PEAT7"
     },
     {
       "scientific_name": "Viola x wittrockiana",
@@ -4413,7 +4515,8 @@
       "p_demand": "low",
       "k_demand": "low",
       "permaculture_layer": "ground_cover",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "VIWI"
     },
     {
       "scientific_name": "Hydrangea macrophylla",
@@ -4443,7 +4546,8 @@
       "p_demand": "medium",
       "k_demand": "medium",
       "permaculture_layer": "shrub",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "HYMA7"
     },
     {
       "scientific_name": "Clematis vitalba",
@@ -4473,7 +4577,8 @@
       "p_demand": "medium",
       "k_demand": "medium",
       "permaculture_layer": "vine",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "CLVI6"
     },
     {
       "scientific_name": "Wisteria sinensis",
@@ -4503,7 +4608,8 @@
       "p_demand": "low",
       "k_demand": "low",
       "permaculture_layer": "vine",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "WISI"
     },
     {
       "scientific_name": "Jasminum officinale",
@@ -4533,7 +4639,8 @@
       "p_demand": "low",
       "k_demand": "low",
       "permaculture_layer": "vine",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "JAOF"
     },
     {
       "scientific_name": "Hibiscus syriacus",
@@ -4563,7 +4670,8 @@
       "p_demand": "medium",
       "k_demand": "medium",
       "permaculture_layer": "shrub",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "HISY"
     },
     {
       "scientific_name": "Crocus vernus",
@@ -4593,7 +4701,8 @@
       "p_demand": "low",
       "k_demand": "low",
       "permaculture_layer": "herbaceous",
-      "functions": []
+      "functions": [],
+      "usda_symbol": "CRVE4"
     },
     {
       "scientific_name": "Punica granatum",
@@ -4636,7 +4745,8 @@
         "ph_min",
         "ph_max",
         "max_height_cm"
-      ]
+      ],
+      "usda_symbol": "PUGR2"
     },
     {
       "scientific_name": "Phoenix dactylifera",
@@ -4682,7 +4792,8 @@
         "water_needs",
         "max_height_cm"
       ],
-      "notes": "Fruit needs a male palm (or hand pollination) nearby. Record describes the fruiting female."
+      "notes": "Fruit needs a male palm (or hand pollination) nearby. Record describes the fruiting female.",
+      "usda_symbol": "PHDA4"
     },
     {
       "scientific_name": "Ziziphus jujuba",
@@ -4725,7 +4836,8 @@
       "uncertain_fields": [
         "ph_min",
         "ph_max"
-      ]
+      ],
+      "usda_symbol": "ZIMA"
     },
     {
       "scientific_name": "Eriobotrya japonica",
@@ -4767,7 +4879,8 @@
       "uncertain_fields": [
         "max_height_cm"
       ],
-      "notes": "Fruit ripens late winter to spring."
+      "notes": "Fruit ripens late winter to spring.",
+      "usda_symbol": "ERJA3"
     },
     {
       "scientific_name": "Citrus x paradisi",
@@ -4805,7 +4918,8 @@
       "functions": [],
       "regions": [
         "arizona_lower_desert"
-      ]
+      ],
+      "usda_symbol": "CIPA3"
     },
     {
       "scientific_name": "Citrus x aurantiifolia",
@@ -4849,7 +4963,8 @@
       "uncertain_fields": [
         "hardiness_zone_min"
       ],
-      "notes": "Most frost-tender citrus here; protect on cold nights in a Mesa winter."
+      "notes": "Most frost-tender citrus here; protect on cold nights in a Mesa winter.",
+      "usda_symbol": "CIAU7"
     },
     {
       "scientific_name": "Citrus reticulata",
@@ -4890,7 +5005,8 @@
       "functions": [],
       "regions": [
         "arizona_lower_desert"
-      ]
+      ],
+      "usda_symbol": "CIREU"
     },
     {
       "scientific_name": "Prunus armeniaca",
@@ -4933,7 +5049,8 @@
         "hardiness_zone_max",
         "pollination_type"
       ],
-      "notes": "Needs a low-chill cultivar in the Phoenix area; blossoms can be lost to late frost."
+      "notes": "Needs a low-chill cultivar in the Phoenix area; blossoms can be lost to late frost.",
+      "usda_symbol": "PRAR3"
     },
     {
       "scientific_name": "Vitis vinifera",
@@ -4978,7 +5095,8 @@
         "max_height_cm",
         "max_spread_cm"
       ],
-      "notes": "Trained size depends on the trellis; choose a low-chill, heat-tolerant cultivar for Mesa."
+      "notes": "Trained size depends on the trellis; choose a low-chill, heat-tolerant cultivar for Mesa.",
+      "usda_symbol": "VIVIS"
     },
     {
       "scientific_name": "Prosopis velutina",
@@ -5026,7 +5144,8 @@
         "ph_max",
         "hardiness_zone_min"
       ],
-      "notes": "Native to the Sonoran Desert. Pods are milled into flour; ripe pods fall in early summer."
+      "notes": "Native to the Sonoran Desert. Pods are milled into flour; ripe pods fall in early summer.",
+      "usda_symbol": "PRVE"
     },
     {
       "scientific_name": "Opuntia ficus-indica",
@@ -5074,7 +5193,8 @@
         "ph_min",
         "ph_max"
       ],
-      "notes": "Pads (nopales) and fruit (tunas) are eaten; glochids need careful handling."
+      "notes": "Pads (nopales) and fruit (tunas) are eaten; glochids need careful handling.",
+      "usda_symbol": "OPFI"
     },
     {
       "scientific_name": "Carnegiea gigantea",
@@ -5121,7 +5241,8 @@
         "pollination_type",
         "hardiness_zone_min"
       ],
-      "notes": "Protected by Arizona native-plant law: moving or removing one needs a permit. Fruit ripens June to July. Takes decades to reach full size."
+      "notes": "Protected by Arizona native-plant law: moving or removing one needs a permit. Fruit ripens June to July. Takes decades to reach full size.",
+      "usda_symbol": "CAGI10"
     },
     {
       "scientific_name": "Tipuana tipu",
@@ -5166,7 +5287,8 @@
         "ph_min",
         "ph_max"
       ],
-      "notes": "Brittle wood; young trees are frost-tender."
+      "notes": "Brittle wood; young trees are frost-tender.",
+      "usda_symbol": "TITI2"
     },
     {
       "scientific_name": "Bauhinia variegata",
@@ -5210,7 +5332,8 @@
         "ph_min",
         "ph_max"
       ],
-      "notes": "Currently accepted name is Phanera variegata; Bauhinia variegata remains the nursery name. Semi-deciduous in Phoenix winters."
+      "notes": "Currently accepted name is Phanera variegata; Bauhinia variegata remains the nursery name. Semi-deciduous in Phoenix winters.",
+      "usda_symbol": "BAVA"
     },
     {
       "scientific_name": "Nerium oleander",
@@ -5251,7 +5374,8 @@
         "ph_min",
         "ph_max"
       ],
-      "notes": "All parts are highly poisonous. Not edible; keep clippings away from people, pets and compost."
+      "notes": "All parts are highly poisonous. Not edible; keep clippings away from people, pets and compost.",
+      "usda_symbol": "NEOL"
     },
     {
       "scientific_name": "Parkinsonia florida",
@@ -5295,7 +5419,8 @@
         "ph_max",
         "max_height_cm"
       ],
-      "notes": "Native to the Sonoran Desert. Leafless most of the year; green bark photosynthesises."
+      "notes": "Native to the Sonoran Desert. Leafless most of the year; green bark photosynthesises.",
+      "usda_symbol": "PAFL6"
     },
     {
       "scientific_name": "Olneya tesota",
@@ -5339,7 +5464,8 @@
         "ph_min",
         "ph_max"
       ],
-      "notes": "Native; protected by Arizona law. Very slow and long-lived."
+      "notes": "Native; protected by Arizona law. Very slow and long-lived.",
+      "usda_symbol": "OLTE"
     },
     {
       "scientific_name": "Vachellia farnesiana",
@@ -5382,7 +5508,8 @@
         "ph_max",
         "hardiness_zone_min"
       ],
-      "notes": "Thorny; heavy pollen in late winter."
+      "notes": "Thorny; heavy pollen in late winter.",
+      "usda_symbol": "VAFAP"
     },
     {
       "scientific_name": "Chilopsis linearis",
@@ -5423,7 +5550,8 @@
         "ph_min",
         "ph_max"
       ],
-      "notes": "Native; blooms from spring into autumn."
+      "notes": "Native; blooms from spring into autumn.",
+      "usda_symbol": "CHLIL2"
     },
     {
       "scientific_name": "Washingtonia robusta",
@@ -5465,7 +5593,8 @@
         "max_height_cm",
         "ph_min",
         "ph_max"
-      ]
+      ],
+      "usda_symbol": "WARO"
     },
     {
       "scientific_name": "Leucophyllum frutescens",
@@ -5508,7 +5637,8 @@
         "ph_min",
         "ph_max"
       ],
-      "notes": "Blooms after summer humidity or rain."
+      "notes": "Blooms after summer humidity or rain.",
+      "usda_symbol": "LEFR3"
     },
     {
       "scientific_name": "Caesalpinia pulcherrima",
@@ -5550,7 +5680,8 @@
         "ph_min",
         "ph_max"
       ],
-      "notes": "Dies back in a hard frost and regrows in spring. Seeds are poisonous."
+      "notes": "Dies back in a hard frost and regrows in spring. Seeds are poisonous.",
+      "usda_symbol": "CAPU13"
     },
     {
       "scientific_name": "Tecoma stans",
@@ -5592,7 +5723,8 @@
         "ph_min",
         "ph_max"
       ],
-      "notes": "Freezes to the ground in a hard frost and regrows."
+      "notes": "Freezes to the ground in a hard frost and regrows.",
+      "usda_symbol": "TEST"
     },
     {
       "scientific_name": "Bougainvillea spectabilis",
@@ -5635,7 +5767,8 @@
         "ph_min",
         "ph_max"
       ],
-      "notes": "Frost-tender; winter damage is common in Mesa. Thorny."
+      "notes": "Frost-tender; winter damage is common in Mesa. Thorny.",
+      "usda_symbol": "BOSP6"
     },
     {
       "scientific_name": "Hesperaloe parviflora",
@@ -5675,7 +5808,8 @@
       "uncertain_fields": [
         "ph_min",
         "ph_max"
-      ]
+      ],
+      "usda_symbol": "HEPAP"
     },
     {
       "scientific_name": "Agave americana",
@@ -5718,7 +5852,8 @@
         "ph_max",
         "max_spread_cm"
       ],
-      "notes": "Flowering stalk reaches several metres; the rosette dies after flowering and leaves pups. Sharp spines; sap is a skin irritant."
+      "notes": "Flowering stalk reaches several metres; the rosette dies after flowering and leaves pups. Sharp spines; sap is a skin irritant.",
+      "usda_symbol": "AGAMP"
     },
     {
       "scientific_name": "Agave parryi",
@@ -5759,7 +5894,8 @@
       "uncertain_fields": [
         "ph_min",
         "ph_max"
-      ]
+      ],
+      "usda_symbol": "AGPAP5"
     },
     {
       "scientific_name": "Aloe vera",
@@ -5803,7 +5939,8 @@
         "ph_min",
         "ph_max"
       ],
-      "notes": "Only the inner leaf gel is used; the yellow latex under the skin is a laxative. Partial afternoon shade avoids sunburn in a Mesa summer."
+      "notes": "Only the inner leaf gel is used; the yellow latex under the skin is a laxative. Partial afternoon shade avoids sunburn in a Mesa summer.",
+      "usda_symbol": "ALVE2"
     },
     {
       "scientific_name": "Larrea tridentata",
@@ -5848,7 +5985,8 @@
         "ph_min",
         "ph_max"
       ],
-      "notes": "Native; the signature plant of the Sonoran lowlands. Very long-lived."
+      "notes": "Native; the signature plant of the Sonoran lowlands. Very long-lived.",
+      "usda_symbol": "LATRT"
     },
     {
       "scientific_name": "Simmondsia chinensis",
@@ -5891,7 +6029,8 @@
         "ph_max",
         "max_height_cm"
       ],
-      "notes": "Dioecious: seed-bearing plants are female and need a male nearby. Seed is a wax source, not a food."
+      "notes": "Dioecious: seed-bearing plants are female and need a male nearby. Seed is a wax source, not a food.",
+      "usda_symbol": "SICH"
     },
     {
       "scientific_name": "Encelia farinosa",
@@ -5933,7 +6072,8 @@
         "ph_max",
         "max_spread_cm"
       ],
-      "notes": "Native; goes semi-dormant and silver in summer drought."
+      "notes": "Native; goes semi-dormant and silver in summer drought.",
+      "usda_symbol": "ENFA"
     },
     {
       "scientific_name": "Echinocactus grusonii",
@@ -6018,7 +6158,8 @@
         "ph_min",
         "ph_max"
       ],
-      "notes": "Unripe berries and leaves are poisonous. Cut back after a frost."
+      "notes": "Unripe berries and leaves are poisonous. Cut back after a frost.",
+      "usda_symbol": "LACA2"
     },
     {
       "scientific_name": "Moringa oleifera",
@@ -6067,7 +6208,8 @@
         "ph_max",
         "water_needs"
       ],
-      "notes": "Dies back below freezing and regrows from the base in Mesa. Prune to keep it manageable."
+      "notes": "Dies back below freezing and regrows from the base in Mesa. Prune to keep it manageable.",
+      "usda_symbol": "MOOL"
     },
     {
       "scientific_name": "Abelmoschus esculentus",
@@ -6122,7 +6264,8 @@
         "ph_min",
         "ph_max"
       ],
-      "notes": "Frost-relative weeks assume a Mesa/Phoenix last spring frost of about 10 Feb. A second sowing in August is not encoded because the schema holds one window per task."
+      "notes": "Frost-relative weeks assume a Mesa/Phoenix last spring frost of about 10 Feb. A second sowing in August is not encoded because the schema holds one window per task.",
+      "usda_symbol": "ABES"
     },
     {
       "scientific_name": "Vigna unguiculata",
@@ -6182,7 +6325,8 @@
         "ph_min",
         "ph_max"
       ],
-      "notes": "Frost-relative weeks assume a Mesa/Phoenix last spring frost of about 10 Feb."
+      "notes": "Frost-relative weeks assume a Mesa/Phoenix last spring frost of about 10 Feb.",
+      "usda_symbol": "VIUNU"
     },
     {
       "scientific_name": "Phaseolus acutifolius",
@@ -6244,7 +6388,8 @@
         "ph_min",
         "ph_max"
       ],
-      "notes": "Frost-relative weeks assume a Mesa/Phoenix last spring frost of about 10 Feb. Traditionally sown with the July monsoon; window is a best estimate."
+      "notes": "Frost-relative weeks assume a Mesa/Phoenix last spring frost of about 10 Feb. Traditionally sown with the July monsoon; window is a best estimate.",
+      "usda_symbol": "PHACT"
     },
     {
       "scientific_name": "Hibiscus sabdariffa",
@@ -6305,7 +6450,8 @@
         "ph_min",
         "ph_max"
       ],
-      "notes": "Frost-relative weeks assume a Mesa/Phoenix last spring frost of about 10 Feb. Edible part is the fleshy calyx; it forms as days shorten in autumn."
+      "notes": "Frost-relative weeks assume a Mesa/Phoenix last spring frost of about 10 Feb. Edible part is the fleshy calyx; it forms as days shorten in autumn.",
+      "usda_symbol": "HISA2"
     },
     {
       "scientific_name": "Pachyrhizus erosus",
@@ -6365,7 +6511,8 @@
         "n_demand",
         "nutrient_demand"
       ],
-      "notes": "Frost-relative weeks assume a Mesa/Phoenix last spring frost of about 10 Feb. Leaves, pods and seeds are poisonous; only the root is eaten."
+      "notes": "Frost-relative weeks assume a Mesa/Phoenix last spring frost of about 10 Feb. Leaves, pods and seeds are poisonous; only the root is eaten.",
+      "usda_symbol": "PAER3"
     },
     {
       "scientific_name": "Brassica juncea",
@@ -6420,7 +6567,8 @@
         "hardiness_zone_min",
         "hardiness_zone_max"
       ],
-      "notes": "Frost-relative weeks assume a Mesa/Phoenix last spring frost of about 10 Feb. A cool-season crop for the Phoenix autumn and winter: sown September to early November, harvested from late October to February."
+      "notes": "Frost-relative weeks assume a Mesa/Phoenix last spring frost of about 10 Feb. A cool-season crop for the Phoenix autumn and winter: sown September to early November, harvested from late October to February.",
+      "usda_symbol": "BRJU"
     },
     {
       "scientific_name": "Cucurbita moschata",
@@ -6477,7 +6625,8 @@
         "hardiness_zone_min",
         "hardiness_zone_max"
       ],
-      "notes": "Frost-relative weeks assume a Mesa/Phoenix last spring frost of about 10 Feb. A second sowing in August is not encoded. Copes with desert heat better than C. pepo."
+      "notes": "Frost-relative weeks assume a Mesa/Phoenix last spring frost of about 10 Feb. A second sowing in August is not encoded. Copes with desert heat better than C. pepo.",
+      "usda_symbol": "CUMOT"
     }
   ]
 }
