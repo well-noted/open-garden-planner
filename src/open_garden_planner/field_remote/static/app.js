@@ -1,6 +1,6 @@
 // Field Remote phone page. No framework, no build step. All user and plan text is written with
 // textContent/createElement, never as markup; there is no eval and no inline script or style.
-import { api, clockNow, errorText, fetchBasemap, fetchPhoto, initToken, uuid } from './api.js';
+import { api, clockNow, errorText, fetchBasemap, fetchPhoto, initToken, sendQueued, uuid } from './api.js';
 import { canvasToGps, trilaterate } from './geo.js';
 import { PlanMap } from './map.js';
 import { initRecord } from './record.js';
@@ -123,12 +123,9 @@ async function flushPositions() {
   if (positionsInFlight || !S.queue.length) return; // never resend a slice still on its way
   positionsInFlight = true;
   try {
-    const batch = S.queue.slice(0, 50);
-    const r = await api('/api/position', { method: 'POST', body: { positions: batch } }).catch(() => null);
-    if (!r) return; // keep them; the next tick retries
-    const sent = new Set(batch);
-    S.queue = S.queue.filter((item) => !sent.has(item)); // by identity: the queue may have been trimmed meanwhile
-    if (!r.ok) { if (r.status !== 429) toast(errorText(r)); return; }
+    const r = await sendQueued(S, (batch) => api('/api/position', { method: 'POST', body: { positions: batch } }));
+    if (!r) return; // no answer or a 429: every fix is kept and the next tick retries
+    if (!r.ok) { toast(errorText(r)); return; }
     showFix(r.json.telemetry);
     xr.onTelemetry(r.json.telemetry);
   } finally {

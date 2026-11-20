@@ -34,6 +34,19 @@ export async function api(path, opts = {}) {
   return { status: res.status, ok: res.ok, json, res };
 }
 
+// Sends the first `max` items of `holder.queue` with `send(batch)`. The batch leaves the queue only
+// once the server answered and did not say 429 (too many requests): no answer or a 429 keeps every
+// item for the next tick. Removal is by identity, as the queue may have been trimmed meanwhile.
+// Returns the answer, or null when the items were kept.
+export async function sendQueued(holder, send, max = 50) {
+  const batch = holder.queue.slice(0, max);
+  const r = await send(batch).catch(() => null);
+  if (!r || r.status === 429) return null;
+  const sent = new Set(batch);
+  holder.queue = holder.queue.filter((item) => !sent.has(item));
+  return r;
+}
+
 export function errorText(r) {
   const j = r.json || {};
   return j.detail || j.error || ('HTTP ' + r.status);

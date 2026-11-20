@@ -104,3 +104,51 @@ def test_the_ar_sender_never_resends_a_slice_and_shows_the_gnss_alert() -> None:
     first, second = got["sent"]
     assert len(first) == 2 and len(second) == 1 and second[0] > first[-1]  # nothing sent twice, nothing lost
     assert "disagree" in got["banner"] and got["hidden"] is False  # the alert reaches the phone banner
+
+
+API_JS = GEO_JS.with_name("api.js")
+
+
+def _node(code: str) -> object:
+    out = subprocess.run(
+        [NODE or "node", "--input-type=module", "-e", code], capture_output=True, text=True, timeout=30, check=True
+    )
+    return json.loads(out.stdout)
+
+
+def test_a_429_or_no_answer_keeps_every_queued_gnss_fix() -> None:
+    got = _node(
+        f"const a = await import({json.dumps(API_JS.as_uri())});\n"
+        """
+        const S = { queue: Array.from({ length: 60 }, (_, i) => ({ t: i })) };
+        const busy = await a.sendQueued(S, async () => ({ ok: false, status: 429 }));
+        const afterBusy = S.queue.length;
+        const none = await a.sendQueued(S, async () => { throw new Error('offline'); });
+        const afterNone = S.queue.length;
+        const late = { t: 99 };
+        const ok = await a.sendQueued(S, async (b) => { S.queue.push(late); return { ok: true, status: 200, n: b.length }; });
+        console.log(JSON.stringify({ busy, afterBusy, none, afterNone, n: ok.n, left: S.queue.map((i) => i.t) }));
+        """
+    )
+    assert got["busy"] is None and got["afterBusy"] == 60  # type: ignore[index]
+    assert got["none"] is None and got["afterNone"] == 60  # type: ignore[index]
+    assert got["n"] == 50 and got["left"] == [*range(50, 60), 99]  # type: ignore[index]
+
+
+def test_a_drain_spreads_its_posts_and_waits_out_a_429() -> None:
+    got = _node(
+        f"const m = await import({json.dumps(SURVEY_JS.as_uri())});\n"
+        """
+        const slept = [];
+        const sleep = async (ms) => { slept.push(ms); };
+        const plan = [{ wait: 0 }, { wait: 0 }, { wait: 3000 }, { wait: 0 }, true];
+        const done = await m.paced(async () => plan.shift(), 8, sleep);
+        const spun = []; const never = await m.paced(async () => ({ wait: 0 }), 8, async (ms) => { spun.push(ms); });
+        const hdr = (v) => ({ res: { headers: { get: () => v } } });
+        console.log(JSON.stringify({ done, slept, never, spun: spun.length,
+          ra: [m.retryAfterMs(hdr('2')), m.retryAfterMs(hdr(null)), m.retryAfterMs({}), m.retryAfterMs(hdr('600'))] }));
+        """
+    )
+    assert got["done"] is True and got["slept"] == [400, 400, 3000, 400]  # type: ignore[index]
+    assert got["never"] is False and got["spun"] == 7  # type: ignore[index]
+    assert got["ra"] == [2000, 1000, 1000, 5000]  # type: ignore[index]

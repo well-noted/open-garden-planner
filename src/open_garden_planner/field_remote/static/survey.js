@@ -145,6 +145,28 @@ const SEND_EVERY_MS = 1000;
 const VIO_MIN_DT_S = 0.1; // at most 10 pose samples per second
 const MAX_QUEUE = 150;
 const UNLOCKED_TEXT = 'Unlocked: re-lock A and B';
+const DRAIN_SPACING_MS = 400; // a drain posts at most 2.5/s, so the 5/s write limit keeps room for GNSS fixes
+const RETRY_AFTER_MAX_MS = 5000;
+
+// How long a 429 asks the page to wait (its Retry-After, in seconds), as ms; 1 s when absent.
+export function retryAfterMs(r) {
+  const h = r && r.res && r.res.headers ? r.res.headers.get('retry-after') : null;
+  const s = h == null ? NaN : Number(h);
+  return Number.isFinite(s) && s > 0 ? Math.min(s * 1000, RETRY_AFTER_MAX_MS) : 1000;
+}
+const wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
+
+// Runs `step` up to `tries` times and never posts back to back: after each step that posted
+// without finishing ({ wait: ms }) it sleeps the drain spacing, or longer when a 429 asked for it.
+// step() resolves to true (done), false (failed) or { wait: ms }. Resolves to true or false.
+export async function paced(step, tries = 8, sleep = wait) {
+  for (let i = 0; i < tries; i += 1) {
+    const got = await step();
+    if (got === true || got === false) return got;
+    if (i + 1 < tries) await sleep(Math.max(DRAIN_SPACING_MS, got.wait || 0));
+  }
+  return false;
+}
 
 export function initXr(ctx) {
   const { S, $, toast, api, errorText, map, showFix } = ctx;
@@ -166,6 +188,7 @@ export function initXr(ctx) {
   let lastVioT = null; // t of the last pose the server acknowledged
   let alertText = ''; // the server's GNSS disagreement alert, shown beside the banner text
   let bannerText = '';
+  let retryMs = 0; // set by a 429 answer: how long the server asked the page to wait
   let vioQ = []; // { id, s }: the id survives queue trimming, so an ack removes exactly what was sent
   let imuQ = [];
   function enqueue(q, s) {
@@ -208,7 +231,7 @@ export function initXr(ctx) {
     const vio = vioQ.slice(0, 50), imu = imuQ.slice(0, 50);
     const body = { vio_batch: vio.map((i) => i.s), imu_batch: imu.map((i) => i.s) };
     const r = await api('/api/position', { method: 'POST', body }).catch(() => null);
-    if (!r || r.status === 429) return false; // keep them; the next tick retries
+    if (!r || r.status === 429) { if (r) retryMs = retryAfterMs(r); return false; } // keep them; retried later
     const vMax = vio.length ? vio[vio.length - 1].id : 0, iMax = imu.length ? imu[imu.length - 1].id : 0;
     vioQ = vioQ.filter((i) => i.id > vMax); // remove what was sent, by id, after the answer
     imuQ = imuQ.filter((i) => i.id > iMax);
@@ -224,13 +247,17 @@ export function initXr(ctx) {
     return inFlight;
   }
   // Before a lock: everything queued (a reset or a loss included) must reach the server first.
+  // Posts are spread by paced(): a burst of drain posts must not starve the GNSS fixes of the limit.
+  async function drainStep(untilT) {
+    if (inFlight) { await inFlight; return { wait: 0 }; }
+    if (lastVioT !== null && lastVioT >= untilT) return true;
+    if (!vioQ.length) return false;
+    retryMs = 0;
+    if (await flush()) return { wait: 0 };
+    return retryMs ? { wait: retryMs } : false; // a 429 waits its Retry-After; no answer gives up
+  }
   async function drain(untilT) {
-    for (let i = 0; i < 8; i += 1) {
-      if (inFlight) { await inFlight; continue; }
-      if (lastVioT !== null && lastVioT >= untilT) return true;
-      if (!vioQ.length || !(await flush())) return false;
-    }
-    return lastVioT !== null && lastVioT >= untilT;
+    return (await paced(() => drainStep(untilT))) || (lastVioT !== null && lastVioT >= untilT);
   }
   function startFlush() { if (!flushTimer) flushTimer = setInterval(flush, SEND_EVERY_MS); }
 
