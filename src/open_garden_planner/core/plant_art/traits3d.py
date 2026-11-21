@@ -73,7 +73,15 @@ LEAF_SHAPES: Final[frozenset[str]] = frozenset({
     "pinnate",
     "cordate",
     "cupped",
+    #: Two rounded lobes joined at a notch - the butterfly leaf of Bauhinia / Phanera.
+    "bilobed",
+    #: A pinnately compound leaf: a rachis carrying pairs of leaflets (neem, ash, walnut).
+    "compound",
 })
+
+#: Allowed blossom forms: a cupped flower borne singly (the default), or a hanging
+#: panicle of small florets (neem, wisteria-like habit) - ``Traits3D.blossom_form``.
+BLOSSOM_FORMS: Final[frozenset[str]] = frozenset({"cup", "panicle"})
 
 #: Allowed 2D-sourced bark hex colours (from ``object_art.materials.MATERIALS`` and
 #: ``plant_art.recipes``; drift-guarded in ``tests/unit/test_plant_art.py``).
@@ -164,6 +172,13 @@ class Traits3D:
     fruit_months: tuple[int, ...]
     harvest_weeks: tuple[int, int] | None
     autumn_palette: str
+    #: Multiplier on the number of blossoms a plant carries in bloom (1 = the bundled
+    #: habit); a tree that is wreathed in flowers asks for more.
+    blossom_density: float = 1.0
+    #: Multiplier on the size of one blossom (1 = the bundled habit).
+    blossom_size: float = 1.0
+    #: ``"cup"`` or ``"panicle"`` (one of ``BLOSSOM_FORMS``).
+    blossom_form: str = "cup"
 
     @property
     def evergreen(self) -> bool:
@@ -800,7 +815,13 @@ MAX_OVERRIDE_JSON_CHARS: Final[int] = 4096
 OVERRIDE_TOP_KEYS: Final[frozenset[str]] = frozenset({
     "archetype", "palette", "autumn_palette", "deciduous", "blossom_spec",
     "bloom_months", "fruit_months", "crown", "branching", "leaf",
+    "blossom_density", "blossom_size", "blossom_form",
 })
+#: ``(lo, hi)`` of the numeric top-level blossom fields.
+BLOSSOM_BOUNDS: Final[dict[str, tuple[float, float]]] = {
+    "blossom_density": (0.2, 40.0),
+    "blossom_size": (0.2, 3.0),
+}
 #: ``(lo, hi)`` per numeric field of each sub-recipe: THE bounds, also served to agents.
 CROWN_BOUNDS: Final[dict[str, tuple[float, float]]] = {
     "trunk_share": (0.0, 0.85),
@@ -927,6 +948,13 @@ def validate_traits3d_override(raw: Any) -> dict[str, Any] | None:
     for key in ("bloom_months", "fruit_months"):
         if raw.get(key) is not None:
             clean[key] = list(_months(raw[key], key))
+    for key, (lo, hi) in BLOSSOM_BOUNDS.items():
+        if raw.get(key) is not None:
+            clean[key] = _num(raw[key], key, lo, hi)
+    if raw.get("blossom_form") is not None:
+        if not isinstance(raw["blossom_form"], str) or raw["blossom_form"] not in BLOSSOM_FORMS:
+            raise ValueError(f"blossom_form must be one of {sorted(BLOSSOM_FORMS)}")
+        clean["blossom_form"] = raw["blossom_form"]
     for key, bounds, extra in (
         ("crown", CROWN_BOUNDS, frozenset({"shape"})),
         ("branching", BRANCHING_BOUNDS, frozenset({"bark_color"})),
@@ -998,7 +1026,8 @@ def apply_traits_override(base: Traits3D, override: Mapping[str, Any] | None) ->
         return base
     fields: dict[str, Any] = {
         key: clean[key]
-        for key in ("archetype", "palette", "autumn_palette", "deciduous", "blossom_spec")
+        for key in ("archetype", "palette", "autumn_palette", "deciduous", "blossom_spec",
+                    "blossom_density", "blossom_size", "blossom_form")
         if key in clean
     }
     for key in ("bloom_months", "fruit_months"):
@@ -1050,6 +1079,8 @@ def resolve_traits(
 
 __all__ = [
     "BARK_BIRCH",
+    "BLOSSOM_BOUNDS",
+    "BLOSSOM_FORMS",
     "BRANCHING_BOUNDS",
     "CROWN_BOUNDS",
     "LEAF_BOUNDS",

@@ -5337,6 +5337,11 @@ Use 0.1 for DXF in mm, 100 for DXF in metres.</source>
         </message>
         <message>
             <location filename="../../resources/data/plant_species.json" line="1" />
+            <source>Neem</source>
+            <translation>Niembaum</translation>
+        </message>
+        <message>
+            <location filename="../../resources/data/plant_species.json" line="1" />
             <location filename="../../ui/widgets/gallery_data.py" line="272" />
             <source>Oak</source>
             <translation>Eiche</translation>

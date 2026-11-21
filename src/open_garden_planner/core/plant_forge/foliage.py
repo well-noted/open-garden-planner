@@ -247,11 +247,126 @@ def micro_leaves(
     return RawGeo(pos=pos, nrm=nrm, col=cols, uv=uv, tri=tri)
 
 
+def _bilobed_template() -> tuple[np.ndarray, np.ndarray]:
+    """Butterfly leaf: a broad round base and two lobes joined at a notch (6 triangles)."""
+    right = [(0.22, 0.38), (0.62, 0.50), (0.96, 0.30)]
+    verts = [(0.0, 0.0, 0.0)] + [(u, v, 1.0 if u > 0.9 else 0.0) for u, v in right]
+    verts.append((0.74, 0.0, 0.0))  # the notch between the lobes
+    verts += [(u, -v, 1.0 if u > 0.9 else 0.0) for u, v in reversed(right)]
+    tris = [(0, k, k + 1) for k in range(1, 7)]
+    return np.asarray(verts, dtype=np.float64), np.asarray(tris, dtype=np.int64)
+
+
+def _compound_template(pairs: int = 5) -> tuple[np.ndarray, np.ndarray]:
+    """A pinnately compound leaf: ``pairs`` wedge leaflets either side of the rachis
+    plus a terminal one (``2 * pairs + 1`` triangles). Mid-leaf leaflets are the broadest."""
+    verts: list[tuple[float, float, float]] = []
+    tris: list[tuple[int, int, int]] = []
+    for i in range(pairs):
+        u0 = 0.10 + 0.15 * i
+        reach = 0.5 * (0.62 + 0.38 * math.sin(math.pi * (i + 0.6) / (pairs + 0.4)))
+        for side in (1.0, -1.0):
+            base = len(verts)
+            verts += [(u0, 0.0, 0.0), (u0 + 0.10, 0.0, 0.0), (u0 + 0.24, side * reach, 1.0)]
+            tris.append((base, base + 1, base + 2) if side > 0 else (base, base + 2, base + 1))
+    base = len(verts)
+    verts += [(0.84, -0.08, 0.0), (1.0, 0.0, 1.0), (0.84, 0.08, 0.0)]
+    tris.append((base, base + 1, base + 2))
+    return np.asarray(verts, dtype=np.float64), np.asarray(tris, dtype=np.int64)
+
+
+#: Leaf shapes drawn as a template (vertices ``(u, v, tip)``, triangles, fold) instead
+#: of the diamond ``micro_leaves`` builds: ``u`` runs 0..1 along the leaf, ``v`` is
+#: the side in units of the leaf's width, ``fold`` how far the blade's edge rises
+#: above its midrib (a V-section: the leaf catches light).
+LEAF_TEMPLATES: dict[str, tuple[np.ndarray, np.ndarray, float]] = {
+    "bilobed": (*_bilobed_template(), 0.30),
+    "compound": (*_compound_template(), 0.22),
+}
+
+
+def leaf_triangles(shape: str) -> int:
+    """Triangles one leaf of ``shape`` costs (2 for the diamond every other shape draws)."""
+    template = LEAF_TEMPLATES.get(shape)
+    return 2 if template is None else int(len(template[1]))
+
+
+def template_leaves(
+    shape: str,
+    positions: np.ndarray,
+    outward: np.ndarray,
+    length: np.ndarray | float,
+    width: np.ndarray | float,
+    colors: np.ndarray,
+    rng: np.random.Generator,
+    *,
+    center: np.ndarray | None = None,
+    spherize: float = 0.72,
+    droop: float = 0.15,
+) -> RawGeo:
+    """Leaves of a ``LEAF_TEMPLATES`` shape at ``positions``; the frame, the normal
+    spherization and the wind weight are ``micro_leaves``'."""
+    verts, tris, fold = LEAF_TEMPLATES[shape]
+    pts = np.asarray(positions, dtype=np.float64).reshape(-1, 3)
+    k = len(pts)
+    if k == 0:
+        return empty_geo()
+    out = np.asarray(outward, dtype=np.float64).reshape(k, 3)
+    n0 = normalize_vec(out + rng.normal(0.0, 0.28, size=(k, 3)))
+    rnd = normalize_vec(rng.normal(0.0, 1.0, size=(k, 3)))
+    along = normalize_vec(rnd - (rnd * n0).sum(axis=1, keepdims=True) * n0)
+    along = normalize_vec(along - np.array([0.0, 0.0, float(droop)], dtype=np.float64))
+    side = normalize_vec(np.cross(along, n0))
+    ln = np.broadcast_to(np.asarray(length, dtype=np.float64).reshape(-1), (k,))[:, None, None]
+    wd = np.broadcast_to(np.asarray(width, dtype=np.float64).reshape(-1), (k,))[:, None, None]
+
+    u = verts[None, :, 0:1]
+    v = verts[None, :, 1:2]
+    # the template's own winding decides which way ``side`` must point for the blade's
+    # front to face ``n0`` (the same rule as the diamond's flip)
+    a, b, c = verts[tris[0], :2]
+    template_sign = float(np.sign((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])))
+    sgn = -template_sign
+    pos = (
+        pts[:, None, :]
+        + along[:, None, :] * (u * ln)
+        + side[:, None, :] * (sgn * v * wd)
+        + n0[:, None, :] * (fold * np.abs(v) * wd)
+    )
+    nv = len(verts)
+    pos = pos.reshape(-1, 3).astype(np.float32)
+
+    if center is not None and spherize > 0.0:
+        c0 = np.asarray(center, dtype=np.float64).reshape(1, 3)
+        radial = normalize_vec(pts - c0)
+        same_hemi = (radial * n0).sum(axis=1, keepdims=True) >= 0.0
+        radial = np.where(same_hemi, radial, n0)
+        n = normalize_vec(n0 * (1.0 - float(spherize)) + radial * float(spherize))
+    else:
+        n = n0
+    nrm = np.repeat(n.astype(np.float32), nv, axis=0)
+
+    cols = np.repeat(np.asarray(colors, dtype=np.float32).reshape(k, 4), nv, axis=0)
+    tip = np.tile(verts[:, 2], k)
+    cols[:, :3] = np.minimum(cols[:, :3] * (1.0 + 0.05 * tip[:, None]), 1.0)
+
+    z_max = max(float(pts[:, 2].max()), 1.0)
+    wind_weight = np.clip(pts[:, 2:3] / z_max, 0.0, 1.0).astype(np.float32)
+    phase = rng.random((k, 1), dtype=np.float32)
+    uv = np.concatenate([np.repeat(wind_weight, nv, axis=0), np.repeat(phase, nv, axis=0)], axis=1)
+
+    index = (tris[None, :, :] + (np.arange(k, dtype=np.int64) * nv)[:, None, None]).reshape(-1, 3)
+    return RawGeo(pos=pos, nrm=nrm, col=cols, uv=uv, tri=index.astype(np.uint32))
+
+
 __all__ = [
+    "LEAF_TEMPLATES",
     "RawGeo",
     "concat_geo",
     "empty_geo",
+    "leaf_triangles",
     "micro_leaves",
     "normalize_vec",
     "palette_leaf_colors",
+    "template_leaves",
 ]

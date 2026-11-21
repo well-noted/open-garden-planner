@@ -1070,7 +1070,7 @@ def _record_of(item: Any, object_type: Any, item_id: str, at_date: date | None,
         # A custom 3D recipe (specimen over species): geometry, so a recipe edit re-forges.
         instance = metadata.get("plant_instance")
         recipe = layered_recipe_json(
-            species.get("traits3d_override") if isinstance(species, dict) else None,
+            _species_recipe(species),
             instance.get("traits3d_override") if isinstance(instance, dict) else None,
         )
         if recipe:
@@ -1154,6 +1154,29 @@ def _record_of(item: Any, object_type: Any, item_id: str, at_date: date | None,
         holes=holes if any(holes) else (),
         outline=as_drawn,
     )
+
+
+
+def _species_recipe(species: object) -> object:
+    """The 3D recipe of a plant's species snapshot.
+
+    A plan placed before a bundled species gained its recipe carries a snapshot
+    without the key: the bundled record's own recipe applies, so an older plan draws
+    the species as today's library does. A snapshot that HAS the key (even an empty
+    one: the owner cleared it) is the owner's and is never replaced.
+    """
+    if not isinstance(species, dict):
+        return None
+    if "traits3d_override" in species:
+        return species["traits3d_override"]
+    from open_garden_planner.services.bundled_species_db import lookup_species
+
+    for name in (species.get("scientific_name"), species.get("common_name")):
+        if isinstance(name, str) and name.strip():
+            bundled = lookup_species(name.strip())
+            if bundled is not None:
+                return bundled.get("traits3d_override")
+    return None
 
 
 def snapshot_records(

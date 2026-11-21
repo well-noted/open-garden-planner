@@ -241,6 +241,14 @@ def build_fruit_accents(
     return _spheroids_geo(centers, r_xy, r_z, c_top, c_mid, c_bot, sides=sides)
 
 
+def _back_normals(front: np.ndarray) -> np.ndarray:
+    """Normals of a petal's back: the front's (the sun shines through a thin petal, so
+    the back is lit as the front is), nudged so the flat-normal pass keeps them."""
+    out = front.copy()
+    out[1::4, 2] += 4e-3
+    return out
+
+
 def _cupped_flowers_geo(
     centers: np.ndarray,
     outward_dirs: np.ndarray,
@@ -318,15 +326,94 @@ def _cupped_flowers_geo(
             col = np.tile(col_single, (n_flw, 1))
 
             base = (np.arange(n_flw, dtype=np.uint32) * 4)[:, None]
-            t0 = np.column_stack([base[:, 0], base[:, 0] + 1, base[:, 0] + 2])
-            t1 = np.column_stack([base[:, 0], base[:, 0] + 2, base[:, 0] + 3])
+            # Wound counter-clockwise seen from ``up_Axis``: the petal's front faces the
+            # way its normal does (a ``vc`` part is back-face culled; the other way
+            # round every petal vanished from outside the crown, leaving the bare disc)
+            t0 = np.column_stack([base[:, 0], base[:, 0] + 2, base[:, 0] + 1])
+            t1 = np.column_stack([base[:, 0], base[:, 0] + 3, base[:, 0] + 2])
             tri = np.empty((n_flw * 2, 3), dtype=np.uint32)
             tri[0::2] = t0
             tri[1::2] = t1
             uv = np.zeros((len(pos), 2), dtype=np.float32)
             geos.append(RawGeo(pos=pos, nrm=nrm, col=col, uv=uv, tri=tri))
+            # The back of the petal: a flower on the far side of the crown faces away
+            # from the camera, and a culled front would leave its bare disc. A petal is
+            # thin: the sun behind it shines through, so the back is lit like the front.
+            geos.append(RawGeo(pos=pos.copy(), nrm=_back_normals(nrm), col=col.copy(), uv=uv.copy(),
+                               tri=np.ascontiguousarray(tri[:, ::-1])))
 
     return concat_geo(geos)
+
+
+#: Florets of one hanging panicle at the finest level / a coarser one.
+_PANICLE_FLORETS: dict[bool, int] = {True: 4, False: 3}
+
+
+def _blossom_count(n_base: int, lod: int, traits: Traits3D) -> int:
+    """How many blossoms (or panicles) a plant carries at ``lod``."""
+    return max(3, round(n_base * (2 if lod == LOD0 else 1) * traits.blossom_density))
+
+
+def blossom_triangle_estimate(traits: Traits3D, lod: int) -> int:
+    """Triangles the spring ``blossom_spec`` blossoms will cost (0 = none): what a
+    builder that draws the crown first must leave room for."""
+    if lod == LOD2 or traits.blossom_spec is None:
+        return 0
+    flowers = recipe_for(traits.sprite).get("flowers")
+    n_base = int(flowers.get("n", 5)) if isinstance(flowers, Mapping) else 6
+    count = _blossom_count(n_base, lod, traits)
+    if traits.blossom_form == "panicle":
+        per = _PANICLE_FLORETS[lod == LOD0] * 16
+    else:
+        per = 40 if lod == LOD0 else 34
+    return count * per
+
+
+def _floret_clusters_geo(
+    anchors: np.ndarray,
+    cl_r: float,
+    florets_per: int,
+    pendulous: bool,
+    c_light: np.ndarray,
+    c_dark: np.ndarray,
+    c_occ: np.ndarray,
+    rng: np.random.Generator,
+    *,
+    lod: int,
+    sides: int | None = None,
+) -> RawGeo:
+    """Clusters of small florets hanging from (``pendulous``) or standing on ``anchors``."""
+    floret_pts: list[np.ndarray] = []
+    floret_rxy: list[float] = []
+    floret_rz: list[float] = []
+    for a_pt in anchors:
+        for f_i in range(florets_per):
+            frac = f_i / max(florets_per - 1, 1)
+            if pendulous:
+                # Hanging conical raceme
+                dz = -cl_r * 1.6 * frac
+                spread = cl_r * 0.45 * (1.0 - 0.65 * frac)
+            else:
+                # Upright panicle / corymb dome
+                dz = cl_r * 0.85 * frac
+                spread = cl_r * 0.55 * (1.0 - 0.45 * frac)
+            ang = f_i * 2.39996 + float(rng.uniform(-0.3, 0.3))
+            pt = a_pt + np.array([math.cos(ang) * spread, math.sin(ang) * spread, dz], dtype=np.float64)
+            floret_pts.append(pt)
+            fr = cl_r * (0.36 - 0.10 * frac)
+            floret_rxy.append(fr)
+            floret_rz.append(fr * (1.25 if pendulous else 0.95))
+
+    f_centers = np.asarray(floret_pts, dtype=np.float64)
+    return _spheroids_geo(
+        f_centers,
+        np.asarray(floret_rxy, dtype=np.float64),
+        np.asarray(floret_rz, dtype=np.float64),
+        c_light,
+        c_dark,
+        c_occ,
+        sides=sides if sides is not None else (5 if lod == LOD0 else 4),
+    )
 
 
 def build_blossom_accents(
@@ -367,7 +454,7 @@ def build_blossom_accents(
         c_light = _hex_to_linear_rgb(light_hex)
         c_center = _hex_to_linear_rgb(center_hex)
 
-        count = max(3, n_base * (2 if lod == LOD0 else 1))
+        count = _blossom_count(n_base, lod, traits)
         petals_lod = min(petals, 8 if lod == LOD0 else 5)
         anchors = _select_crown_anchors(
             anchor_points,
@@ -380,22 +467,31 @@ def build_blossom_accents(
         )
         crown_c = np.array([0.0, 0.0, height_cm * 0.45], dtype=np.float64)
         outward = normalize_vec(anchors - crown_c[None, :])
-        flw_r = np.clip(ref_r * 0.65 * plant_scale, 1.1, max(radius_cm * 0.18, 2.0)) * rng.uniform(
-            0.85, 1.15, size=len(anchors)
-        )
-        geos.append(
-            _cupped_flowers_geo(
-                anchors,
-                outward,
-                flw_r,
-                petals_lod,
-                c_outer,
-                c_light,
-                c_center,
-                rng,
-                double=double and lod == LOD0,
+        flw_r = np.clip(
+            ref_r * 0.65 * plant_scale * traits.blossom_size, 1.1, max(radius_cm * 0.18, 2.0)
+        ) * rng.uniform(0.85, 1.15, size=len(anchors))
+        if traits.blossom_form == "panicle":
+            # hanging racemes of small florets (neem): each anchor carries one
+            geos.append(
+                _floret_clusters_geo(
+                    anchors, float(np.mean(flw_r)) * 1.5, _PANICLE_FLORETS[lod == LOD0], True,
+                    c_light, c_outer, c_center, rng, lod=lod, sides=4,
+                )
             )
-        )
+        else:
+            geos.append(
+                _cupped_flowers_geo(
+                    anchors,
+                    outward,
+                    flw_r,
+                    petals_lod,
+                    c_outer,
+                    c_light,
+                    c_center,
+                    rng,
+                    double=double and lod == LOD0,
+                )
+            )
 
     # 2. `clusters` (lilac, hydrangea, rhododendron, viburnum, wisteria, chives, geranium)
     clusters_dict = recipe.get("clusters")
@@ -417,38 +513,10 @@ def build_blossom_accents(
             z_range=(0.45, 0.92),
             radial_range=(0.45, 0.88),
         )
-        is_pendulous = traits.sprite.name == "wisteria"
-        floret_pts: list[np.ndarray] = []
-        floret_rxy: list[float] = []
-        floret_rz: list[float] = []
-        for a_pt in anchors:
-            for f_i in range(florets_per):
-                frac = f_i / max(florets_per - 1, 1)
-                if is_pendulous:
-                    # Hanging conical raceme
-                    dz = -cl_r * 1.6 * frac
-                    spread = cl_r * 0.45 * (1.0 - 0.65 * frac)
-                else:
-                    # Upright panicle / corymb dome
-                    dz = cl_r * 0.85 * frac
-                    spread = cl_r * 0.55 * (1.0 - 0.45 * frac)
-                ang = f_i * 2.39996 + float(rng.uniform(-0.3, 0.3))
-                pt = a_pt + np.array([math.cos(ang) * spread, math.sin(ang) * spread, dz], dtype=np.float64)
-                floret_pts.append(pt)
-                fr = cl_r * (0.36 - 0.10 * frac)
-                floret_rxy.append(fr)
-                floret_rz.append(fr * (1.25 if is_pendulous else 0.95))
-
-        f_centers = np.asarray(floret_pts, dtype=np.float64)
         geos.append(
-            _spheroids_geo(
-                f_centers,
-                np.asarray(floret_rxy, dtype=np.float64),
-                np.asarray(floret_rz, dtype=np.float64),
-                c_light,
-                c_dark,
-                c_occ,
-                sides=5 if lod == LOD0 else 4,
+            _floret_clusters_geo(
+                anchors, cl_r, florets_per, traits.sprite.name == "wisteria",
+                c_light, c_dark, c_occ, rng, lod=lod,
             )
         )
 
@@ -881,6 +949,7 @@ __all__ = [
     "SEASONAL_PARTS",
     "attach_accents",
     "build_accents",
+    "blossom_triangle_estimate",
     "build_blossom_accents",
     "build_fruit_accents",
     "build_pod_accents",

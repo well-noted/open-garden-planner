@@ -21,6 +21,8 @@ from open_garden_planner.core.georeference import (
 from open_garden_planner.core.plant_art.recipes import ARCHETYPES, FLOWERS, FRUITS, PALETTES
 from open_garden_planner.core.plant_art.traits3d import (
     BARK_COLORS,
+    BLOSSOM_BOUNDS,
+    BLOSSOM_FORMS,
     BRANCHING_BOUNDS,
     CROWN_BOUNDS,
     CROWN_SHAPES,
@@ -57,6 +59,7 @@ def plant_archetype_catalogue() -> dict[str, Any]:
         "blossom_specs": sorted(FLOWERS),
         # Fruit styles are part of the 2D recipe, not of the 3D override: listed for reference.
         "fruit_styles_reference_only": sorted(FRUITS),
+        "blossom_forms": sorted(BLOSSOM_FORMS),
         "crown_shapes": sorted(CROWN_SHAPES),
         "leaf_shapes": sorted(LEAF_SHAPES),
         "bark_colors": sorted(BARK_COLORS),
@@ -67,6 +70,11 @@ def plant_archetype_catalogue() -> dict[str, Any]:
             "autumn_palette": "one of palettes (colour in autumn; deciduous only)",
             "deciduous": "bool: sheds its leaves in winter",
             "blossom_spec": "one of blossom_specs, or null for none",
+            "blossom_density": "x the blossoms a plant carries (1 = the bundled habit; "
+            f"{BLOSSOM_BOUNDS['blossom_density'][0]}..{BLOSSOM_BOUNDS['blossom_density'][1]})",
+            "blossom_size": "x the size of one blossom "
+            f"({BLOSSOM_BOUNDS['blossom_size'][0]}..{BLOSSOM_BOUNDS['blossom_size'][1]})",
+            "blossom_form": "one of blossom_forms: cup (single flowers) or panicle (hanging clusters)",
             "bloom_months": "list of months 1..12 (Northern-Hemisphere calendar)",
             "fruit_months": "list of months 1..12",
             "crown": {

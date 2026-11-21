@@ -5333,7 +5333,123 @@
         "ph_max"
       ],
       "notes": "Currently accepted name is Phanera variegata; Bauhinia variegata remains the nursery name. Semi-deciduous in Phoenix winters.",
-      "usda_symbol": "BAVA"
+      "usda_symbol": "BAVA",
+      "traits3d_override": {
+        "palette": "fresh",
+        "autumn_palette": "yellow",
+        "deciduous": true,
+        "blossom_spec": "magenta",
+        "bloom_months": [
+          2,
+          3,
+          4
+        ],
+        "blossom_density": 28.0,
+        "blossom_size": 1.0,
+        "crown": {
+          "shape": "spreading",
+          "trunk_share": 0.15,
+          "taper": -0.05,
+          "droop": 0.22,
+          "aspect_xy": 1.3
+        },
+        "branching": {
+          "attractors": 460,
+          "trunk_base_ratio": 0.03,
+          "apical_bias": 0.04,
+          "gnarl": 0.12,
+          "bark_color": "#5f584b",
+          "basal_stems": 3,
+          "fork_height_share": 0.1,
+          "fork_spread_deg": 32.0
+        },
+        "leaf": {
+          "shape": "bilobed",
+          "length_cm": 8.0,
+          "width_ratio": 1.0
+        }
+      }
+    },
+    {
+      "scientific_name": "Azadirachta indica",
+      "common_name": "Neem",
+      "aliases": [
+        "margosa",
+        "nim",
+        "indian lilac",
+        "azadirachta"
+      ],
+      "family": "Meliaceae",
+      "genus": "Azadirachta",
+      "cycle": "perennial",
+      "growth_rate": "fast",
+      "flower_type": "hermaphrodite",
+      "pollination_type": "self_fertile",
+      "min_height_cm": 1000.0,
+      "max_height_cm": 1500.0,
+      "min_spread_cm": 800.0,
+      "max_spread_cm": 1200.0,
+      "sun_requirement": "full_sun",
+      "water_needs": "low",
+      "hardiness_zone_min": 10,
+      "hardiness_zone_max": 11,
+      "ph_min": 6.0,
+      "ph_max": 8.5,
+      "edible": false,
+      "edible_parts": [],
+      "data_source": "bundled",
+      "frost_tolerance": "tender",
+      "nutrient_demand": "light",
+      "n_demand": "low",
+      "p_demand": "low",
+      "k_demand": "low",
+      "permaculture_layer": "canopy",
+      "functions": [],
+      "regions": [
+        "arizona_lower_desert"
+      ],
+      "uncertain_fields": [
+        "min_height_cm",
+        "max_height_cm",
+        "min_spread_cm",
+        "max_spread_cm",
+        "ph_min",
+        "ph_max"
+      ],
+      "notes": "Evergreen to semi-deciduous in Phoenix; leaves and young wood are damaged below about 0 C. Dense shade, fragrant white flowers in spring and olive-like yellow fruit in summer.",
+      "traits3d_override": {
+        "palette": "dark",
+        "deciduous": false,
+        "blossom_spec": "white",
+        "blossom_form": "panicle",
+        "bloom_months": [
+          3,
+          4,
+          5
+        ],
+        "blossom_density": 9.0,
+        "crown": {
+          "shape": "round",
+          "trunk_share": 0.1,
+          "taper": -0.05,
+          "droop": 0.34,
+          "aspect_xy": 1.2
+        },
+        "branching": {
+          "attractors": 700,
+          "pipe_exponent": 2.3,
+          "trunk_base_ratio": 0.042,
+          "apical_bias": 0.06,
+          "gnarl": 0.18,
+          "bark_color": "#3f2617",
+          "bark_shade": 0.85
+        },
+        "leaf": {
+          "shape": "compound",
+          "length_cm": 11.0,
+          "width_ratio": 0.55
+        }
+      }
     },
     {
       "scientific_name": "Nerium oleander",

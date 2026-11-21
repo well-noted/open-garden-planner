@@ -29,6 +29,7 @@ _NAMES = {
     "Saguaro": ("Saguaro", "Saguaro", "Сагуаро"),
     "Tipu Tree": ("Tipubaum", "Tipa", "Типуана"),
     "Orchid Tree": ("Orchideenbaum", "Árbol orquídea", "Орхидейное дерево"),
+    "Neem": ("Niembaum", "Nim", "Ним"),
     "Oleander": ("Oleander", "Adelfa", "Олеандр"),
     "Blue Palo Verde": ("Blauer Palo Verde", "Palo verde azul", "Паловерде голубой"),
     "Desert Ironwood": ("Wüsten-Eisenholz", "Palo fierro", "Пустынное железное дерево"),

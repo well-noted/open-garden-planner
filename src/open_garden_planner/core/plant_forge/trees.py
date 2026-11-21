@@ -13,14 +13,18 @@ import numpy as np
 from ..plant_art.traits3d import BranchingTraits, Traits3D
 from ..scene3d.color import srgb_to_linear
 from ..scene3d.mesh import MeshPart
+from .accents import blossom_triangle_estimate
 from .assemble import fit_forged_parts
 from .foliage import (
+    LEAF_TEMPLATES,
     RawGeo,
     crown_leaf_budget,
     empty_geo,
+    leaf_triangles,
     micro_leaves,
     normalize_vec,
     palette_leaf_colors,
+    template_leaves,
 )
 from .lod import LOD0, LOD1, lod_skeleton_budget, triangle_budget_for_lod, validate_lod
 from .skeleton import Skeleton, _sample_crown_attractors, grow_skeleton
@@ -49,7 +53,15 @@ def build_tree_foliage_from_skeleton(
         return empty_geo()
 
     reserve = 512 if lod == LOD0 else (128 if lod == LOD1 else 16)
-    max_leaves = max(1, (triangle_budget_for_lod(lod) - wood_tris - reserve) // 2)
+    # a tree wreathed in blossom (a custom recipe's density) needs its petals' room too
+    # (a bundled species' own habit is left as it was)
+    if traits.blossom_density != 1.0 or traits.blossom_form != "cup":
+        reserve = max(reserve, blossom_triangle_estimate(traits, lod) + 64)
+    # A drawn leaf shape (butterfly, compound) costs more than the diamond's 2
+    # triangles, at the finest level only: a far LOD keeps the diamond silhouette.
+    templated = lod == LOD0 and traits.leaf.shape in LEAF_TEMPLATES
+    leaf_tris = leaf_triangles(traits.leaf.shape) if templated else 2
+    max_leaves = max(1, (triangle_budget_for_lod(lod) - wood_tris - reserve) // leaf_tris)
     leaf_scale = 1.0 if lod == LOD0 else (1.6 if lod == LOD1 else 3.3)
     scale_factor = max(height_cm / 320.0, 0.35) * leaf_scale
     base_len = max(traits.leaf.length_cm * scale_factor * 1.45, 2.2)
@@ -96,6 +108,11 @@ def build_tree_foliage_from_skeleton(
     widths = lengths * traits.leaf.width_ratio * (1.15 if traits.leaf.frilly else 1.0)
 
     droop = traits.crown.droop + (0.38 if traits.crown.shape == "weeping" else 0.0)
+    if templated:
+        return template_leaves(
+            traits.leaf.shape, leaf_pts, outward, lengths, widths, colors, rng,
+            center=crown_center, spherize=0.74, droop=droop,
+        )
     return micro_leaves(
         leaf_pts,
         outward,

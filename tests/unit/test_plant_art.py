@@ -249,7 +249,7 @@ class TestTables:
 class TestResolution:
     def test_the_golden_covers_the_whole_sprite_set(self) -> None:
         answers = {sprite for *_rest, sprite in GOLDEN_ROWS if sprite}
-        assert len(GOLDEN_ROWS) == 1724 and len(answers) == 123
+        assert len(GOLDEN_ROWS) == 1728 and len(answers) == 123
         assert any(sprite is None for *_rest, sprite in GOLDEN_ROWS)
 
     @pytest.mark.parametrize("available", [None, _file_exists, resolve.has_recipe],
@@ -272,7 +272,7 @@ class TestResolution:
         exactly the committed rows."""
         script = _load_golden_script()
         assert script.golden_text() == GOLDEN.read_text(encoding="utf-8")
-        assert len(script.cases()) == len(GOLDEN_ROWS) == 1724
+        assert len(script.cases()) == len(GOLDEN_ROWS) == 1728
 
     def test_the_2d_renderer_resolves_through_it(self, qtbot, monkeypatch) -> None:
         from open_garden_planner.core import plant_renderer
@@ -585,7 +585,7 @@ class TestTheNameIsMatchedAsAWholeName:
 
     def test_the_rule_changes_nothing_else_in_the_bundled_data(self) -> None:
         """The blast radius, measured rather than asserted: of the bundled
-        species' 159 names, the new rule changes five names in all three plant kinds: the melon,
+        species' 160 names, the new rule changes five names in all three plant kinds: the melon,
         which was drawn as an eggplant; lemon balm, drawn as a lemon tree; and the cowpea
         (a pea), roselle (a rose) and prickly pear (a pea) added with the Arizona set."""
         bundled = json.loads(BUNDLED.read_text(encoding="utf-8"))["plants"]
@@ -640,7 +640,7 @@ class TestTheNameIsMatchedAsAWholeName:
         from open_garden_planner.core.object_types import ObjectType
 
         plants = json.loads(BUNDLED.read_text(encoding="utf-8"))["plants"]
-        assert len(plants) == 159
+        assert len(plants) == 160
         species_sprites = 0
         for record in plants:
             name = record["common_name"]
