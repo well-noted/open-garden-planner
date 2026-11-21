@@ -5105,6 +5105,10 @@ text, which is newline-agnostic.
 
 ## 8.23 Object Sprite Pipeline (#308, ADR-042)
 
+#### Recipe section note: leaf templates, blossom form, snapshot fallback
+
+A recipe's `leaf.shape` is drawn only for `bilobed` and `compound` (templates in `plant_forge/foliage.py`, finest LOD; every other shape is the diamond). `blossom_form` is `cup` or `panicle`; `blossom_density` and `blossom_size` scale count and size. A species snapshot without the `traits3d_override` key reads the bundled record's recipe through `traits3d.effective_species_recipe` (ADR-079 item 11), on every surface; a present key, even empty, never falls back.
+
 ### 8.23.1 One generator, 25 artifacts
 
 Every SVG under `resources/objects/{furniture,infrastructure}/` is produced by

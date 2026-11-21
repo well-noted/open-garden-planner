@@ -2151,6 +2151,9 @@ class PropertiesPanel(QWidget):
         metadata = getattr(item, "metadata", None)
         if kind not in RECIPE_KINDS or not isinstance(metadata, dict):
             return None
+        from open_garden_planner.core.plant_art.traits3d import effective_species_recipe
+        from open_garden_planner.services.bundled_species_db import lookup_species
+
         species = metadata.get("plant_species")
         instance = metadata.get("plant_instance")
         category = getattr(item, "plant_category", None)
@@ -2158,7 +2161,7 @@ class PropertiesPanel(QWidget):
             kind,
             str(getattr(item, "plant_species", "") or ""),
             category.name if category is not None else None,
-            species.get("traits3d_override") if isinstance(species, dict) else None,
+            effective_species_recipe(species, lookup_species),
             instance.get("traits3d_override") if isinstance(instance, dict) else None,
         )
 

@@ -29,7 +29,7 @@ import json
 import logging
 import math
 import re
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
 from typing import Any, Final
 
@@ -1000,6 +1000,34 @@ def override_signature(override: Mapping[str, Any] | None) -> str:
     return json.dumps(override, sort_keys=True, separators=(",", ":"))
 
 
+def effective_species_recipe(
+    species: object,
+    bundled_lookup: Callable[[str], Mapping[str, Any] | None] | None = None,
+) -> object:
+    """The ``traits3d_override`` a plant's species snapshot stands for: THE one reader.
+
+    A plan placed before a bundled species gained its recipe carries a snapshot without
+    the key; the bundled record's recipe (found by ``bundled_lookup``, a name -> record
+    function such as ``services.bundled_species_db.lookup_species``: ``core`` cannot
+    import ``services``) then applies, so an older plan is drawn, shown and edited as
+    today's library has the species. A snapshot that HAS the key, even ``None`` or
+    ``{}`` (the owner cleared it), is the owner's and never falls back.
+    """
+    if not isinstance(species, Mapping):
+        return None
+    if "traits3d_override" in species:
+        return species["traits3d_override"]
+    if bundled_lookup is None:
+        return None
+    for field in ("scientific_name", "common_name"):
+        name = species.get(field)
+        if isinstance(name, str) and name.strip():
+            bundled = bundled_lookup(name.strip())
+            if bundled is not None:
+                return bundled.get("traits3d_override")
+    return None
+
+
 def layered_recipe_json(species_raw: object, instance_raw: object) -> str:
     """The canonical JSON of the recipe a plant item carries ("" = none): THE one reader.
 
@@ -1107,6 +1135,7 @@ __all__ = [
     "LeafTraits",
     "Traits3D",
     "apply_traits_override",
+    "effective_species_recipe",
     "fruit_months_from_harvest_window",
     "layered_recipe_json",
     "merge_overrides",

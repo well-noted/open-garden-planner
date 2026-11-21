@@ -3009,7 +3009,10 @@ class AgentHost:
         host = self._host
         from open_garden_planner.agent_api.geo_recipes import RECIPE_TARGETS
         from open_garden_planner.core.commands import SetPlantRecipeCommand
-        from open_garden_planner.core.plant_art.traits3d import validate_traits3d_override
+        from open_garden_planner.core.plant_art.traits3d import (
+            effective_species_recipe,
+            validate_traits3d_override,
+        )
 
         if target not in RECIPE_TARGETS:
             raise ValueError(f"target must be one of {list(RECIPE_TARGETS)}, got {target!r}")
@@ -3028,7 +3031,12 @@ class AgentHost:
         container = item.metadata.get(
             "plant_instance" if command_target == "instance" else "plant_species"
         )
-        current = container.get("traits3d_override") if isinstance(container, dict) else None
+        if command_target == "species":  # what the 3D view draws, panel and agent agree on
+            from open_garden_planner.services.bundled_species_db import lookup_species
+
+            current = effective_species_recipe(container, lookup_species)
+        else:
+            current = container.get("traits3d_override") if isinstance(container, dict) else None
         on_apply = (
             host._agent_library_recipe_writer(item.metadata["plant_species"], clean)
             if target == "library"
@@ -3074,6 +3082,8 @@ class AgentHost:
         """``plan_species`` target: every plant of ``item``'s species on the plan, ONE undo step."""
         host = self._host
         from open_garden_planner.core.commands import CompoundCommand, SetPlantRecipeCommand
+        from open_garden_planner.core.plant_art.traits3d import effective_species_recipe
+        from open_garden_planner.services.bundled_species_db import lookup_species
         from open_garden_planner.ui.canvas.items import GardenItemMixin
 
         species = item.metadata.get("plant_species")
@@ -3093,7 +3103,7 @@ class AgentHost:
                 host._agent_resolve_plant(str(other.item_id), "set_plant_recipe")
             except ValueError:
                 continue
-            if clean == (theirs.get("traits3d_override") or None):
+            if clean == (effective_species_recipe(theirs, lookup_species) or None):
                 continue
             commands.append(SetPlantRecipeCommand(other, clean, target="species"))
         if not commands:

@@ -61,7 +61,10 @@ from open_garden_planner.core.container_model import container_material
 from open_garden_planner.core.object_height import effective_height_cm
 from open_garden_planner.core.object_types import PathFenceStyle, is_container_type
 from open_garden_planner.core.plant_art import PLANT_KINDS
-from open_garden_planner.core.plant_art.traits3d import layered_recipe_json
+from open_garden_planner.core.plant_art.traits3d import (
+    effective_species_recipe,
+    layered_recipe_json,
+)
 from open_garden_planner.core.plant_height_estimate import (
     ESTIMATED_HEIGHT_PARAM,
     estimated_height_cm,
@@ -134,6 +137,7 @@ from open_garden_planner.core.shadow_geometry import (
     polyline_footprint,
 )
 from open_garden_planner.models.plant_data import species_key
+from open_garden_planner.services.bundled_species_db import lookup_species
 from open_garden_planner.ui.canvas.footprints import (
     OUTLINE_CIRCLE,
     OUTLINE_POLYGON,
@@ -1070,7 +1074,7 @@ def _record_of(item: Any, object_type: Any, item_id: str, at_date: date | None,
         # A custom 3D recipe (specimen over species): geometry, so a recipe edit re-forges.
         instance = metadata.get("plant_instance")
         recipe = layered_recipe_json(
-            _species_recipe(species),
+            effective_species_recipe(species, lookup_species),
             instance.get("traits3d_override") if isinstance(instance, dict) else None,
         )
         if recipe:
@@ -1155,28 +1159,6 @@ def _record_of(item: Any, object_type: Any, item_id: str, at_date: date | None,
         outline=as_drawn,
     )
 
-
-
-def _species_recipe(species: object) -> object:
-    """The 3D recipe of a plant's species snapshot.
-
-    A plan placed before a bundled species gained its recipe carries a snapshot
-    without the key: the bundled record's own recipe applies, so an older plan draws
-    the species as today's library does. A snapshot that HAS the key (even an empty
-    one: the owner cleared it) is the owner's and is never replaced.
-    """
-    if not isinstance(species, dict):
-        return None
-    if "traits3d_override" in species:
-        return species["traits3d_override"]
-    from open_garden_planner.services.bundled_species_db import lookup_species
-
-    for name in (species.get("scientific_name"), species.get("common_name")):
-        if isinstance(name, str) and name.strip():
-            bundled = lookup_species(name.strip())
-            if bundled is not None:
-                return bundled.get("traits3d_override")
-    return None
 
 
 def snapshot_records(

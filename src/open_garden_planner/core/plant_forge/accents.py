@@ -357,7 +357,7 @@ def blossom_triangle_estimate(traits: Traits3D, lod: int) -> int:
     if traits.blossom_form == "panicle":
         per = _PANICLE_FLORETS[lod == LOD0] * 16
     else:
-        per = 40 if lod == LOD0 else 34
+        per = 40
     return count * per
 
 
@@ -940,8 +940,8 @@ __all__ = [
     "TUBER_PART",
     "SEASONAL_PARTS",
     "attach_accents",
-    "build_accents",
     "blossom_triangle_estimate",
+    "build_accents",
     "build_blossom_accents",
     "build_fruit_accents",
     "build_pod_accents",

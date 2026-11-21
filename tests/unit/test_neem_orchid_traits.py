@@ -179,3 +179,28 @@ class TestForgedGeometry:
         # as many petal faces wind up as down: a culled front alone would leave a flower
         # on the far side of a crown a bare disc
         assert abs(int((up > 0).sum()) - int((up < 0).sum())) < 0.4 * len(up)
+
+
+class TestEffectiveSpeciesRecipe:
+    def test_the_key_decides(self) -> None:
+        from open_garden_planner.core.plant_art.traits3d import effective_species_recipe
+
+        bundled = {"Neem": {"traits3d_override": {"palette": "dark"}}}
+        lookup = bundled.get
+        assert effective_species_recipe({"common_name": "Neem"}, lookup) == {"palette": "dark"}
+        assert effective_species_recipe({"common_name": "Neem"}) is None   # no lookup given
+        assert effective_species_recipe({"common_name": "Oak"}, lookup) is None
+        for owned in (None, {}, {"palette": "fresh"}):
+            assert effective_species_recipe(
+                {"common_name": "Neem", "traits3d_override": owned}, lookup) == owned
+        assert effective_species_recipe("Neem", lookup) is None
+
+
+@pytest.mark.parametrize("name", ["Azadirachta indica", "Bauhinia variegata"])
+@pytest.mark.parametrize("lod", [LOD0, LOD1])
+def test_the_blossom_estimate_matches_the_builder(name: str, lod: int) -> None:
+    traits = resolve_traits("TREE", name, override=_recipe(name))
+    assert traits is not None
+    geo = build_blossom_accents(traits, 600.0, 300.0, np.random.default_rng(2), lod=lod)
+    estimate = blossom_triangle_estimate(traits, lod)
+    assert geo.triangle_count <= estimate <= geo.triangle_count * 1.25

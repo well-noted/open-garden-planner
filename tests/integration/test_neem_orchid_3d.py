@@ -101,3 +101,45 @@ def test_the_two_trees_are_in_season_where_the_data_says(app: Any) -> None:
     assert o_summer.leaf_density > 0.9
     assert n_winter.leaf_density > 0.9               # the neem keeps its leaves
     assert n_spring.bloom > 0.5
+
+
+def _bare_species(item: Any) -> dict:
+    snapshot = dict(item.metadata["plant_species"])
+    snapshot.pop("traits3d_override", None)          # an older plan's species snapshot
+    item.metadata["plant_species"] = snapshot
+    return snapshot
+
+
+def test_snapshot_panel_and_agent_agree_for_a_pre_recipe_neem(app: Any) -> None:
+    from open_garden_planner.core.plant_art import recipe_edit as re_
+    from open_garden_planner.services.bundled_species_db import lookup_species
+    from open_garden_planner.ui.panels import PropertiesPanel
+
+    item = _tree(app, "Azadirachta indica", 600.0)
+    _bare_species(item)
+    bundled = lookup_species("Azadirachta indica")["traits3d_override"]
+
+    # 3D snapshot
+    assert json.loads(_record(app, item).params[PARAM_TRAITS3D_OVERRIDE]) == bundled
+    # properties panel: the same recipe goes into the panel's model
+    panel = PropertiesPanel(command_manager=app.canvas_view.command_manager)
+    inputs = panel._recipe_inputs(item)
+    assert inputs is not None and inputs[3] == bundled
+    view = re_.effective_recipe(*inputs)
+    assert view is not None and view.species_overridden
+    # agent: the plant already has the recipe 3D draws, so re-setting it is a no-op
+    with pytest.raises(ValueError, match="nothing to change"):
+        app._do_agent_set_plant_recipe(str(item.item_id), dict(bundled), "species")
+
+
+def test_a_present_empty_key_means_no_fallback_everywhere(app: Any) -> None:
+    from open_garden_planner.ui.panels import PropertiesPanel
+
+    item = _tree(app, "Azadirachta indica", 600.0)
+    snapshot = _bare_species(item)
+    for empty in (None, {}):
+        snapshot["traits3d_override"] = empty
+        item.metadata["plant_species"] = snapshot
+        assert PARAM_TRAITS3D_OVERRIDE not in _record(app, item).params
+        inputs = PropertiesPanel(command_manager=app.canvas_view.command_manager)._recipe_inputs(item)
+        assert inputs is not None and not inputs[3]
