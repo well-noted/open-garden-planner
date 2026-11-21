@@ -354,10 +354,7 @@ def blossom_triangle_estimate(traits: Traits3D, lod: int) -> int:
     flowers = recipe_for(traits.sprite).get("flowers")
     n_base = int(flowers.get("n", 5)) if isinstance(flowers, Mapping) else 6
     count = _blossom_count(n_base, lod, traits)
-    if traits.blossom_form == "panicle":
-        per = _PANICLE_FLORETS[lod == LOD0] * 16
-    else:
-        per = 40
+    per = _PANICLE_FLORETS[lod == LOD0] * 16 if traits.blossom_form == "panicle" else 40
     return count * per
 
 
