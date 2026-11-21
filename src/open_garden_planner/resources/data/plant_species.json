@@ -5344,8 +5344,8 @@
           3,
           4
         ],
-        "blossom_density": 28.0,
-        "blossom_size": 1.0,
+        "blossom_density": 22.0,
+        "blossom_size": 1.5,
         "crown": {
           "shape": "spreading",
           "trunk_share": 0.15,
@@ -5365,8 +5365,8 @@
         },
         "leaf": {
           "shape": "bilobed",
-          "length_cm": 8.0,
-          "width_ratio": 1.0
+          "length_cm": 5.0,
+          "width_ratio": 1.1
         }
       }
     },
@@ -5427,21 +5427,21 @@
           4,
           5
         ],
-        "blossom_density": 9.0,
+        "blossom_density": 6.0,
         "crown": {
           "shape": "round",
-          "trunk_share": 0.1,
+          "trunk_share": 0.18,
           "taper": -0.05,
           "droop": 0.34,
-          "aspect_xy": 1.2
+          "aspect_xy": 1.5
         },
         "branching": {
-          "attractors": 700,
+          "attractors": 800,
           "pipe_exponent": 2.3,
           "trunk_base_ratio": 0.042,
           "apical_bias": 0.06,
           "gnarl": 0.18,
-          "bark_color": "#3f2617",
+          "bark_color": "#4a3a2e",
           "bark_shade": 0.85
         },
         "leaf": {

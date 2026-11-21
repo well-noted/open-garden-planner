@@ -249,9 +249,9 @@ def micro_leaves(
 
 def _bilobed_template() -> tuple[np.ndarray, np.ndarray]:
     """Butterfly leaf: a broad round base and two lobes joined at a notch (6 triangles)."""
-    right = [(0.22, 0.38), (0.62, 0.50), (0.96, 0.30)]
+    right = [(0.22, 0.38), (0.62, 0.50), (1.0, 0.34)]
     verts = [(0.0, 0.0, 0.0)] + [(u, v, 1.0 if u > 0.9 else 0.0) for u, v in right]
-    verts.append((0.74, 0.0, 0.0))  # the notch between the lobes
+    verts.append((0.58, 0.0, 0.0))  # the notch between the lobes
     verts += [(u, -v, 1.0 if u > 0.9 else 0.0) for u, v in reversed(right)]
     tris = [(0, k, k + 1) for k in range(1, 7)]
     return np.asarray(verts, dtype=np.float64), np.asarray(tris, dtype=np.int64)

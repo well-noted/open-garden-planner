@@ -125,7 +125,7 @@ class TestSpeciesRecipes:
     def test_neem_is_evergreen_with_dark_bark(self) -> None:
         traits = resolve_traits("TREE", "Neem", override=_recipe("Azadirachta indica"))
         assert traits is not None and traits.evergreen
-        assert traits.branching.bark_color == "#3f2617" and traits.crown.trunk_share <= 0.15
+        assert traits.branching.bark_color == "#4a3a2e" and traits.crown.trunk_share <= 0.2
 
 
 class TestForgedGeometry:

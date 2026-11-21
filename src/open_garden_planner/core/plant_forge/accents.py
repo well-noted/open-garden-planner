@@ -241,14 +241,6 @@ def build_fruit_accents(
     return _spheroids_geo(centers, r_xy, r_z, c_top, c_mid, c_bot, sides=sides)
 
 
-def _back_normals(front: np.ndarray) -> np.ndarray:
-    """Normals of a petal's back: the front's (the sun shines through a thin petal, so
-    the back is lit as the front is), nudged so the flat-normal pass keeps them."""
-    out = front.copy()
-    out[1::4, 2] += 4e-3
-    return out
-
-
 def _cupped_flowers_geo(
     centers: np.ndarray,
     outward_dirs: np.ndarray,
@@ -339,14 +331,14 @@ def _cupped_flowers_geo(
             # The back of the petal: a flower on the far side of the crown faces away
             # from the camera, and a culled front would leave its bare disc. A petal is
             # thin: the sun behind it shines through, so the back is lit like the front.
-            geos.append(RawGeo(pos=pos.copy(), nrm=_back_normals(nrm), col=col.copy(), uv=uv.copy(),
+            geos.append(RawGeo(pos=pos.copy(), nrm=-nrm, col=col.copy(), uv=uv.copy(),
                                tri=np.ascontiguousarray(tri[:, ::-1])))
 
     return concat_geo(geos)
 
 
 #: Florets of one hanging panicle at the finest level / a coarser one.
-_PANICLE_FLORETS: dict[bool, int] = {True: 4, False: 3}
+_PANICLE_FLORETS: dict[bool, int] = {True: 6, False: 3}
 
 
 def _blossom_count(n_base: int, lod: int, traits: Traits3D) -> int:
@@ -474,7 +466,7 @@ def build_blossom_accents(
             # hanging racemes of small florets (neem): each anchor carries one
             geos.append(
                 _floret_clusters_geo(
-                    anchors, float(np.mean(flw_r)) * 1.5, _PANICLE_FLORETS[lod == LOD0], True,
+                    anchors, float(np.mean(flw_r)) * 2.4, _PANICLE_FLORETS[lod == LOD0], True,
                     c_light, c_outer, c_center, rng, lod=lod, sides=4,
                 )
             )
