@@ -703,6 +703,7 @@ class AgentHost:
         """
         host = self._host
         from open_garden_planner.core.canvas_bounds import clamp_shift_within_canvas
+        from open_garden_planner.core.item_geometry import scene_frame_rect
         from open_garden_planner.ui.canvas.items import BackgroundImageItem
 
         clampable = [i for i in items if not isinstance(i, BackgroundImageItem)]
@@ -711,10 +712,10 @@ class AgentHost:
         canvas = host.canvas_scene.canvas_rect
         rects = [
             (
-                bounded.sceneBoundingRect().left(),
-                bounded.sceneBoundingRect().top(),
-                bounded.sceneBoundingRect().right(),
-                bounded.sceneBoundingRect().bottom(),
+                scene_frame_rect(bounded).left(),
+                scene_frame_rect(bounded).top(),
+                scene_frame_rect(bounded).right(),
+                scene_frame_rect(bounded).bottom(),
             )
             for bounded in clampable
         ]
@@ -778,15 +779,16 @@ class AgentHost:
         from PyQt6.QtCore import QPointF as _QPointF
 
         from open_garden_planner.core.canvas_bounds import clamp_delta_within_canvas
+        from open_garden_planner.core.item_geometry import scene_frame_rect
         from open_garden_planner.ui.canvas.items import BackgroundImageItem
 
         canvas = host.canvas_scene.canvas_rect
         clampable_rects = [
             (
-                moved_item.sceneBoundingRect().left(),
-                moved_item.sceneBoundingRect().top(),
-                moved_item.sceneBoundingRect().right(),
-                moved_item.sceneBoundingRect().bottom(),
+                scene_frame_rect(moved_item).left(),
+                scene_frame_rect(moved_item).top(),
+                scene_frame_rect(moved_item).right(),
+                scene_frame_rect(moved_item).bottom(),
             )
             for moved_item, _ in item_deltas
             if not isinstance(moved_item, BackgroundImageItem)

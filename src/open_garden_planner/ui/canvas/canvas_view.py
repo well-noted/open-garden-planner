@@ -2421,6 +2421,7 @@ class CanvasView(QGraphicsView):
             items: The items to constrain.
         """
         from open_garden_planner.core.canvas_bounds import clamp_shift_within_canvas
+        from open_garden_planner.core.item_geometry import scene_frame_rect
         from open_garden_planner.ui.canvas.items import BackgroundImageItem
 
         # Filter out background images — they should move freely beyond the canvas
@@ -2431,7 +2432,7 @@ class CanvasView(QGraphicsView):
         canvas = self._canvas_scene.canvas_rect
         rects = [
             (r.left(), r.top(), r.right(), r.bottom())
-            for r in (item.sceneBoundingRect() for item in clampable)
+            for r in (scene_frame_rect(item) for item in clampable)
         ]
         dx, dy = clamp_shift_within_canvas(rects, canvas.width(), canvas.height())
 
@@ -2454,6 +2455,7 @@ class CanvasView(QGraphicsView):
             A clamped delta that keeps all items within the canvas boundary.
         """
         from open_garden_planner.core.canvas_bounds import clamp_delta_within_canvas
+        from open_garden_planner.core.item_geometry import scene_frame_rect
         from open_garden_planner.ui.canvas.items import BackgroundImageItem
 
         clampable = [i for i in items if not isinstance(i, BackgroundImageItem)]
@@ -2463,7 +2465,7 @@ class CanvasView(QGraphicsView):
         canvas = self._canvas_scene.canvas_rect
         rects = [
             (r.left(), r.top(), r.right(), r.bottom())
-            for r in (item.sceneBoundingRect() for item in clampable)
+            for r in (scene_frame_rect(item) for item in clampable)
         ]
         dx, dy = clamp_delta_within_canvas(
             rects, delta.x(), delta.y(), canvas.width(), canvas.height()
@@ -6109,11 +6111,12 @@ class CanvasView(QGraphicsView):
             Clamped list of (item, delta) tuples.
         """
         from open_garden_planner.core.canvas_bounds import clamp_delta_within_canvas
+        from open_garden_planner.core.item_geometry import scene_frame_rect
 
         canvas = self._canvas_scene.canvas_rect
         result: list[tuple[QGraphicsItem, QPointF]] = []
         for item, delta in item_deltas:
-            rect = item.sceneBoundingRect()
+            rect = scene_frame_rect(item)
             dx, dy = clamp_delta_within_canvas(
                 [(rect.left(), rect.top(), rect.right(), rect.bottom())],
                 delta.x(),

@@ -142,14 +142,16 @@ class TestGuiAgentParity:
         bed = RectangleItem(-50, 100, 200, 100, object_type=ObjectType.RAISED_BED)
         scene.addItem(bed)
 
-        rect = bed.sceneBoundingRect()
+        from open_garden_planner.core.item_geometry import scene_frame_rect
+
+        rect = scene_frame_rect(bed)
         before = (rect.left(), rect.top())
         expected_dx, expected_dy = clamp_shift_within_canvas(
             [(rect.left(), rect.top(), rect.right(), rect.bottom())], 1000.0, 800.0
         )
         view._clamp_items_to_canvas([bed])
 
-        after = bed.sceneBoundingRect()
+        after = scene_frame_rect(bed)
         assert abs(after.left() - (before[0] + expected_dx)) < 0.01
         assert abs(after.top() - (before[1] + expected_dy)) < 0.01
 
