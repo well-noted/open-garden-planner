@@ -46,6 +46,7 @@ from open_garden_planner.app.application import GardenPlannerApp
 from open_garden_planner.app.settings import get_settings
 from open_garden_planner.core import ProjectManager
 from open_garden_planner.core.commands import CreateItemCommand
+from open_garden_planner.core.item_geometry import scene_frame_rect
 from open_garden_planner.core.object_types import ObjectType
 from open_garden_planner.ui.canvas.canvas_view import CanvasView
 from open_garden_planner.ui.canvas.items import (
@@ -1966,7 +1967,7 @@ def test_create_object_is_clamped_to_the_canvas(canvas: Any, qtbot: Any) -> None
     created = body.result  # type: ignore[attr-defined]
     item = scene.find_item_by_id(UUID(created["item_id"]))
     assert item is not None
-    rect = item.sceneBoundingRect()
+    rect = scene_frame_rect(item)
     # The whole object lies inside the canvas after the clamp.
     assert rect.left() >= canvas_rect.left() - 0.01
     assert rect.top() >= canvas_rect.top() - 0.01
@@ -2010,7 +2011,7 @@ def test_move_object_is_clamped_to_the_canvas(canvas: Any, qtbot: Any) -> None:
     finally:
         server.stop()
 
-    rect = circle.sceneBoundingRect()
+    rect = scene_frame_rect(circle)
     canvas_rect = scene.canvas_rect
     assert rect.left() >= canvas_rect.left() - 0.01
     assert rect.top() >= canvas_rect.top() - 0.01
@@ -2019,6 +2020,43 @@ def test_move_object_is_clamped_to_the_canvas(canvas: Any, qtbot: Any) -> None:
     assert moved["bed_membership_changed"] is False
     assert view.command_manager.can_undo
     view.command_manager.undo()
+
+
+def test_move_object_ignores_the_spacing_ring_at_the_canvas_edge(
+    canvas: Any, qtbot: Any
+) -> None:
+    """A plant's spacing ring never holds it back from the plan edge (PF-CAN-64)."""
+    view = canvas
+    scene = view.scene()
+    circle = CircleItem(200, 200, 30, object_type=ObjectType.TREE)
+    circle.metadata["plant_species"] = {"max_spread_cm": 800}
+    scene.addItem(circle)
+    scene.set_spacing_circles_visible(True)
+    item_id = str(circle.item_id)
+
+    server, _ = start_server(_providers(view), write_token=TOKEN, writes_enabled=True)
+
+    async def body(ctx: Any) -> None:
+        http_client, ClientSession, url = ctx
+        headers = {"Authorization": f"Bearer {TOKEN}"}
+        async with (
+            http_client(url, headers=headers) as (r, w, _),
+            ClientSession(r, w) as session,
+        ):
+            await session.initialize()
+            # Body flush to the left edge; the 800 cm ring crosses it.
+            await session.call_tool(
+                "move_object", {"item_id": item_id, "dx": -170.0, "dy": 0.0}
+            )
+
+    try:
+        _run(server, body, qtbot)
+    finally:
+        server.stop()
+
+    assert scene_frame_rect(circle).left() == pytest.approx(
+        scene.canvas_rect.left(), abs=0.01
+    )
 
 
 def test_move_fully_clamped_away_is_refused_without_an_undo_step(
@@ -2266,13 +2304,13 @@ def test_clamped_house_create_and_position_are_one_undo_step_each(
         if item.parentItem() is None and item.sceneBoundingRect().width() < 1e6:
             if getattr(item, "item_id", None) is None:
                 continue
-            rect = item.sceneBoundingRect()
+            rect = scene_frame_rect(item)
             assert rect.left() >= canvas_rect.left() - 0.01
             assert rect.top() >= canvas_rect.top() - 0.01
     tree = scene.find_item_by_id(UUID(body.circle["item_id"]))  # type: ignore[attr-defined]
     assert tree is not None
-    assert tree.sceneBoundingRect().left() >= canvas_rect.left() - 0.01
-    assert tree.sceneBoundingRect().top() >= canvas_rect.top() - 0.01
+    assert scene_frame_rect(tree).left() >= canvas_rect.left() - 0.01
+    assert scene_frame_rect(tree).top() >= canvas_rect.top() - 0.01
 
 
 @pytest.mark.skipif(not ENCANTO.exists(), reason="Encanto plan copy not available")

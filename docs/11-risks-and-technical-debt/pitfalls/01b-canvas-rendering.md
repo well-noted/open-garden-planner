@@ -182,3 +182,13 @@ grabbing the viewport alone removes its offset in the backing store. Retain
 the host window's Python wrapper; `qtbot.addWidget` keeps only a weak reference.
 For a clipped minimap frame, put the view inside the plan before testing a
 pan: moving an already-outside viewport may leave the frame clipped to zero.
+
+### PF-CAN-64
+
+- **Rule:** A move, nudge or paste is clamped to the plan by the object's geometric frame (`core/item_geometry.scene_frame_rect`), never by `sceneBoundingRect()`: paint bounds include the spacing ring, so a plant near the plan edge is shoved back by the ring's radius, which reads as a keep-out around walls and fences.
+- **Pinned by:** `tests/integration/test_plant_move_is_free.py`
+- **Source:** owner report, Encanto plan (plants could not be dragged against the fence at the plan's edge)
+- **Status:** standing; narrative in [debug-verbose: Case study: a plant that could not touch the fence (spacing ring in the canvas clamp)](../../../.claude/skills/debug-verbose/references/264-plant-keepout-canvas-clamp.md)
+- **Legacy:** none (new entry)
+
+The canvas clamp (`CanvasView._clamp_items_to_canvas`, `_clamp_delta_to_canvas`, the arrow-nudge/paste delta clamp and the Agent API's twin in `agent_host`) fed `sceneBoundingRect()` to `canvas_bounds`. For a plant that rectangle includes the spacing ring (800 cm spread: 400 cm of ring), so a plant 50 cm wide at x=3810 on a 3940 cm plan was pulled to x=3745.6 on every mouse move. Snapping, constraints, the solver and the species data were all innocent. Same lesson as #841 for snapping: decorations never decide where an object may stand.

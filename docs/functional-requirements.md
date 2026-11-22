@@ -378,6 +378,7 @@ Pre-defined object types for common property elements:
 
 - **FR-SNAP-01**: Snap to object edges and centers, with visual guide lines. Both moving selections and targets use geometric object frames; spacing rings, badges and other paint overflow do not move anchors (#841).
 - **FR-SNAP-02**: Align left, right, top, bottom, horizontal center and vertical center using geometric object frames, including rotated items and group members; diagnostic decorations have no effect (#841).
+- **FR-SNAP-13**: A drag, nudge or paste is limited to the plan by the object's geometric frame only. A plant's spacing ring, canopy or other paint overflow never keeps it away from the plan edge, a wall or a fence; spacing stays an advisory diagnostic that never blocks or displaces a move.
 - **FR-SNAP-03**: Distribute horizontally or vertically by geometric frame centers, independently of diagnostic paint (#841).
 - **FR-SNAP-11**: Snap toggleable independently from grid snap
 - **FR-SNAP-12**: Visual snap guide lines during drag operations

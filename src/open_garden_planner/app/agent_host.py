@@ -703,19 +703,19 @@ class AgentHost:
         """
         host = self._host
         from open_garden_planner.core.canvas_bounds import clamp_shift_within_canvas
+        from open_garden_planner.core.item_geometry import scene_frame_rect
         from open_garden_planner.ui.canvas.items import BackgroundImageItem
+
+        def _frame_tuple(it: Any) -> tuple[float, float, float, float]:
+            r = scene_frame_rect(it)
+            return (r.left(), r.top(), r.right(), r.bottom())
 
         clampable = [i for i in items if not isinstance(i, BackgroundImageItem)]
         if not clampable:
             return
         canvas = host.canvas_scene.canvas_rect
         rects = [
-            (
-                bounded.sceneBoundingRect().left(),
-                bounded.sceneBoundingRect().top(),
-                bounded.sceneBoundingRect().right(),
-                bounded.sceneBoundingRect().bottom(),
-            )
+            _frame_tuple(bounded)
             for bounded in clampable
         ]
         dx, dy = clamp_shift_within_canvas(rects, canvas.width(), canvas.height())
@@ -778,16 +778,16 @@ class AgentHost:
         from PyQt6.QtCore import QPointF as _QPointF
 
         from open_garden_planner.core.canvas_bounds import clamp_delta_within_canvas
+        from open_garden_planner.core.item_geometry import scene_frame_rect
         from open_garden_planner.ui.canvas.items import BackgroundImageItem
+
+        def _frame_tuple(it: Any) -> tuple[float, float, float, float]:
+            r = scene_frame_rect(it)
+            return (r.left(), r.top(), r.right(), r.bottom())
 
         canvas = host.canvas_scene.canvas_rect
         clampable_rects = [
-            (
-                moved_item.sceneBoundingRect().left(),
-                moved_item.sceneBoundingRect().top(),
-                moved_item.sceneBoundingRect().right(),
-                moved_item.sceneBoundingRect().bottom(),
-            )
+            _frame_tuple(moved_item)
             for moved_item, _ in item_deltas
             if not isinstance(moved_item, BackgroundImageItem)
         ]

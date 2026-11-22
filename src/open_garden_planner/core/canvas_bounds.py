@@ -111,8 +111,8 @@ def rect_intersects_canvas(
     (``core/project.diagnostics_snapshot``) passes the **rotation-expanded**
     ``sceneBoundingRect()``. So for a strongly rotated object near an edge the
     flag and the diagnostic can disagree; that is a known, documented
-    simplification, not a second clamp rule (the clamp itself always uses live
-    bounding rects).
+    simplification, not a second clamp rule (the clamp itself uses the geometric
+    frame, never paint bounds, so a spacing ring cannot hold an object back).
 
     An empty/zero-size canvas (width or height <= 0) returns True so a
     degenerate plan does not flag every object as off-plan.
