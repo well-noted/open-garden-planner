@@ -706,17 +706,16 @@ class AgentHost:
         from open_garden_planner.core.item_geometry import scene_frame_rect
         from open_garden_planner.ui.canvas.items import BackgroundImageItem
 
+        def _frame_tuple(it: Any) -> tuple[float, float, float, float]:
+            r = scene_frame_rect(it)
+            return (r.left(), r.top(), r.right(), r.bottom())
+
         clampable = [i for i in items if not isinstance(i, BackgroundImageItem)]
         if not clampable:
             return
         canvas = host.canvas_scene.canvas_rect
         rects = [
-            (
-                scene_frame_rect(bounded).left(),
-                scene_frame_rect(bounded).top(),
-                scene_frame_rect(bounded).right(),
-                scene_frame_rect(bounded).bottom(),
-            )
+            _frame_tuple(bounded)
             for bounded in clampable
         ]
         dx, dy = clamp_shift_within_canvas(rects, canvas.width(), canvas.height())
@@ -782,14 +781,13 @@ class AgentHost:
         from open_garden_planner.core.item_geometry import scene_frame_rect
         from open_garden_planner.ui.canvas.items import BackgroundImageItem
 
+        def _frame_tuple(it: Any) -> tuple[float, float, float, float]:
+            r = scene_frame_rect(it)
+            return (r.left(), r.top(), r.right(), r.bottom())
+
         canvas = host.canvas_scene.canvas_rect
         clampable_rects = [
-            (
-                scene_frame_rect(moved_item).left(),
-                scene_frame_rect(moved_item).top(),
-                scene_frame_rect(moved_item).right(),
-                scene_frame_rect(moved_item).bottom(),
-            )
+            _frame_tuple(moved_item)
             for moved_item, _ in item_deltas
             if not isinstance(moved_item, BackgroundImageItem)
         ]

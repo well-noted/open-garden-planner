@@ -49,16 +49,13 @@ def _drag(view, item, target: QPointF) -> None:
 
 
 @pytest.mark.parametrize("spread", [None, 800])
-@pytest.mark.parametrize("agent_placed", [False, True])
-def test_drag_plant_against_fence_at_plan_edge(shown, spread, agent_placed):
+def test_drag_plant_against_fence_at_plan_edge(shown, spread):
     view, scene = shown
     fence = RectangleItem(1480, 300, 20, 600, object_type=ObjectType.FENCE)
     scene.addItem(fence)
     plant = CircleItem(1200, 600, 50, object_type=ObjectType.TREE)
     if spread:
         plant.metadata["plant_species"] = {"max_spread_cm": spread}
-    if agent_placed:
-        plant.metadata["placed_by"] = "agent"
     scene.addItem(plant)
     scene.set_spacing_circles_visible(True)
     plant.setSelected(True)

@@ -2022,6 +2022,43 @@ def test_move_object_is_clamped_to_the_canvas(canvas: Any, qtbot: Any) -> None:
     view.command_manager.undo()
 
 
+def test_move_object_ignores_the_spacing_ring_at_the_canvas_edge(
+    canvas: Any, qtbot: Any
+) -> None:
+    """A plant's spacing ring never holds it back from the plan edge (PF-CAN-64)."""
+    view = canvas
+    scene = view.scene()
+    circle = CircleItem(200, 200, 30, object_type=ObjectType.TREE)
+    circle.metadata["plant_species"] = {"max_spread_cm": 800}
+    scene.addItem(circle)
+    scene.set_spacing_circles_visible(True)
+    item_id = str(circle.item_id)
+
+    server, _ = start_server(_providers(view), write_token=TOKEN, writes_enabled=True)
+
+    async def body(ctx: Any) -> None:
+        http_client, ClientSession, url = ctx
+        headers = {"Authorization": f"Bearer {TOKEN}"}
+        async with (
+            http_client(url, headers=headers) as (r, w, _),
+            ClientSession(r, w) as session,
+        ):
+            await session.initialize()
+            # Body flush to the left edge; the 800 cm ring crosses it.
+            await session.call_tool(
+                "move_object", {"item_id": item_id, "dx": -170.0, "dy": 0.0}
+            )
+
+    try:
+        _run(server, body, qtbot)
+    finally:
+        server.stop()
+
+    assert scene_frame_rect(circle).left() == pytest.approx(
+        scene.canvas_rect.left(), abs=0.01
+    )
+
+
 def test_move_fully_clamped_away_is_refused_without_an_undo_step(
     canvas: Any, qtbot: Any
 ) -> None:
